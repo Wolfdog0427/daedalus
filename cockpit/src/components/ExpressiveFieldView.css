@@ -1,0 +1,36 @@
+.expressive-field {
+  overflow-x: auto;
+}
+
+.field-svg {
+  display: block;
+  margin: 8px auto;
+}
+
+.field-label {
+  fill: var(--text, #c9d1d9);
+  font-size: 0.7rem;
+  font-family: var(--mono, monospace);
+}
+
+.field-glow {
+  transition: r 0.3s ease, opacity 0.3s ease;
+}
+
+.field-risk {
+  transition: r 0.3s ease;
+}
+
+@keyframes field-pulse {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.field-node--pulse {
+  animation: field-pulse 0.35s ease-out;
+}
+
+.field-node--pulse .field-glow {
+  filter: drop-shadow(0 0 6px rgba(80, 160, 255, 0.6));
+}

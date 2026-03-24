@@ -1,0 +1,124 @@
+/* ═══════════════════════════════════════════════════════════
+   Scene Surfaces — CSS consuming --surface-* custom properties
+   set by useSceneSurfaces on the orchestrator root element.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Background gradient ──────────────────────────────────── */
+
+.daedalus-orchestrator-panel {
+  background: var(--surface-background, linear-gradient(180deg, #0a0a0a 0%, #000 100%));
+  transition: background 600ms ease;
+}
+
+/* ── Ambient glow field ───────────────────────────────────── */
+
+.daedalus-orchestrator-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 calc(var(--surface-glow-strength, 0.3) * 40px)
+    var(--surface-glow-color, #7a8a9a);
+  opacity: var(--surface-glow-strength, 0.3);
+  transition: box-shadow 400ms ease, opacity 400ms ease;
+}
+
+/* ── Ribbon tone highlights ───────────────────────────────── */
+
+.surface-ribbon-focused .continuity-ribbon {
+  border-color: #4da3ff;
+}
+
+.surface-ribbon-celebratory .continuity-ribbon {
+  border-color: #ffd86b;
+}
+
+.surface-ribbon-alert .continuity-ribbon {
+  border-color: #ff4d4d;
+}
+
+.surface-ribbon-neutral .continuity-ribbon {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Narrative whisper ────────────────────────────────────── */
+
+.narrative-whisper {
+  font-size: 0.75rem;
+  font-style: italic;
+  opacity: 0.7;
+  padding: 2px 0;
+  transition: opacity 300ms ease, color 300ms ease;
+  animation: whisperFadeIn 400ms ease both;
+}
+
+.narrative-whisper--neutral {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.narrative-whisper--focused {
+  color: #4da3ff;
+}
+
+.narrative-whisper--celebratory {
+  color: #ffd86b;
+}
+
+.narrative-whisper--alert {
+  color: #ff4d4d;
+}
+
+@keyframes whisperFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 0.7;
+    transform: translateY(0);
+  }
+}
+
+/* ── Motion emphasis on physiology components ─────────────── */
+
+.daedalus-header__physiology {
+  transition: gap 400ms ease;
+}
+
+/* ── Node panel glow accent ───────────────────────────────── */
+
+.daedalus-section {
+  border-left: 2px solid transparent;
+  transition: border-color 400ms ease;
+}
+
+.surface-ribbon-focused .daedalus-section {
+  border-left-color: rgba(77, 163, 255, 0.15);
+}
+
+.surface-ribbon-alert .daedalus-section {
+  border-left-color: rgba(255, 77, 77, 0.15);
+}
+
+.surface-ribbon-celebratory .daedalus-section {
+  border-left-color: rgba(255, 216, 107, 0.15);
+}
+
+/* ── Reduced motion ───────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .daedalus-orchestrator-panel {
+    transition: none;
+  }
+  .daedalus-orchestrator-panel::before {
+    transition: none;
+  }
+  .narrative-whisper {
+    animation: none;
+    transition: none;
+  }
+  .daedalus-section {
+    transition: none;
+  }
+}

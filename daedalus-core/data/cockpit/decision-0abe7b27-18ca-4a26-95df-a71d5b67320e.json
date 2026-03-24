@@ -1,0 +1,63 @@
+{
+  "cycle_id": "0abe7b27-18ca-4a26-95df-a71d5b67320e",
+  "candidate_snapshot_id": "e799b8ba-de1e-4c46-97bb-5764ed7dfdea",
+  "cockpit_snapshot_id": "1773603965521",
+  "best_candidate": {
+    "candidate": {
+      "id": "patch-0",
+      "goal": "consistency scan",
+      "strategy": "generic_improvement",
+      "notes": {
+        "diagnostics_hint": "use diagnostics to focus on weak areas",
+        "stability_hint": "do not reduce stability"
+      }
+    },
+    "sandbox": {
+      "success": true,
+      "candidate_snapshot_id": "776c5cdc-27aa-41a8-9a82-e41af709b45b",
+      "diagnostics": {
+        "subsystem": "sandbox",
+        "pipeline_stage": "sandbox_diagnostics",
+        "error_message": "",
+        "parsed_intent": "",
+        "resolver_target": "",
+        "user_input": ""
+      },
+      "stability": {
+        "stability_score": 0.5,
+        "risk": "medium",
+        "notes": {
+          "placeholder": "Real stability evaluation not implemented yet."
+        }
+      },
+      "meta": {
+        "baseline_snapshot_id": "baseline",
+        "patch": {
+          "id": "patch-0",
+          "goal": "consistency scan",
+          "strategy": "generic_improvement",
+          "notes": {
+            "diagnostics_hint": "use diagnostics to focus on weak areas",
+            "stability_hint": "do not reduce stability"
+          }
+        },
+        "max_iterations": 1,
+        "strict_safety": true
+      }
+    },
+    "scores": {
+      "improvement_score": 0.5,
+      "risk_score": 0.5,
+      "trust_score": 0.6
+    },
+    "stability": {
+      "stability_score": 0.5,
+      "risk": "medium",
+      "notes": {
+        "placeholder": "Real stability evaluation not implemented yet."
+      }
+    }
+  },
+  "decision": "accepted",
+  "timestamp": "2026-03-15_19-46-05"
+}

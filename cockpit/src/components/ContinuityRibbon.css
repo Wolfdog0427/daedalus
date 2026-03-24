@@ -1,0 +1,75 @@
+/* ── Continuity Ribbon ────────────────────────────────────────────── */
+
+.continuity-ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 0.72rem;
+  color: var(--text-dim, #8b949e);
+}
+
+.ribbon-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(48, 54, 61, 0.4);
+  transition:
+    background var(--cin-duration-swift, 250ms) var(--cin-easing-shift),
+    color var(--cin-duration-swift, 250ms) var(--cin-easing-shift);
+}
+
+.ribbon-signal__icon {
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.ribbon-signal__name {
+  font-weight: 600;
+  color: var(--text, #e6edf3);
+}
+
+.ribbon-signal__label {
+  opacity: 0.85;
+}
+
+.ribbon-signal__detail {
+  opacity: 0.6;
+  font-size: 0.65rem;
+}
+
+/* Kind-specific tints */
+
+.ribbon-signal--recency {
+  border-left: 2px solid var(--accent, #58a6ff);
+}
+
+.ribbon-signal--streak {
+  border-left: 2px solid var(--text-dim, #8b949e);
+}
+
+.ribbon-signal--threshold {
+  border-left: 2px solid var(--yellow, #d29922);
+  background: rgba(210, 153, 34, 0.06);
+}
+
+.ribbon-signal--drift-recovery {
+  border-left: 2px solid var(--green, #3fb950);
+  background: rgba(63, 185, 80, 0.06);
+}
+
+.ribbon-signal--anchor {
+  border-left: 2px solid var(--accent, #58a6ff);
+  background: rgba(88, 166, 255, 0.04);
+}
+
+/* ── Accessibility ─────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .ribbon-signal {
+    transition: none;
+  }
+}

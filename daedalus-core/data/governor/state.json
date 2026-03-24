@@ -1,0 +1,45 @@
+{
+  "updated_at": "2026-03-15T21:57:11.393699Z",
+  "autonomy_mode": "permissive",
+  "current_tier": 3,
+  "locked": false,
+  "drift": {
+    "level": "high",
+    "score": 0.9
+  },
+  "stability": {
+    "score": 0.5,
+    "risk": "medium"
+  },
+  "weakest_subsystem": {
+    "name": "test_module",
+    "score": 0.3,
+    "risk": "high"
+  },
+  "patch_history": {
+    "total_cycles": 0,
+    "successful_patches": 0,
+    "failed_patches": 0,
+    "reverted_patches": 0,
+    "recent_failures": []
+  },
+  "proposals": {
+    "pending": [
+      "prop-f0b5cd74-d7e2-40b7-b267-e723c28ee66a"
+    ],
+    "recent_decisions": [
+      {
+        "id": "prop-d2e86f9a-d1a2-4b06-a43e-70193755a0a9",
+        "status": "approved",
+        "tier": 2,
+        "decided_by": "user",
+        "decided_at": "2026-03-15T21:49:28.776810Z"
+      }
+    ]
+  },
+  "escalation": {
+    "tier2_recommended": true,
+    "tier3_recommended": false,
+    "tier3_block_reason": "stability_low"
+  }
+}

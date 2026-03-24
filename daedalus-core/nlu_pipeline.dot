@@ -1,0 +1,14 @@
+digraph NLU_Pipeline {
+  rankdir=LR;
+  node [shape=box, style=filled, color=lightgray];
+
+  raw_text        [label="Raw Text"];
+  matcher         [label="Matcher (tokenize + fuzzy repair)"];
+  normalizer      [label="Normalizer (multi-word verbs + vague refs)"];
+  classifier      [label="Intent Classifier"];
+  adapter         [label="Resolver Adapter"];
+  resolver        [label="Context Resolver"];
+  engine          [label="Execution Engine"];
+
+  raw_text -> matcher -> normalizer -> classifier -> adapter -> resolver -> engine;
+}

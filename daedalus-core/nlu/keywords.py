@@ -1,0 +1,135 @@
+"""
+Keyword libraries for the Natural Language Understanding (NLU) layer.
+
+This version implements Option A:
+    - “add” verbs are recognized as a verb family
+    - but they do NOT map to any canonical intent directly
+    - the classifier decides whether they mean create_goal or add_step
+"""
+
+# ------------------------------------------------------------
+# ACTION VERB FAMILIES
+# ------------------------------------------------------------
+
+COMPLETE_VERBS = [
+    "complete", "finish", "wrap", "wrap up", "check", "check off",
+    "mark", "mark done", "resolve", "finalize", "close", "close out",
+    "end",
+]
+
+DELETE_VERBS = [
+    "delete", "remove", "discard", "trash", "erase", "drop",
+    "eliminate", "get rid", "get rid of",
+]
+
+RENAME_VERBS = [
+    "rename", "retitle", "change", "change name", "edit name",
+    "update title", "modify title",
+]
+
+# ⭐ ADD VERBS — semantic-only (Option A)
+ADD_VERBS = [
+    "add", "insert", "append", "make", "create", "start", "begin",
+]
+
+SWITCH_VERBS = [
+    "switch", "go", "go to", "jump", "jump to", "focus", "focus on",
+    "move to", "activate", "open",
+]
+
+MOVE_VERBS = [
+    "move", "shift", "reorder", "relocate", "put", "place",
+]
+
+RESET_VERBS = [
+    "reset", "clear", "wipe", "restart", "reinitialize",
+]
+
+SHOW_VERBS = [
+    "show", "display", "view",
+]
+
+UNDO_VERBS = ["undo"]
+REDO_VERBS = ["redo"]
+SAVE_VERBS = ["save"]
+RESTORE_VERBS = ["restore"]
+
+# ------------------------------------------------------------
+# OBJECT FAMILIES
+# ------------------------------------------------------------
+
+STEP_WORDS = [
+    "step", "task", "item", "thing", "action", "todo",
+]
+
+GOAL_WORDS = [
+    "goal", "project", "mission", "objective", "plan",
+]
+
+# ------------------------------------------------------------
+# VAGUE REFERENCE PHRASES
+# ------------------------------------------------------------
+
+STEP_REFERENCE_PHRASES = [
+    "it", "that", "that step", "the last one", "the previous step",
+    "the last step", "the one i just did", "the one i just finished",
+    "finish it", "finish that", "finish the last one",
+]
+
+GOAL_REFERENCE_PHRASES = [
+    "my last goal", "the last goal", "the previous goal",
+    "the one i just created",
+]
+
+# ------------------------------------------------------------
+# MODIFIER CLUSTERS
+# ------------------------------------------------------------
+
+MODIFIERS = {
+    "next":     ["next", "after", "following"],
+    "previous": ["previous", "before", "earlier"],
+    "first":    ["first", "top", "beginning"],
+    "last":     ["last", "final", "end"],
+}
+
+# ------------------------------------------------------------
+# INTENT CLUSTERS
+# ------------------------------------------------------------
+
+# ⭐ IMPORTANT:
+# ADD_VERBS are NOT mapped to any canonical intent here.
+# They are semantic-only and resolved in intent_classifier.
+
+INTENT_CLUSTERS = {
+    "complete_step":       COMPLETE_VERBS,
+    "delete_step":         DELETE_VERBS,
+    "rename_step":         RENAME_VERBS,
+
+    # No direct mapping for add_step — semantic fallback handles it
+    "add_step":            [],
+
+    # Goal creation verbs (explicit)
+    "create_goal":         ["create", "start", "begin"],
+
+    "switch_goal":         SWITCH_VERBS,
+    "move_step":           MOVE_VERBS,
+    "reset_state":         RESET_VERBS,
+    "show_plan":           SHOW_VERBS,
+    "undo":                UNDO_VERBS,
+    "redo":                REDO_VERBS,
+    "save_checkpoint":     SAVE_VERBS,
+    "restore_checkpoint":  RESTORE_VERBS,
+}
+
+# ------------------------------------------------------------
+# CANONICAL ACTION MAPPINGS
+# ------------------------------------------------------------
+
+CANONICAL_ACTIONS = {}
+
+for intent, verbs in INTENT_CLUSTERS.items():
+    for v in verbs:
+        CANONICAL_ACTIONS[v] = intent
+
+# ⭐ DO NOT MAP “add” HERE
+# It is resolved semantically in intent_classifier.

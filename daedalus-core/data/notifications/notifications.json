@@ -1,0 +1,122 @@
+[
+  {
+    "id": "note-1",
+    "timestamp": "2026-03-15T21:38:30.528097Z",
+    "category": "escalation",
+    "message": "Escalation to Tier 2 recommended.",
+    "metadata": {
+      "reason": "Governor detected medium/high drift or subsystem risk."
+    },
+    "read": false
+  },
+  {
+    "id": "note-2",
+    "timestamp": "2026-03-15T21:39:19.305777Z",
+    "category": "escalation",
+    "message": "Escalation to Tier 2 recommended.",
+    "metadata": {
+      "reason": "Governor detected medium/high drift or subsystem risk."
+    },
+    "read": false
+  },
+  {
+    "id": "note-3",
+    "timestamp": "2026-03-15T21:40:23.578015Z",
+    "category": "autonomy",
+    "message": "Autonomy mode changed to 'permissive'.",
+    "metadata": {
+      "mode": "permissive"
+    },
+    "read": false
+  },
+  {
+    "id": "note-4",
+    "timestamp": "2026-03-15T21:40:28.877671Z",
+    "category": "escalation",
+    "message": "Escalation to Tier 2 recommended.",
+    "metadata": {
+      "reason": "Governor detected medium/high drift or subsystem risk."
+    },
+    "read": false
+  },
+  {
+    "id": "note-5",
+    "timestamp": "2026-03-15T21:48:12.523895Z",
+    "category": "autonomy",
+    "message": "Autonomy mode changed to 'permissive'.",
+    "metadata": {
+      "mode": "permissive"
+    },
+    "read": false
+  },
+  {
+    "id": "note-6",
+    "timestamp": "2026-03-15T21:48:16.752165Z",
+    "category": "escalation",
+    "message": "Escalation to Tier 2 recommended.",
+    "metadata": {
+      "reason": "Governor detected medium/high drift or subsystem risk."
+    },
+    "read": false
+  },
+  {
+    "id": "note-7",
+    "timestamp": "2026-03-15T21:49:35.589133Z",
+    "category": "patch_failure",
+    "message": "Patch FAILED in cycle resume-001 (Tier 3).",
+    "metadata": {
+      "cycle_id": "resume-001",
+      "tier": 3,
+      "details": {
+        "phase": "sandbox",
+        "sandbox": {
+          "sandbox_dir": "/data/data/com.termux/files/usr/tmp/sho_sandbox_7nik9aby",
+          "errors": [
+            "subsystem_improvement: Unknown action type: subsystem_improvement"
+          ]
+        }
+      }
+    },
+    "read": false
+  },
+  {
+    "id": "note-8",
+    "timestamp": "2026-03-15T21:49:35.589313Z",
+    "category": "patch_failure",
+    "message": "Patch FAILED in cycle resume-001 (Tier 3).",
+    "metadata": {
+      "cycle_id": "resume-001",
+      "tier": 3,
+      "details": {
+        "phase": "sandbox",
+        "sandbox": {
+          "sandbox_dir": "/data/data/com.termux/files/usr/tmp/sho_sandbox_7nik9aby",
+          "errors": [
+            "subsystem_improvement: Unknown action type: subsystem_improvement"
+          ]
+        }
+      }
+    },
+    "read": false
+  },
+  {
+    "id": "note-9",
+    "timestamp": "2026-03-15T21:57:01.760783Z",
+    "category": "autonomy",
+    "message": "Autonomy mode changed to 'permissive'.",
+    "metadata": {
+      "mode": "permissive"
+    },
+    "read": false
+  },
+  {
+    "id": "note-10",
+    "timestamp": "2026-03-15T21:57:11.393105Z",
+    "category": "escalation",
+    "message": "Escalation to Tier 2 recommended.",
+    "metadata": {
+      "reason": "Governor detected medium/high drift or subsystem risk."
+    },
+    "read": false
+  }
+]

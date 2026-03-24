@@ -1,0 +1,24 @@
+{
+  "total_cycles": 1,
+  "successful_patches": 0,
+  "failed_patches": 1,
+  "reverted_patches": 0,
+  "failed_high_level_cycles": 0,
+  "failed_tier2_cycles": 0,
+  "recent_failures": [
+    {
+      "cycle_id": "resume-001",
+      "tier": 3,
+      "timestamp": "2026-03-15T21:49:35.589084Z",
+      "details": {
+        "phase": "sandbox",
+        "sandbox": {
+          "sandbox_dir": "/data/data/com.termux/files/usr/tmp/sho_sandbox_7nik9aby",
+          "errors": [
+            "subsystem_improvement: Unknown action type: subsystem_improvement"
+          ]
+        }
+      }
+    }
+  ]
+}

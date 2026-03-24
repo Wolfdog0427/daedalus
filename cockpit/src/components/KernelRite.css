@@ -1,0 +1,85 @@
+/* ── Kernel Rite ─────────────────────────────────────────────────── */
+
+.kernel-rite {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  user-select: none;
+}
+
+/* ── Crown glyph ────────────────────────────────────────────────── */
+
+.rite-crown {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  transition: transform 0.6s ease, opacity 0.6s ease;
+}
+
+.rite-crown--serene   { color: #7ee787; }
+.rite-crown--attentive { color: #79c0ff; }
+.rite-crown--vigilant  { color: #d2a8ff; }
+.rite-crown--shielded  { color: #f0883e; }
+
+/* ── Halo ring ──────────────────────────────────────────────────── */
+
+.rite-ring {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.6s ease;
+}
+
+.rite-halo {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.35),
+    rgba(255, 255, 255, 0.04)
+  );
+  transition: opacity 0.6s ease;
+}
+
+/* ── Caption ────────────────────────────────────────────────────── */
+
+.rite-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rite-title {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.rite-subtitle {
+  font-size: 8px;
+  letter-spacing: 0.3px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Symbol-specific rite accent ────────────────────────────────── */
+
+.rite--serene   .rite-title { color: rgba(126, 231, 135, 0.45); }
+.rite--attentive .rite-title { color: rgba(121, 192, 255, 0.45); }
+.rite--vigilant  .rite-title { color: rgba(210, 168, 255, 0.45); }
+.rite--shielded  .rite-title { color: rgba(240, 136, 62, 0.45); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rite-crown {
+    transition: none;
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "snapshot_id": "e1152f11-28a3-40b3-8075-80042c76ede1",
+  "timestamp": "2026-03-15_19-46-05",
+  "reason": "candidate-from-baseline-for-consistency scan",
+  "metadata": {
+    "note": "This is a placeholder snapshot. No real code state stored yet."
+  }
+}

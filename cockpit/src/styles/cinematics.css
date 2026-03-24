@@ -1,0 +1,141 @@
+/* ── Daedalus Cinematic Language ──────────────────────────────────────
+   Centralized timing, easing, and motion tokens.
+   All cinematic animations respect prefers-reduced-motion.
+   To disable all cinematics: set --cin-enabled: 0 on :root.
+   ──────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Feature toggle: set to 0 to suppress all cinematic animation */
+  --cin-enabled: 1;
+
+  /* Duration scale */
+  --cin-duration-instant: 120ms;
+  --cin-duration-swift:   250ms;
+  --cin-duration-calm:    600ms;
+  --cin-duration-breath:  4s;
+
+  /* Easing curves */
+  --cin-easing-enter: cubic-bezier(0.22, 1, 0.36, 1);
+  --cin-easing-shift: cubic-bezier(0.4, 0, 0.2, 1);
+  --cin-easing-exit:  cubic-bezier(0.4, 0, 1, 1);
+
+  /* Escalation tints (used by Posture Tide) */
+  --cin-tint-idle:       transparent;
+  --cin-tint-guiding:    rgba(63, 185, 80, 0.06);
+  --cin-tint-supporting: rgba(88, 166, 255, 0.04);
+  --cin-tint-alert:      rgba(210, 153, 34, 0.06);
+  --cin-tint-escalating: rgba(248, 81, 73, 0.06);
+
+  --cin-border-idle:       var(--border, #30363d);
+  --cin-border-guiding:    rgba(63, 185, 80, 0.3);
+  --cin-border-supporting: rgba(88, 166, 255, 0.2);
+  --cin-border-alert:      rgba(210, 153, 34, 0.35);
+  --cin-border-escalating: rgba(248, 81, 73, 0.3);
+}
+
+/* ── Threshold Fade (Arrival) ──────────────────────────────────────── */
+
+@keyframes cin-threshold-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cin-arrive {
+  animation: cin-threshold-fade var(--cin-duration-calm) var(--cin-easing-enter) both;
+}
+
+.cin-arrive-stagger-1 { animation-delay: 50ms; }
+.cin-arrive-stagger-2 { animation-delay: 100ms; }
+.cin-arrive-stagger-3 { animation-delay: 150ms; }
+
+/* ── Gaze Shift (Attention) ────────────────────────────────────────── */
+
+@keyframes cin-gaze-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cin-gaze-enter {
+  animation: cin-gaze-enter var(--cin-duration-swift) var(--cin-easing-enter) both;
+}
+
+/* ── Ambient Pulse (Resting) ───────────────────────────────────────── */
+
+@keyframes cin-ambient-pulse {
+  0%   { border-color: var(--cin-active-border); }
+  50%  { border-color: color-mix(in srgb, var(--cin-active-border) 55%, transparent); }
+  100% { border-color: var(--cin-active-border); }
+}
+
+/* ── Posture Tide (Escalation) ─────────────────────────────────────── */
+
+.cin-shell {
+  --cin-active-tint: var(--cin-tint-idle);
+  --cin-active-border: var(--cin-border-idle);
+  transition:
+    background-color var(--cin-duration-calm) var(--cin-easing-shift),
+    border-color     var(--cin-duration-calm) var(--cin-easing-shift);
+}
+
+.cin-shell.cin-intent-idle {
+  --cin-active-tint: var(--cin-tint-idle);
+  --cin-active-border: var(--cin-border-idle);
+  animation: cin-ambient-pulse var(--cin-duration-breath) ease-in-out infinite;
+}
+
+.cin-shell.cin-intent-guiding {
+  --cin-active-tint: var(--cin-tint-guiding);
+  --cin-active-border: var(--cin-border-guiding);
+  animation: none;
+}
+
+.cin-shell.cin-intent-supporting {
+  --cin-active-tint: var(--cin-tint-supporting);
+  --cin-active-border: var(--cin-border-supporting);
+  animation: none;
+}
+
+.cin-shell.cin-intent-alert {
+  --cin-active-tint: var(--cin-tint-alert);
+  --cin-active-border: var(--cin-border-alert);
+  animation: none;
+}
+
+.cin-shell.cin-intent-escalating {
+  --cin-active-tint: var(--cin-tint-escalating);
+  --cin-active-border: var(--cin-border-escalating);
+  animation: none;
+}
+
+/* ── Accessibility ─────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cin-duration-calm: 0ms;
+    --cin-duration-swift: 0ms;
+    --cin-duration-breath: 0ms;
+  }
+
+  .cin-arrive,
+  .cin-gaze-enter {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .cin-shell {
+    animation: none !important;
+  }
+}

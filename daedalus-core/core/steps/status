@@ -1,0 +1,111 @@
+from typing import Dict, Any, List, Tuple
+from datetime import datetime
+
+
+VALID_STATUSES = [
+    "not-started",
+    "in-progress",
+    "blocked",
+    "waiting",
+    "needs-info",
+    "done",
+]
+
+
+def _now_iso() -> str:
+    return datetime.utcnow().isoformat() + "Z"
+
+
+def set_step_status(goals: Dict[str, Any], step_num: int, status: str) -> Tuple[Dict[str, Any], str]:
+    """
+    Update the status of a single step and record the change in status_history.
+    Returns (updated_goals, message).
+    """
+    if status not in VALID_STATUSES:
+        return goals, f"'{status}' is not a valid status."
+
+    steps: List[Dict[str, Any]] = goals.get("active_steps", [])
+    if not steps or step_num < 1 or step_num > len(steps):
+        return goals, f"I couldn't find step {step_num}."
+
+    step = steps[step_num - 1]
+    old_status = step.get("status", "not-started")
+    step["status"] = status
+
+    # Maintain simple completion flag for compatibility
+    step["completed"] = status == "done"
+
+    # Attach status history at the goal level
+    history = goals.setdefault("status_history", [])
+    history.append(
+        {
+            "step": step_num,
+            "old_status": old_status,
+            "new_status": status,
+            "time": _now_iso(),
+        }
+    )
+    goals["last_status_change"] = _now_iso()
+
+    label = step.get("text", f"Step {step_num}")
+    return goals, f"Step {step_num} ('{label}') status set to {status}."
+
+
+def generate_status_dashboard(goals: Dict[str, Any]) -> str:
+    """
+    Produce a human-readable status overview of all steps.
+    """
+    steps: List[Dict[str, Any]] = goals.get("active_steps", [])
+    if not steps:
+        return "No active steps for this goal."
+
+    lines: List[str] = []
+    lines.append("Status Overview:")
+
+    for s in steps:
+        idx = s.get("index")
+        text = s.get("text", f"Step {idx}")
+        status = s.get("status", "not-started")
+
+        if status == "done":
+            icon = "✓"
+        elif status == "in-progress":
+            icon = "•"
+        elif status == "blocked":
+            icon = "⚠️"
+        elif status == "waiting":
+            icon = "⏳"
+        elif status == "needs-info":
+            icon = "❓"
+        else:
+            icon = "•"
+
+        lines.append(f"{icon} Step {idx}: {text} — {status}")
+
+    return "\n".join(lines)
+
+
+def find_next_actionable_step(goals: Dict[str, Any], from_index: int) -> int:
+    """
+    Given a starting index (1-based), find the next step that is actionable:
+    not blocked, not waiting, not needs-info, not done.
+    Returns 0 if none found.
+    """
+    steps: List[Dict[str, Any]] = goals.get("active_steps", [])
+    if not steps:
+        return 0
+
+    n = len(steps)
+    i = from_index
+
+    while i <= n:
+        step = steps[i - 1]
+        status = step.get("status", "not-started")
+
+        if status in ["blocked", "waiting", "needs-info", "done"]:
+            i += 1
+            continue
+
+        return i
+
+    return 0

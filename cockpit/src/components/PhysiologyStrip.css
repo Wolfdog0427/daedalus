@@ -1,0 +1,131 @@
+.physiology-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  border-radius: var(--radius, 6px);
+  background: var(--surface, #161b22);
+  border: 1px solid var(--border, #30363d);
+  font-size: 0.75rem;
+  overflow-x: auto;
+}
+
+.phys-posture {
+  font-weight: 700;
+  text-transform: capitalize;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+}
+
+.phys-posture--sentinel {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--red, #f85149);
+}
+
+.phys-posture--companion {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--green, #3fb950);
+}
+
+.phys-posture--observer {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--accent, #58a6ff);
+}
+
+.phys-posture--dormant {
+  background: rgba(139, 148, 158, 0.12);
+  color: var(--text-dim, #8b949e);
+}
+
+.phys-attention {
+  font-family: var(--mono, monospace);
+  font-size: 0.7rem;
+  text-transform: capitalize;
+  color: var(--text-dim, #8b949e);
+}
+
+.phys-attention--focused {
+  color: var(--accent, #58a6ff);
+}
+
+.phys-attention--locked {
+  color: var(--green, #3fb950);
+  font-weight: 600;
+}
+
+.phys-gauge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.phys-gauge__label {
+  color: var(--text-dim, #8b949e);
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.phys-gauge__track {
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(48, 54, 61, 0.6);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.phys-gauge__fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.phys-gauge__fill--arousal {
+  background: var(--red, #f85149);
+}
+
+.phys-gauge__fill--focus {
+  background: var(--accent, #58a6ff);
+}
+
+.phys-gauge__fill--stability {
+  background: var(--green, #3fb950);
+}
+
+.phys-gauge__value {
+  font-family: var(--mono, monospace);
+  font-size: 0.65rem;
+  color: var(--text-dim, #8b949e);
+  min-width: 18px;
+  text-align: right;
+}
+
+.phys-continuity {
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.phys-ok {
+  color: var(--green, #3fb950);
+}
+
+.phys-warn {
+  color: var(--red, #f85149);
+}
+
+/* Posture-tinted strip border */
+
+.posture-strip--sentinel {
+  border-color: rgba(248, 81, 73, 0.2);
+}
+
+.posture-strip--companion {
+  border-color: rgba(63, 185, 80, 0.2);
+}
+
+.posture-strip--observer {
+  border-color: rgba(88, 166, 255, 0.2);
+}

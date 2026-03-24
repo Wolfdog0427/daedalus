@@ -1,0 +1,142 @@
+/* ── Embodiment Avatar ────────────────────────────────────────────── */
+
+.embodiment-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.avatar-svg {
+  display: block;
+}
+
+.avatar-core {
+  fill: var(--accent, #58a6ff);
+  transition: fill 0.3s ease;
+}
+
+.avatar-aura {
+  transition: r 0.3s ease, fill 0.3s ease;
+}
+
+.embodiment-avatar.posture-sentinel .avatar-core { fill: var(--red, #f85149); }
+.embodiment-avatar.posture-companion .avatar-core { fill: var(--green, #3fb950); }
+.embodiment-avatar.posture-observer .avatar-core { fill: var(--accent, #58a6ff); }
+.embodiment-avatar.posture-dormant .avatar-core { fill: var(--text-dim, #8b949e); }
+
+/* Breathing */
+
+@keyframes avatarBreath {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+@keyframes avatarBreathFast {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+.embodiment-avatar.avatar-breath {
+  animation: avatarBreath 4s ease-in-out infinite;
+}
+
+.embodiment-avatar.avatar-breath-fast {
+  animation: avatarBreathFast 2.2s ease-in-out infinite;
+}
+
+/* Micro-motions */
+
+.embodiment-avatar.avatar-motion-tilt {
+  transform: rotate(2deg);
+}
+
+.embodiment-avatar.avatar-motion-lean {
+  transform: translateX(2px);
+}
+
+@keyframes avatarPulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.embodiment-avatar.avatar-motion-pulse {
+  animation: avatarPulse 0.8s ease infinite;
+}
+
+/* Stability */
+
+@keyframes avatarJitter {
+  0%   { transform: translateX(-0.5px); }
+  100% { transform: translateX(0.5px); }
+}
+
+.embodiment-avatar.avatar-unstable {
+  animation: avatarJitter 0.15s infinite alternate;
+}
+
+.embodiment-avatar.avatar-soft {
+  filter: blur(0.3px);
+}
+
+/* ── Attention Halo ──────────────────────────────────────────────── */
+
+.attention-halo {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(88,166,255,0.3) 0%, transparent 70%);
+  flex-shrink: 0;
+  transition: opacity 0.4s ease, filter 0.4s ease, box-shadow 0.4s ease;
+}
+
+.attention-halo.halo-focus {
+  box-shadow: 0 0 10px rgba(88, 166, 255, 0.4);
+}
+
+.attention-halo.halo-focus-strong {
+  box-shadow: 0 0 18px rgba(88, 166, 255, 0.7);
+}
+
+/* ── Cockpit Overlay ─────────────────────────────────────────────── */
+
+.cockpit-overlay {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: box-shadow 0.3s ease;
+}
+
+.cockpit-overlay.guidance-subtle {
+  box-shadow: 0 0 6px rgba(63, 185, 80, 0.3);
+  border-radius: var(--radius, 6px);
+}
+
+.cockpit-overlay.guidance-strong {
+  box-shadow: 0 0 14px rgba(63, 185, 80, 0.6);
+  border-radius: var(--radius, 6px);
+}
+
+.overlay-attention-pill,
+.overlay-continuity-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: rgba(48, 54, 61, 0.6);
+  text-transform: capitalize;
+}
+
+.overlay-continuity-pill.pill-ok {
+  color: var(--green, #3fb950);
+}
+
+.overlay-continuity-pill.pill-warn {
+  color: var(--red, #f85149);
+}

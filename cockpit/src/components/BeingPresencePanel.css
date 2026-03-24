@@ -1,0 +1,229 @@
+.being-presence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.being-card {
+  position: relative;
+  padding: 14px;
+  border-radius: var(--radius, 6px);
+  background: var(--bg, #0e1117);
+  border: 1px solid var(--border, #30363d);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  overflow: hidden;
+}
+
+.being-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.being-card__name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.being-card__mode {
+  text-transform: capitalize;
+}
+
+.being-card__glow-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  transition: opacity 0.3s ease, box-shadow 0.3s ease;
+}
+
+.being-card__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+
+.being-card__stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.being-card__stat label {
+  color: var(--text-dim, #8b949e);
+}
+
+.being-card__stat span {
+  font-family: var(--mono, monospace);
+  font-size: 0.75rem;
+  text-transform: capitalize;
+}
+
+.being-card__flags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.being-card__flag {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.flag-speaking {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--accent, #58a6ff);
+}
+
+.flag-guiding {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--green, #3fb950);
+}
+
+.flag-autopilot {
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--yellow, #d29922);
+}
+
+.being-card__continuity {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.continuity-ok {
+  color: var(--green, #3fb950);
+}
+
+.continuity-warn {
+  color: var(--red, #f85149);
+}
+
+.continuity-streak {
+  font-family: var(--mono, monospace);
+  color: var(--text-dim, #8b949e);
+}
+
+/* ---- Posture variants ---- */
+
+.being-card.posture-sentinel {
+  border-color: rgba(248, 81, 73, 0.3);
+}
+
+.being-card.posture-companion {
+  border-color: rgba(63, 185, 80, 0.3);
+}
+
+.being-card.posture-observer {
+  border-color: rgba(88, 166, 255, 0.3);
+}
+
+.being-card.posture-dormant {
+  opacity: 0.6;
+}
+
+/* ---- Presence mode variants ---- */
+
+.being-card.presence-active {
+  box-shadow: 0 0 8px rgba(88, 166, 255, 0.2);
+}
+
+.being-card.presence-dominant {
+  box-shadow: 0 0 16px rgba(88, 166, 255, 0.35);
+  border-color: var(--accent, #58a6ff);
+}
+
+/* ---- Speaking / guiding pulses ---- */
+
+@keyframes speak-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.3); }
+  70%  { box-shadow: 0 0 0 6px rgba(88, 166, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(88, 166, 255, 0); }
+}
+
+.being-card.speaking {
+  animation: speak-pulse 1.2s ease-out infinite;
+}
+
+@keyframes guide-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.3); }
+  70%  { box-shadow: 0 0 0 6px rgba(63, 185, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0); }
+}
+
+.being-card.guiding {
+  animation: guide-pulse 1.5s ease-out infinite;
+}
+
+/* Badge colors for presence modes */
+
+.badge-idle {
+  background: rgba(139, 148, 158, 0.15);
+  color: var(--text-dim, #8b949e);
+}
+
+.badge-ambient {
+  background: rgba(88, 166, 255, 0.1);
+  color: #7bb8f0;
+}
+
+.badge-active {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--green, #3fb950);
+}
+
+.badge-dominant {
+  background: rgba(88, 166, 255, 0.2);
+  color: var(--accent, #58a6ff);
+}
+
+/* ---- Dominant being highlight ---- */
+
+.being-card--dominant {
+  border-color: var(--accent, #58a6ff);
+  box-shadow: 0 0 12px rgba(88, 166, 255, 0.25);
+}
+
+/* ---- Avatar micro-motion classes ---- */
+
+.being-card.motion-tilt {
+  transform: rotate(1.5deg);
+  transition: transform 0.3s ease;
+}
+
+.being-card.motion-lean {
+  transform: translateX(3px);
+  transition: transform 0.3s ease;
+}
+
+@keyframes card-motion-pulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.being-card.motion-pulse {
+  animation: card-motion-pulse 0.8s ease infinite;
+}
+
+.flag-motion {
+  background: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+  text-transform: capitalize;
+}
+
+/* ---- Guidance cue classes ---- */
+
+.being-card.guidance-subtle {
+  box-shadow: 0 0 6px rgba(63, 185, 80, 0.2);
+}
+
+.being-card.guidance-strong {
+  box-shadow: 0 0 12px rgba(63, 185, 80, 0.35);
+}

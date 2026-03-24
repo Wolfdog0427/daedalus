@@ -1,0 +1,129 @@
+.behavioral-field-overlay {
+  position: relative;
+  padding: 10px 14px;
+  border-radius: var(--radius, 6px);
+  background: var(--surface, #161b22);
+  border: 1px solid var(--border, #30363d);
+  overflow: hidden;
+}
+
+.bfo-halo {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(80, 160, 255, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  transition: opacity 0.4s ease, filter 0.4s ease;
+}
+
+.bfo-readout {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+}
+
+.bfo-dominant {
+  color: var(--text-dim, #8b949e);
+}
+
+.bfo-dominant strong {
+  color: var(--accent, #58a6ff);
+}
+
+/* Avatar micro-motion indicators */
+
+.bfo-motion {
+  font-family: var(--mono, monospace);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bfo-motion--tilt {
+  color: var(--yellow, #d29922);
+}
+
+.bfo-motion--lean {
+  color: var(--green, #3fb950);
+}
+
+.bfo-motion--pulse {
+  color: var(--accent, #58a6ff);
+  animation: bfo-pulse-text 0.8s infinite;
+}
+
+@keyframes bfo-pulse-text {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Guidance cue indicators */
+
+.bfo-guidance {
+  font-size: 0.7rem;
+  text-transform: capitalize;
+}
+
+.bfo-guidance--subtle {
+  color: var(--text-dim, #8b949e);
+}
+
+.bfo-guidance--strong {
+  color: var(--green, #3fb950);
+  font-weight: 600;
+}
+
+/* Signal bar chart */
+
+.bfo-signals {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bfo-signal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.bfo-signal--dominant .bfo-signal__id {
+  color: var(--accent, #58a6ff);
+  font-weight: 600;
+}
+
+.bfo-signal__id {
+  width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-dim, #8b949e);
+}
+
+.bfo-signal__bar-track {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(48, 54, 61, 0.6);
+  overflow: hidden;
+}
+
+.bfo-signal__bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent, #58a6ff);
+  transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+.bfo-signal__pct {
+  width: 32px;
+  text-align: right;
+  font-family: var(--mono, monospace);
+  font-size: 0.7rem;
+  color: var(--text-dim, #8b949e);
+}

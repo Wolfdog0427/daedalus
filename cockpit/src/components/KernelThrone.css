@@ -1,0 +1,489 @@
+/* ── Kernel Throne ───────────────────────────────────────────────── */
+
+.kernel-throne {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(5, 8, 15, 0.7);
+  box-shadow:
+    0 0 calc(var(--throne-glow, 0.3) * 16px) rgba(255, 255, 255, calc(var(--throne-glow, 0.3) * 0.06)),
+    inset 0 0 calc(var(--throne-glow, 0.3) * 12px) rgba(255, 255, 255, calc(var(--throne-glow, 0.3) * 0.02));
+  transition: box-shadow 0.6s ease, border-color 0.6s ease;
+}
+
+.throne--serene {
+  border-color: rgba(126, 231, 135, 0.12);
+}
+
+.throne--attentive {
+  border-color: rgba(121, 192, 255, 0.16);
+}
+
+.throne--vigilant {
+  border-color: rgba(210, 168, 255, 0.2);
+}
+
+.throne--shielded {
+  border-color: rgba(240, 136, 62, 0.2);
+}
+
+/* ── Crown section ──────────────────────────────────────────────── */
+
+.throne-crown {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.throne-symbol {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.throne-symbol--serene {
+  color: #7ee787;
+  border: 1px solid rgba(126, 231, 135, 0.2);
+}
+
+.throne-symbol--attentive {
+  color: #79c0ff;
+  border: 1px solid rgba(121, 192, 255, 0.2);
+  animation: throne-pulse ease-in-out infinite;
+  animation-duration: var(--throne-pulse-duration, 0s);
+}
+
+.throne-symbol--vigilant {
+  color: #d2a8ff;
+  border: 1px solid rgba(210, 168, 255, 0.25);
+  animation: throne-pulse ease-in-out infinite;
+  animation-duration: var(--throne-pulse-duration, 0s);
+}
+
+.throne-symbol--shielded {
+  color: #f0883e;
+  border: 1px solid rgba(240, 136, 62, 0.25);
+  animation: throne-pulse ease-in-out infinite;
+  animation-duration: var(--throne-pulse-duration, 0s);
+}
+
+@keyframes throne-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.throne-status {
+  display: flex;
+  gap: 4px;
+}
+
+.throne-shell,
+.throne-kernel {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.throne-shell--nominal { color: #7ee787; }
+.throne-shell--degraded { color: #f0883e; }
+
+.throne-kernel--clean { color: rgba(255, 255, 255, 0.5); }
+.throne-kernel--tuned { color: #79c0ff; }
+.throne-kernel--escalated { color: #f85149; }
+
+/* ── Diagnostics ────────────────────────────────────────────────── */
+
+.throne-diagnostics {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.throne-invariants {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.throne-invariants--ok {
+  color: #3fb950;
+  background: rgba(63, 185, 80, 0.08);
+}
+
+.throne-invariants--fail {
+  color: #f85149;
+  background: rgba(248, 81, 73, 0.1);
+}
+
+.throne-overrides,
+.throne-pending,
+.throne-capped {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.throne-pending {
+  color: #d29922;
+}
+
+.throne-capped {
+  color: #f0883e;
+}
+
+/* ── Embodied Presence ──────────────────────────────────────────── */
+
+.throne-embodied {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.throne-posture {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  color: #79c0ff;
+  background: rgba(121, 192, 255, 0.08);
+}
+
+.throne-posture--sentinel  { color: #f85149; background: rgba(248, 81, 73, 0.08); }
+.throne-posture--companion { color: #7ee787; background: rgba(126, 231, 135, 0.08); }
+.throne-posture--observer  { color: rgba(255, 255, 255, 0.6); background: rgba(255, 255, 255, 0.04); }
+
+.throne-embodiment {
+  font-size: 9px;
+  font-weight: 600;
+  color: #d2a8ff;
+  transition: opacity 0.6s ease;
+}
+
+.throne-continuity-warn {
+  font-size: 9px;
+  font-weight: 600;
+  color: #d29922;
+}
+
+/* ── Attention & Task ───────────────────────────────────────────── */
+
+.throne-attention {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.throne-att-tier {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.throne-att-tier--locked   { color: #f0883e; background: rgba(240, 136, 62, 0.1); }
+.throne-att-tier--focused  { color: #79c0ff; background: rgba(121, 192, 255, 0.08); }
+.throne-att-tier--aware    { color: #d2a8ff; background: rgba(210, 168, 255, 0.08); }
+.throne-att-tier--unfocused { color: rgba(255, 255, 255, 0.45); background: rgba(255, 255, 255, 0.03); }
+
+.throne-cog-load {
+  font-size: 9px;
+  font-weight: 600;
+  color: #f0883e;
+}
+
+.throne-active-task {
+  font-size: 9px;
+  font-weight: 600;
+  color: #79c0ff;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: rgba(121, 192, 255, 0.06);
+}
+
+.throne-att-continuity-warn {
+  font-size: 9px;
+  font-weight: 600;
+  color: #d29922;
+}
+
+/* ── Connectivity + Epistemic ────────────────────────────────────── */
+
+.throne-connectivity {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.throne-sse {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.throne-sse--on  { color: #3fb950; }
+.throne-sse--off { color: #f85149; }
+
+.throne-nodes {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.throne-quarantined {
+  font-size: 9px;
+  color: #f0883e;
+}
+
+.throne-epistemic {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.throne-epistemic--ok {
+  color: #79c0ff;
+  background: rgba(121, 192, 255, 0.08);
+}
+
+.throne-epistemic--warn {
+  color: #f0883e;
+  background: rgba(240, 136, 62, 0.1);
+}
+
+.throne-freshness {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+.throne-freshness--fresh { color: #3fb950; background: rgba(63, 185, 80, 0.06); }
+.throne-freshness--stale { color: #d29922; background: rgba(210, 153, 34, 0.06); }
+.throne-freshness--cold  { color: #f85149; background: rgba(248, 81, 73, 0.06); }
+
+.throne-unverified {
+  font-size: 9px;
+  font-weight: 600;
+  color: #f0883e;
+  animation: throne-pulse ease-in-out 1.8s infinite;
+}
+
+/* ── Node-Scoped Presence ───────────────────────────────────────── */
+
+.throne-join-pending {
+  font-size: 9px;
+  font-weight: 600;
+  color: #d2a8ff;
+  animation: throne-pulse ease-in-out 1.4s infinite;
+}
+
+.throne-node-presence {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.throne-node-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transition: opacity 0.5s ease, background 0.5s ease;
+  flex-shrink: 0;
+}
+
+.throne-node-pip--trusted {
+  background: #3fb950;
+}
+
+.throne-node-pip--pending {
+  background: #d2a8ff;
+  animation: throne-pulse ease-in-out 1.2s infinite;
+}
+
+.throne-join-pulse {
+  font-size: 8px;
+  font-weight: 600;
+  color: #d2a8ff;
+  margin-left: 2px;
+}
+
+/* ── Operator Context ────────────────────────────────────────────── */
+
+.throne-operator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.throne-op-mode {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.throne-op-mode--focus    { color: #79c0ff; background: rgba(121, 192, 255, 0.08); }
+.throne-op-mode--explore  { color: #d2a8ff; background: rgba(210, 168, 255, 0.08); }
+.throne-op-mode--review   { color: #e3b341; background: rgba(227, 179, 65, 0.08); }
+.throne-op-mode--override { color: #f0883e; background: rgba(240, 136, 62, 0.1); }
+
+.throne-op-overrides {
+  font-size: 9px;
+  color: #f0883e;
+}
+
+.throne-op-pending {
+  font-size: 9px;
+  color: #d29922;
+}
+
+.throne-sovereignty {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+.throne-sovereignty--full    { color: #3fb950; background: rgba(63, 185, 80, 0.08); }
+.throne-sovereignty--partial { color: #d29922; background: rgba(210, 153, 34, 0.08); }
+.throne-sovereignty--low     { color: #f85149; background: rgba(248, 81, 73, 0.08); }
+
+/* ── System Continuity ──────────────────────────────────────────── */
+
+.throne-continuity {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.throne-cont-health {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.throne-cont-health--healthy  { color: #3fb950; background: rgba(63, 185, 80, 0.08); }
+.throne-cont-health--shifting { color: #d29922; background: rgba(210, 153, 34, 0.08); }
+.throne-cont-health--fragile  { color: #f85149; background: rgba(248, 81, 73, 0.08); }
+
+.throne-cont-composite {
+  font-size: 9px;
+  font-weight: 600;
+  color: #79c0ff;
+  transition: opacity 0.6s ease;
+}
+
+.throne-cont-drift {
+  font-size: 9px;
+  font-weight: 600;
+  color: #f0883e;
+}
+
+.throne-cont-anchor {
+  font-size: 10px;
+  opacity: 0.7;
+  cursor: default;
+}
+
+/* ── Pre-Seal Validation ───────────────────────────────────────── */
+
+.throne-pre-seal {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.throne-seal-status {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.throne-seal-status--pass {
+  color: #3fb950;
+  background: rgba(63, 185, 80, 0.08);
+  border: 1px solid rgba(63, 185, 80, 0.15);
+}
+
+.throne-seal-status--fail {
+  color: #f85149;
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.15);
+  animation: throne-pulse ease-in-out 1.6s infinite;
+}
+
+.throne-seal-warn {
+  font-size: 9px;
+  font-weight: 600;
+  color: #d29922;
+}
+
+/* ── Stability meter ────────────────────────────────────────────── */
+
+.throne-meter {
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.throne-meter-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #3fb950, #79c0ff);
+  transition: width 0.6s ease;
+}
+
+/* ── Rollback ───────────────────────────────────────────────────── */
+
+.throne-rollback {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #f85149;
+  background: transparent;
+  border: 1px solid rgba(248, 81, 73, 0.2);
+  border-radius: 4px;
+  padding: 1px 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.throne-rollback:hover {
+  background: rgba(248, 81, 73, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .throne-symbol--attentive,
+  .throne-symbol--vigilant,
+  .throne-symbol--shielded {
+    animation: none;
+  }
+}

@@ -1,0 +1,125 @@
+/* ── Expressive Conductor ─────────────────────────────────────────────
+   Unified expressive layer that resolves priority across
+   cinematics, operator affect, and continuity.
+   To disable: set CONDUCTOR_ENABLED = false in conductor.ts.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* ── Mode: resting ───────────────────────────────────────────────── */
+
+.conductor-resting {
+  --conductor-border: var(--cin-border-idle, var(--border, #30363d));
+  --conductor-tint: transparent;
+}
+
+.conductor-resting:not(.conductor-no-pulse) {
+  animation: cin-ambient-pulse var(--cin-duration-breath, 4s) ease-in-out infinite;
+}
+
+/* ── Mode: attentive ─────────────────────────────────────────────── */
+
+.conductor-attentive {
+  --conductor-border: rgba(88, 166, 255, 0.25);
+  --conductor-tint: rgba(88, 166, 255, 0.03);
+  animation: none;
+}
+
+/* ── Mode: escalated ─────────────────────────────────────────────── */
+
+.conductor-escalated {
+  --conductor-border: rgba(248, 81, 73, 0.3);
+  --conductor-tint: rgba(248, 81, 73, 0.04);
+  animation: none;
+}
+
+/* ── Mode: celebrating ───────────────────────────────────────────── */
+
+@keyframes conductor-celebrate-glow {
+  0%   { border-color: var(--conductor-border); }
+  50%  { border-color: rgba(210, 153, 34, 0.5); }
+  100% { border-color: var(--conductor-border); }
+}
+
+.conductor-celebrating {
+  --conductor-border: rgba(210, 153, 34, 0.35);
+  --conductor-tint: rgba(210, 153, 34, 0.04);
+  animation: conductor-celebrate-glow 2s ease-in-out 2;
+}
+
+/* ── Shell integration ───────────────────────────────────────────── */
+
+.conductor-shell {
+  border-color: var(--conductor-border, var(--border));
+  background-color: var(--conductor-tint, transparent);
+  transition:
+    border-color var(--cin-duration-calm, 600ms) var(--cin-easing-shift),
+    background-color var(--cin-duration-calm, 600ms) var(--cin-easing-shift);
+}
+
+/* Suppress ambient pulse when conductor says so */
+.conductor-no-pulse {
+  animation: none !important;
+}
+
+/* ── Tone: focused ───────────────────────────────────────────────── */
+
+.conductor-tone-focused .daedalus-header__physiology {
+  opacity: 0.8;
+  transition: opacity var(--cin-duration-calm, 600ms) var(--cin-easing-shift);
+}
+
+.conductor-tone-focused .pill-intent {
+  opacity: 0.5;
+}
+
+/* ── Tone: alert ─────────────────────────────────────────────────── */
+
+.conductor-tone-alert .overlay-continuity-pill {
+  opacity: 1;
+  font-weight: 700;
+}
+
+/* ── Tone: celebratory ───────────────────────────────────────────── */
+
+.conductor-tone-celebratory .continuity-ribbon {
+  opacity: 1;
+}
+
+/* ── Conductor badge ─────────────────────────────────────────────── */
+
+.conductor-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(210, 153, 34, 0.1);
+  color: var(--yellow, #d29922);
+  border: 1px solid rgba(210, 153, 34, 0.25);
+  animation: cin-threshold-fade var(--cin-duration-calm, 600ms) var(--cin-easing-enter) both;
+}
+
+.conductor-badge--drift-recovery {
+  background: rgba(63, 185, 80, 0.1);
+  color: var(--green, #3fb950);
+  border-color: rgba(63, 185, 80, 0.25);
+}
+
+/* ── Accessibility ─────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .conductor-resting,
+  .conductor-celebrating {
+    animation: none !important;
+  }
+
+  .conductor-shell,
+  .conductor-tone-focused .daedalus-header__physiology {
+    transition: none;
+  }
+
+  .conductor-badge {
+    animation: none;
+  }
+}

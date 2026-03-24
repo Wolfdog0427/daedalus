@@ -1,0 +1,247 @@
+[
+  {
+    "id": "prop-9a3b1a39-08ae-48a8-b825-27b3010fc3b0",
+    "created_at": "2026-03-15T21:38:30.528224Z",
+    "source_cycle_id": "force-proposal-001",
+    "tier_requested": 2,
+    "subsystem": "test_module",
+    "risk_level": "high",
+    "priority": "high",
+    "drift_context": {
+      "drift_level": "high",
+      "drift_score": 0.9,
+      "weakest_subsystem": "test_module"
+    },
+    "diagnostics_summary": {
+      "overall_score": 0.4,
+      "overall_risk": "high",
+      "subsystem_score": 0.3,
+      "subsystem_message": "Weakest subsystem: test_module (risk=high)"
+    },
+    "proposal_summary": "Subsystem test_module shows elevated risk; tier 2 changes recommended.",
+    "justification": [
+      "Drift level: high",
+      "Weakest subsystem: test_module (risk=high, score=0.3)",
+      "Stability risk: medium"
+    ],
+    "planned_actions": [
+      {
+        "type": "subsystem_improvement",
+        "target": "test_module",
+        "tier": 2
+      }
+    ],
+    "expected_impact": {
+      "stability_delta": 0.0,
+      "risk_delta": -0.05,
+      "trust_delta": 0.05,
+      "confidence": 0.7
+    },
+    "sandbox_preview": {
+      "status": "not_run",
+      "notes": "Sandbox evaluation to be performed by SHO."
+    },
+    "status": "pending",
+    "decision": {
+      "decided_by": null,
+      "decided_at": null,
+      "reason": null
+    }
+  },
+  {
+    "id": "prop-99e730e2-31cd-4050-a9b6-f66916d1838c",
+    "created_at": "2026-03-15T21:39:19.305921Z",
+    "source_cycle_id": "force-proposal-001",
+    "tier_requested": 2,
+    "subsystem": "test_module",
+    "risk_level": "high",
+    "priority": "high",
+    "drift_context": {
+      "drift_level": "high",
+      "drift_score": 0.9,
+      "weakest_subsystem": "test_module"
+    },
+    "diagnostics_summary": {
+      "overall_score": 0.4,
+      "overall_risk": "high",
+      "subsystem_score": 0.3,
+      "subsystem_message": "Weakest subsystem: test_module (risk=high)"
+    },
+    "proposal_summary": "Subsystem test_module shows elevated risk; tier 2 changes recommended.",
+    "justification": [
+      "Drift level: high",
+      "Weakest subsystem: test_module (risk=high, score=0.3)",
+      "Stability risk: medium"
+    ],
+    "planned_actions": [
+      {
+        "type": "subsystem_improvement",
+        "target": "test_module",
+        "tier": 2
+      }
+    ],
+    "expected_impact": {
+      "stability_delta": 0.0,
+      "risk_delta": -0.05,
+      "trust_delta": 0.05,
+      "confidence": 0.7
+    },
+    "sandbox_preview": {
+      "status": "not_run",
+      "notes": "Sandbox evaluation to be performed by SHO."
+    },
+    "status": "pending",
+    "decision": {
+      "decided_by": null,
+      "decided_at": null,
+      "reason": null
+    }
+  },
+  {
+    "id": "prop-bfa57c8a-b0d7-4896-9670-26cb4c857a06",
+    "created_at": "2026-03-15T21:40:28.877862Z",
+    "source_cycle_id": "force-proposal-002",
+    "tier_requested": 2,
+    "subsystem": "test_module",
+    "risk_level": "high",
+    "priority": "high",
+    "drift_context": {
+      "drift_level": "high",
+      "drift_score": 0.9,
+      "weakest_subsystem": "test_module"
+    },
+    "diagnostics_summary": {
+      "overall_score": 0.4,
+      "overall_risk": "high",
+      "subsystem_score": 0.3,
+      "subsystem_message": "Weakest subsystem: test_module (risk=high)"
+    },
+    "proposal_summary": "Subsystem test_module shows elevated risk; tier 2 changes recommended.",
+    "justification": [
+      "Drift level: high",
+      "Weakest subsystem: test_module (risk=high, score=0.3)",
+      "Stability risk: medium"
+    ],
+    "planned_actions": [
+      {
+        "type": "subsystem_improvement",
+        "target": "test_module",
+        "tier": 2
+      }
+    ],
+    "expected_impact": {
+      "stability_delta": 0.0,
+      "risk_delta": -0.05,
+      "trust_delta": 0.05,
+      "confidence": 0.7
+    },
+    "sandbox_preview": {
+      "status": "not_run",
+      "notes": "Sandbox evaluation to be performed by SHO."
+    },
+    "status": "pending",
+    "decision": {
+      "decided_by": null,
+      "decided_at": null,
+      "reason": null
+    }
+  },
+  {
+    "id": "prop-d2e86f9a-d1a2-4b06-a43e-70193755a0a9",
+    "created_at": "2026-03-15T21:48:16.752345Z",
+    "source_cycle_id": "force-proposal-004",
+    "tier_requested": 2,
+    "subsystem": "test_module",
+    "risk_level": "high",
+    "priority": "high",
+    "drift_context": {
+      "drift_level": "high",
+      "drift_score": 0.9,
+      "weakest_subsystem": "test_module"
+    },
+    "diagnostics_summary": {
+      "overall_score": 0.4,
+      "overall_risk": "high",
+      "subsystem_score": 0.3,
+      "subsystem_message": "Weakest subsystem: test_module (risk=high)"
+    },
+    "proposal_summary": "Subsystem test_module shows elevated risk; tier 2 changes recommended.",
+    "justification": [
+      "Drift level: high",
+      "Weakest subsystem: test_module (risk=high, score=0.3)",
+      "Stability risk: medium"
+    ],
+    "planned_actions": [
+      {
+        "type": "subsystem_improvement",
+        "target": "test_module",
+        "tier": 2
+      }
+    ],
+    "expected_impact": {
+      "stability_delta": 0.0,
+      "risk_delta": -0.05,
+      "trust_delta": 0.05,
+      "confidence": 0.7
+    },
+    "sandbox_preview": {
+      "status": "not_run",
+      "notes": "Sandbox evaluation to be performed by SHO."
+    },
+    "status": "approved",
+    "decision": {
+      "decided_by": "user",
+      "decided_at": "2026-03-15T21:49:28.776810Z",
+      "reason": "Proceed"
+    }
+  },
+  {
+    "id": "prop-f0b5cd74-d7e2-40b7-b267-e723c28ee66a",
+    "created_at": "2026-03-15T21:57:11.393369Z",
+    "source_cycle_id": "patch-test-001",
+    "tier_requested": 2,
+    "subsystem": "test_module",
+    "risk_level": "high",
+    "priority": "high",
+    "drift_context": {
+      "drift_level": "high",
+      "drift_score": 0.9,
+      "weakest_subsystem": "test_module"
+    },
+    "diagnostics_summary": {
+      "overall_score": 0.4,
+      "overall_risk": "high",
+      "subsystem_score": 0.3,
+      "subsystem_message": "Weakest subsystem: test_module (risk=high)"
+    },
+    "proposal_summary": "Subsystem test_module shows elevated risk; tier 2 changes recommended.",
+    "justification": [
+      "Drift level: high",
+      "Weakest subsystem: test_module (risk=high, score=0.3)",
+      "Stability risk: medium"
+    ],
+    "planned_actions": [
+      {
+        "type": "subsystem_improvement",
+        "target": "test_module",
+        "tier": 2
+      }
+    ],
+    "expected_impact": {
+      "stability_delta": 0.0,
+      "risk_delta": -0.05,
+      "trust_delta": 0.05,
+      "confidence": 0.7
+    },
+    "sandbox_preview": {
+      "status": "not_run",
+      "notes": "Sandbox evaluation to be performed by SHO."
+    },
+    "status": "pending",
+    "decision": {
+      "decided_by": null,
+      "decided_at": null,
+      "reason": null
+    }
+  }
+]

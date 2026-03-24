@@ -1,0 +1,141 @@
+/* ── Operator Affect Modulations ──────────────────────────────────────
+   Layered on top of cinematics.css.
+   Each affect state subtly changes the cockpit feel.
+   To disable: set AFFECT_ENABLED = false in operatorAffect.ts,
+   or remove the affect-* class from the shell.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* ── Focused ─────────────────────────────────────────────────────── */
+/* The room gets quieter. Less visual noise. */
+
+.affect-focused .daedalus-header__physiology {
+  opacity: 0.75;
+  transition: opacity var(--cin-duration-calm, 600ms) var(--cin-easing-shift);
+}
+
+.affect-focused .pill-intent {
+  opacity: 0.4;
+}
+
+.affect-focused .cockpit-overlay {
+  opacity: 0.5;
+}
+
+.affect-focused.cin-shell {
+  animation: none !important;
+}
+
+.affect-focused .embodiment-avatar {
+  animation-duration: 6s !important;
+}
+
+/* ── Exploratory ─────────────────────────────────────────────────── */
+/* The room opens up. Slightly more presence. */
+
+.affect-exploratory .attention-halo {
+  opacity: 1 !important;
+  box-shadow: 0 0 14px rgba(88, 166, 255, 0.5);
+  transition: box-shadow var(--cin-duration-swift, 250ms) var(--cin-easing-enter);
+}
+
+.affect-exploratory .cin-gaze-enter {
+  animation-duration: 180ms;
+}
+
+.affect-exploratory .embodiment-avatar .avatar-aura {
+  fill: rgba(88, 166, 255, 0.25);
+}
+
+/* ── Under Load ──────────────────────────────────────────────────── */
+/* The room tightens. Daedalus is paying more attention. */
+
+.affect-under-load .embodiment-avatar.avatar-breath,
+.affect-under-load .embodiment-avatar.avatar-breath-fast {
+  animation-duration: 1.6s !important;
+}
+
+.affect-under-load .overlay-continuity-pill {
+  opacity: 1 !important;
+  font-weight: 700;
+}
+
+.affect-under-load .cockpit-overlay {
+  box-shadow: 0 0 10px rgba(210, 153, 34, 0.3);
+}
+
+/* ── Settled ─────────────────────────────────────────────────────── */
+/* Default. No overrides — everything behaves normally. */
+
+.affect-settled {
+  /* intentionally empty: baseline behavior */
+}
+
+/* ── Affect indicator strip ──────────────────────────────────────── */
+
+.affect-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--text-dim, #8b949e);
+}
+
+.affect-strip__state {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+  text-transform: capitalize;
+  cursor: default;
+  border: 1px solid var(--border, #30363d);
+  background: transparent;
+  transition:
+    background var(--cin-duration-instant, 120ms) ease,
+    border-color var(--cin-duration-instant, 120ms) ease;
+}
+
+.affect-strip__state.is-active {
+  background: rgba(88, 166, 255, 0.12);
+  border-color: var(--accent, #58a6ff);
+  color: var(--accent, #58a6ff);
+}
+
+.affect-strip__state.is-pinned {
+  border-style: solid;
+  border-width: 1.5px;
+}
+
+.affect-strip__state:hover {
+  background: rgba(88, 166, 255, 0.08);
+  cursor: pointer;
+}
+
+.affect-strip__unpin {
+  padding: 1px 6px;
+  border: 1px solid var(--border, #30363d);
+  border-radius: 999px;
+  font-size: 0.65rem;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.affect-strip__unpin:hover {
+  background: rgba(248, 81, 73, 0.1);
+  color: var(--red, #f85149);
+}
+
+/* ── Accessibility ─────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .affect-focused .daedalus-header__physiology,
+  .affect-exploratory .attention-halo,
+  .affect-under-load .cockpit-overlay {
+    transition: none;
+  }
+
+  .affect-focused .embodiment-avatar,
+  .affect-under-load .embodiment-avatar.avatar-breath,
+  .affect-under-load .embodiment-avatar.avatar-breath-fast {
+    animation: none !important;
+  }
+}

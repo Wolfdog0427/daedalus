@@ -1,0 +1,30 @@
+.posture-banner {
+  padding: 8px 16px;
+  border-radius: var(--radius, 6px);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.posture-open {
+  background: rgba(0, 200, 0, 0.1);
+  color: #0a0;
+  border: 1px solid rgba(0, 200, 0, 0.25);
+}
+
+.posture-attentive {
+  background: rgba(210, 153, 34, 0.1);
+  color: #aa7700;
+  border: 1px solid rgba(210, 153, 34, 0.25);
+}
+
+.posture-guarded {
+  background: rgba(255, 120, 0, 0.1);
+  color: #c06000;
+  border: 1px solid rgba(255, 120, 0, 0.25);
+}
+
+.posture-lockdown {
+  background: rgba(255, 0, 0, 0.1);
+  color: #c00;
+  border: 1px solid rgba(255, 0, 0, 0.25);
+}

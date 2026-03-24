@@ -1,0 +1,99 @@
+.node-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.node-card {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border, #30363d);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.node-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.node-status {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.status-trusted {
+  background: rgba(0, 200, 0, 0.15);
+  color: #0a0;
+}
+
+.status-pending {
+  background: rgba(255, 200, 0, 0.15);
+  color: #aa7700;
+}
+
+.status-quarantined {
+  background: rgba(255, 0, 0, 0.15);
+  color: #a00;
+}
+
+.status-unknown {
+  background: rgba(150, 150, 150, 0.15);
+  color: #666;
+}
+
+/* Glow integration */
+.glow-none {}
+.glow-low { box-shadow: 0 0 6px rgba(80, 160, 255, 0.25); }
+.glow-medium { box-shadow: 0 0 12px rgba(80, 160, 255, 0.45); }
+.glow-high { box-shadow: 0 0 20px rgba(80, 160, 255, 0.7); }
+
+/* Risk tinting */
+.risk-low {}
+.risk-medium { border-color: #e6b800; }
+.risk-high { border-color: #d9534f; }
+
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+.capabilities {
+  margin-top: 12px;
+}
+
+.cap-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.cap-row-clickable {
+  cursor: pointer;
+}
+
+.cap-row-clickable:hover {
+  text-decoration: underline;
+}
+
+/* Pulse animation for SSE-highlighted node cards */
+@keyframes node-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(80, 160, 255, 0.5); }
+  70%  { box-shadow: 0 0 0 10px rgba(80, 160, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(80, 160, 255, 0); }
+}
+
+.node-card--pulse {
+  animation: node-pulse 0.35s ease-out;
+}
+
+.empty {
+  opacity: 0.6;
+  font-style: italic;
+}

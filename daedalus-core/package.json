@@ -1,0 +1,22 @@
+{
+    "name": "daedalus-core",
+    "version": "1.0.0",
+    "private": true,
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "start": "ts-node src/main.ts",
+        "dev": "ts-node src/main.ts"
+    },
+    "dependencies": {
+        "express": "^4.21.0"
+    },
+    "devDependencies": {
+        "@types/express": "^5.0.0",
+        "@types/node": "^22.0.0",
+        "typescript": "^5.7.0",
+        "ts-node": "^10.9.0",
+        "tsconfig-paths": "^4.2.0"
+    }
+}
