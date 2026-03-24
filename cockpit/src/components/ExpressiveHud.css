@@ -154,6 +154,8 @@
   bottom: 12px;
   right: 12px;
   width: 280px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
   padding: 10px 14px;
   border-radius: 10px;
   background: rgba(5, 8, 15, 0.94);
@@ -163,6 +165,16 @@
   font-family: system-ui, -apple-system, sans-serif;
   z-index: 9999;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 12px 32px rgba(0, 0, 0, 0.55);
+  transition: height 0.2s ease;
+}
+
+.expressive-hud--collapsed > *:not(.hud-title) {
+  display: none;
+}
+
+.expressive-hud--collapsed {
+  width: 200px;
+  overflow: hidden;
 }
 
 .hud-title {

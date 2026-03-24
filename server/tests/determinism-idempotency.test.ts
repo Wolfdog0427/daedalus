@@ -108,10 +108,12 @@ describe("IDEMPOTENCY", () => {
     resetDaedalusEventBus();
   });
 
-  test("double join: active node rejects re-join (phase guard), detach+rejoin works", () => {
+  test("double join: active node re-syncs gracefully, detach+rejoin works", () => {
     const reg = new NodeMirrorRegistry();
     reg.handleJoin(mkJoin("node-1"));
-    expect(() => reg.handleJoin(mkJoin("node-1"))).toThrow("Invalid phase transition");
+    const resynced = reg.handleJoin(mkJoin("node-1"));
+    expect(resynced).toBeDefined();
+    expect(reg.getCount()).toBe(1);
     reg.handleDetach("node-1");
     reg.handleJoin(mkJoin("node-1"));
     expect(reg.getCount()).toBe(1);

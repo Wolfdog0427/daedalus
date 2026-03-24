@@ -1,0 +1,43 @@
+.alignment-heatmap {
+  padding: 10px 0;
+}
+
+.alignment-heatmap--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+}
+
+.alignment-heatmap__placeholder {
+  font-size: 0.78rem;
+  color: var(--text-dim, #8b949e);
+}
+
+.alignment-heatmap__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim, #8b949e);
+  margin-bottom: 6px;
+}
+
+.alignment-heatmap__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.alignment-heatmap__cell {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  transition: background-color 0.3s ease;
+  cursor: default;
+}
+
+.alignment-heatmap__cell:hover {
+  outline: 1px solid rgba(255, 255, 255, 0.4);
+  outline-offset: 1px;
+}

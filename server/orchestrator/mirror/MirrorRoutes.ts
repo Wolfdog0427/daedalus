@@ -23,9 +23,14 @@ export function createMirrorRouter() {
         res.status(400).json({ error: "Missing or invalid capabilities/expressive in join payload" });
         return;
       }
-      const registry = getNodeMirrorRegistry();
-      const mirror = registry.handleJoin(payload);
-      res.status(201).json({ nodeId: mirror.id, status: mirror.status, phase: mirror.lifecycle.phase });
+      try {
+        const registry = getNodeMirrorRegistry();
+        const mirror = registry.handleJoin(payload);
+        res.status(201).json({ nodeId: mirror.id, status: mirror.status, phase: mirror.lifecycle.phase });
+      } catch (err: any) {
+        console.error("[mirror] /mirror/join error:", err?.message);
+        res.status(409).json({ error: err?.message ?? "Failed to join node" });
+      }
     },
   );
 

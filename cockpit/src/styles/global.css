@@ -63,13 +63,19 @@ body {
 }
 
 .grid {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
+}
+
+.grid-row-2col {
+  display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
 @media (max-width: 720px) {
-  .grid {
+  .grid-row-2col {
     grid-template-columns: 1fr;
   }
 }
@@ -94,7 +100,7 @@ body {
 }
 
 .panel-wide {
-  grid-column: 1 / -1;
+  width: 100%;
 }
 
 /* ---- Node capabilities ---- */

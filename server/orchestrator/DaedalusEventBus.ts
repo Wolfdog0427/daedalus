@@ -8,6 +8,22 @@ export type DaedalusEventType =
   | "GOVERNANCE_OVERRIDE_APPLIED"
   | "CONTINUITY_DRIFT_DETECTED"
   | "BEING_PRESENCE_UPDATED"
+  | "STRATEGY_CHANGED"
+  | "ALIGNMENT_ESCALATION"
+  | "SAFE_MODE_ACTIVE"
+  | "ALIGNMENT_CONFIG_CHANGED"
+  | "CHANGE_AUTO_APPROVED"
+  | "CHANGE_REQUIRES_REVIEW"
+  | "REGULATION_MACRO_FIRED"
+  | "REGULATION_SAFE_MODE_SIGNAL"
+  | "CHANGE_REGISTERED"
+  | "CHANGE_ROLLED_BACK"
+  | "CHANGE_ACCEPTED"
+  | "OPERATOR_BOUND"
+  | "OPERATOR_UNBOUND"
+  | "OPERATOR_TRUST_SUSPICIOUS"
+  | "OPERATOR_HIGH_RISK_DENIED"
+  | "CONSTITUTIONAL_FREEZE_CHANGED"
   | "MIRROR_NODE_JOINED"
   | "MIRROR_NODE_HEARTBEAT"
   | "MIRROR_NODE_QUARANTINED"
@@ -34,6 +50,8 @@ export interface DaedalusEventPayload {
   beingPresence?: BeingPresenceDetail;
   mirrorPhase?: string;
   mirrorStatus?: string;
+  strategy?: string;
+  alignment?: number;
 }
 
 type Listener = (event: DaedalusEventPayload) => void;

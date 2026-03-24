@@ -6,6 +6,7 @@ import { createCockpitRouter } from "./cockpit/CockpitRoutes";
 import { createMirrorRouter } from "./mirror/MirrorRoutes";
 import { incidentService } from "./governance/IncidentService";
 import { actionLog } from "./governance/ActionLog";
+import { strategyService } from "./strategy/StrategyService";
 import {
   BeingPresenceDetail,
   CapabilityTrace,
@@ -56,9 +57,14 @@ daedalusRouter.get("/events", (req: Request, res: Response) => {
  */
 daedalusRouter.get(
   "/snapshot",
-  (req: Request, res: Response<OrchestratorSnapshot>) => {
-    const snapshot = daedalusStore.getSnapshot();
-    res.json(snapshot);
+  (req: Request, res: Response<OrchestratorSnapshot | { error: string }>) => {
+    try {
+      const snapshot = daedalusStore.getSnapshot();
+      res.json(snapshot);
+    } catch (err: any) {
+      console.error("[daedalus] /snapshot error:", err?.message);
+      res.status(500).json({ error: err?.message ?? "Failed to build snapshot" });
+    }
   },
 );
 
@@ -67,12 +73,463 @@ daedalusRouter.get(
  * Validates being constitution against current presences and behavioral field.
  */
 daedalusRouter.get("/constitution", (_req: Request, res: Response) => {
-  const beings = daedalusStore.getBeingPresences();
-  const beingMap: Record<string, BeingPresenceDetail> = {};
-  for (const b of beings) beingMap[b.id] = b;
-  const behavioral = computeBehavioralField(beingMap);
-  const report = validateBeingConstitution(beings, [], behavioral.dominantBeingId);
-  res.json(report);
+  try {
+    const beings = daedalusStore.getBeingPresences();
+    const beingMap: Record<string, BeingPresenceDetail> = {};
+    for (const b of beings) beingMap[b.id] = b;
+    const behavioral = computeBehavioralField(beingMap);
+    const report = validateBeingConstitution(beings, [], behavioral.dominantBeingId);
+    res.json(report);
+  } catch (err: any) {
+    console.error("[daedalus] /constitution error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to validate constitution" });
+  }
+});
+
+/**
+ * GET /daedalus/strategy
+ * Returns the current strategy alignment evaluation plus kernel tick metadata
+ * (posture, drift, self-correction state).
+ * Routes through kernel tickKernel for the full pipeline.
+ */
+daedalusRouter.get("/strategy", (_req: Request, res: Response) => {
+  try {
+    const evaluation = strategyService.evaluate();
+    const tick = strategyService.getLastTickResult();
+    res.json({
+      ...evaluation,
+      posture: tick?.posture ?? null,
+      drift: tick?.drift ?? null,
+      selfCorrected: tick?.selfCorrected ?? false,
+      trend: tick?.trend ?? null,
+      escalation: tick?.escalation ?? null,
+      safeMode: tick?.safeMode ?? null,
+    });
+  } catch (err: any) {
+    console.error("[daedalus] /strategy error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to evaluate strategy" });
+  }
+});
+
+/**
+ * GET /daedalus/telemetry
+ * Returns the kernel alignment telemetry snapshot — recent strategy
+ * evaluations, alignment history, drift analysis, and telemetry events.
+ */
+daedalusRouter.get("/telemetry", (_req: Request, res: Response) => {
+  try {
+    const snapshot = strategyService.getTelemetrySnapshot();
+    res.json(snapshot);
+  } catch (err: any) {
+    console.error("[daedalus] /telemetry error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch telemetry" });
+  }
+});
+
+/**
+ * GET /daedalus/alignment-config
+ * Returns the current operator-controlled alignment configuration.
+ */
+daedalusRouter.get("/alignment-config", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getAlignmentConfig());
+  } catch (err: any) {
+    console.error("[daedalus] /alignment-config GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch alignment config" });
+  }
+});
+
+/**
+ * POST /daedalus/alignment-config
+ * Updates the operator-controlled alignment configuration.
+ * Runs the change through the auto-approval gate first.
+ */
+daedalusRouter.post("/alignment-config", (req: Request, res: Response) => {
+  try {
+    const proposal = {
+      id: `ac-${Date.now()}`,
+      kind: "alignment_config" as const,
+      description: "Alignment config update via operator",
+      payload: req.body ?? {},
+      proposedAt: Date.now(),
+      proposedBy: "operator",
+    };
+
+    const decision = strategyService.submitChangeProposal(proposal);
+
+    const updated = strategyService.updateAlignmentConfig(req.body ?? {});
+    getDaedalusEventBus().publish({
+      type: "ALIGNMENT_CONFIG_CHANGED",
+      timestamp: new Date().toISOString(),
+      summary: "Alignment configuration updated by operator",
+    });
+    res.json({ ...updated, approval: decision });
+  } catch (err: any) {
+    console.error("[daedalus] /alignment-config POST error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to update alignment config" });
+  }
+});
+
+/**
+ * POST /daedalus/propose-change
+ * Submit a change proposal for auto-approval evaluation.
+ * The change is NOT applied — only evaluated.
+ */
+daedalusRouter.post("/propose-change", (req: Request, res: Response) => {
+  try {
+    const body = req.body ?? {};
+    if (!body.kind || !body.description) {
+      res.status(400).json({ error: "Missing required fields: kind, description" });
+      return;
+    }
+    const proposal = {
+      id: body.id ?? `cp-${Date.now()}`,
+      kind: body.kind,
+      description: body.description,
+      payload: body.payload ?? {},
+      proposedAt: Date.now(),
+      proposedBy: body.proposedBy ?? "operator",
+    };
+    const decision = strategyService.submitChangeProposal(proposal);
+    res.json(decision);
+  } catch (err: any) {
+    console.error("[daedalus] /propose-change error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to evaluate change proposal" });
+  }
+});
+
+/**
+ * GET /daedalus/approval-gate
+ * Returns the current approval gate config and recent decisions.
+ */
+daedalusRouter.get("/approval-gate", (_req: Request, res: Response) => {
+  try {
+    res.json({
+      config: strategyService.getApprovalGateConfig(),
+      recentDecisions: strategyService.getRecentApprovals(),
+    });
+  } catch (err: any) {
+    console.error("[daedalus] /approval-gate GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch approval gate" });
+  }
+});
+
+/**
+ * POST /daedalus/approval-gate/config
+ * Updates the approval gate configuration.
+ */
+daedalusRouter.post("/approval-gate/config", (req: Request, res: Response) => {
+  try {
+    const updated = strategyService.updateApprovalGateConfig(req.body ?? {});
+    res.json(updated);
+  } catch (err: any) {
+    console.error("[daedalus] /approval-gate/config POST error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to update approval gate config" });
+  }
+});
+
+/**
+ * GET /daedalus/regulation
+ * Returns the current regulation config and last regulation output.
+ */
+daedalusRouter.get("/regulation", (_req: Request, res: Response) => {
+  try {
+    res.json({
+      config: strategyService.getRegulationConfig(),
+      lastOutput: strategyService.getLastRegulationOutput(),
+    });
+  } catch (err: any) {
+    console.error("[daedalus] /regulation GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch regulation state" });
+  }
+});
+
+/**
+ * POST /daedalus/regulation/config
+ * Updates the regulation loop configuration (operator tuning).
+ */
+daedalusRouter.post("/regulation/config", (req: Request, res: Response) => {
+  try {
+    const updated = strategyService.updateRegulationConfig(req.body ?? {});
+    getDaedalusEventBus().publish({
+      type: "ALIGNMENT_CONFIG_CHANGED",
+      timestamp: new Date().toISOString(),
+      summary: "Regulation config updated by operator",
+    });
+    res.json(updated);
+  } catch (err: any) {
+    console.error("[daedalus] /regulation/config POST error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to update regulation config" });
+  }
+});
+
+/**
+ * POST /daedalus/classify-change
+ * Classifies a change's impact and invariant touch using the surface model.
+ */
+daedalusRouter.post("/classify-change", (req: Request, res: Response) => {
+  try {
+    const body = req.body ?? {};
+    if (!body.surfaces || !body.depth) {
+      res.status(400).json({ error: "Missing required fields: surfaces, depth" });
+      return;
+    }
+    const result = strategyService.classifyChange(body);
+    res.json(result);
+  } catch (err: any) {
+    console.error("[daedalus] /classify-change error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to classify change" });
+  }
+});
+
+/**
+ * GET /daedalus/rollback-registry
+ * Returns the current rollback registry state: active changes, recent rollbacks.
+ */
+daedalusRouter.get("/rollback-registry", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getRollbackRegistrySnapshot());
+  } catch (err: any) {
+    console.error("[daedalus] /rollback-registry GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch rollback registry" });
+  }
+});
+
+/**
+ * POST /daedalus/rollback-registry/register
+ * Register a change for tracked evaluation.
+ */
+daedalusRouter.post("/rollback-registry/register", (req: Request, res: Response) => {
+  try {
+    const body = req.body ?? {};
+    if (!body.id || !body.description) {
+      res.status(400).json({ error: "Missing required fields: id, description" });
+      return;
+    }
+    const record = strategyService.registerTrackedChange({
+      id: body.id,
+      description: body.description,
+      evaluationWindow: body.evaluationWindow ?? 100,
+      baselineAlignment: body.baselineAlignment ?? 0,
+      surfaces: body.surfaces ?? [],
+      impact: body.impact ?? "low",
+      rollbackPayload: body.rollbackPayload ?? {},
+    });
+    res.status(201).json(record);
+  } catch (err: any) {
+    console.error("[daedalus] /rollback-registry/register error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to register change" });
+  }
+});
+
+/**
+ * GET /daedalus/rollback-registry/config
+ * Returns the rollback config.
+ */
+daedalusRouter.get("/rollback-registry/config", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getRollbackConfig());
+  } catch (err: any) {
+    console.error("[daedalus] /rollback-registry/config GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch rollback config" });
+  }
+});
+
+/**
+ * POST /daedalus/rollback-registry/config
+ * Updates rollback config.
+ */
+daedalusRouter.post("/rollback-registry/config", (req: Request, res: Response) => {
+  try {
+    const updated = strategyService.updateRollbackConfig(req.body ?? {});
+    res.json(updated);
+  } catch (err: any) {
+    console.error("[daedalus] /rollback-registry/config POST error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to update rollback config" });
+  }
+});
+
+// ── Operator Identity Endpoints ──────────────────────────────────────
+
+/**
+ * GET /daedalus/operator/trust
+ * Returns the operator trust cockpit snapshot (read-only, no config mutation).
+ */
+daedalusRouter.get("/operator/trust", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getOperatorTrustSnapshot());
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to get operator trust" });
+  }
+});
+
+/**
+ * POST /daedalus/operator/bind
+ * Bind an operator profile. Body: OperatorProfile.
+ */
+daedalusRouter.post("/operator/bind", (req: Request, res: Response) => {
+  try {
+    const profile = req.body;
+    if (!profile?.id || !profile?.displayName) {
+      res.status(400).json({ error: "Missing required fields: id, displayName" });
+      return;
+    }
+    const state = strategyService.bindOperatorProfile(profile);
+    res.json(state);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to bind operator" });
+  }
+});
+
+/**
+ * POST /daedalus/operator/unbind
+ * Unbind the current operator.
+ */
+daedalusRouter.post("/operator/unbind", (_req: Request, res: Response) => {
+  try {
+    const state = strategyService.unbindCurrentOperator();
+    res.json(state);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to unbind operator" });
+  }
+});
+
+/**
+ * POST /daedalus/operator/observation
+ * Submit an operator observation for trust calibration.
+ */
+daedalusRouter.post("/operator/observation", (req: Request, res: Response) => {
+  try {
+    const result = strategyService.submitOperatorObservation(req.body);
+    res.json({
+      trustScore: result.state.trustScore,
+      allowHighRiskActions: result.allowHighRiskActions,
+      suspicious: result.suspicious,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to process observation" });
+  }
+});
+
+/**
+ * GET /daedalus/operator/high-risk-log
+ * Returns recent high-risk decision log entries.
+ */
+daedalusRouter.get("/operator/high-risk-log", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getRecentHighRiskLog());
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to get high-risk log" });
+  }
+});
+
+/**
+ * POST /daedalus/operator/freeze
+ * Enable constitutional freeze. Body: { reason: string }
+ */
+daedalusRouter.post("/operator/freeze", (req: Request, res: Response) => {
+  try {
+    const reason = req.body?.reason ?? "operator_requested";
+    res.json(strategyService.setConstitutionalFreeze(reason));
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to enable freeze" });
+  }
+});
+
+/**
+ * POST /daedalus/operator/unfreeze
+ * Disable constitutional freeze.
+ */
+daedalusRouter.post("/operator/unfreeze", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.clearConstitutionalFreeze());
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to disable freeze" });
+  }
+});
+
+/**
+ * GET /daedalus/operator/freeze
+ * Get constitutional freeze state.
+ */
+daedalusRouter.get("/operator/freeze", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getConstitutionalFreezeState());
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to get freeze state" });
+  }
+});
+
+/**
+ * POST /daedalus/operator/attunement/start
+ * Start the first-run attunement flow.
+ */
+daedalusRouter.post("/operator/attunement/start", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.startOperatorAttunement());
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to start attunement" });
+  }
+});
+
+/**
+ * POST /daedalus/operator/attunement/advance
+ * Advance the attunement flow to the next step.
+ */
+daedalusRouter.post("/operator/attunement/advance", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.advanceOperatorAttunement());
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to advance attunement" });
+  }
+});
+
+/**
+ * GET /daedalus/operator/attunement
+ * Get current attunement state.
+ */
+daedalusRouter.get("/operator/attunement", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getOperatorAttunementState());
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to get attunement" });
+  }
+});
+
+/**
+ * GET /daedalus/operator/introspect
+ * Get introspection (why this posture?).
+ */
+daedalusRouter.get("/operator/introspect", (_req: Request, res: Response) => {
+  try {
+    res.json({ explanation: strategyService.getOperatorIntrospection() });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to introspect" });
+  }
+});
+
+/**
+ * GET /daedalus/operator/timeline
+ * Get the relationship timeline.
+ */
+daedalusRouter.get("/operator/timeline", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getOperatorTimeline());
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to get timeline" });
+  }
+});
+
+/**
+ * GET /daedalus/operator/trust-drift
+ * Get trust drift samples for dashboard.
+ */
+daedalusRouter.get("/operator/trust-drift", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getOperatorTrustDrift());
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to get trust drift" });
+  }
 });
 
 /**
@@ -80,8 +537,13 @@ daedalusRouter.get("/constitution", (_req: Request, res: Response) => {
  * Returns all nodes from the canonical mirror registry.
  */
 daedalusRouter.get("/nodes", (_req: Request, res: Response) => {
-  const { getNodeMirrorRegistry } = require("./mirror/NodeMirror");
-  res.json(getNodeMirrorRegistry().toCockpitView());
+  try {
+    const { getNodeMirrorRegistry } = require("./mirror/NodeMirror");
+    res.json(getNodeMirrorRegistry().toCockpitView());
+  } catch (err: any) {
+    console.error("[daedalus] /nodes error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch nodes" });
+  }
 });
 
 /**
@@ -199,12 +661,17 @@ daedalusRouter.get(
 daedalusRouter.put(
   "/beings/:id/presence",
   (req: Request, res: Response<BeingPresenceDetail | { error: string }>) => {
-    const updated = daedalusStore.updateBeingPresence(req.params.id, req.body);
-    if (!updated) {
-      res.status(404).json({ error: `Being "${req.params.id}" not found.` });
-      return;
+    try {
+      const updated = daedalusStore.updateBeingPresence(req.params.id, req.body);
+      if (!updated) {
+        res.status(404).json({ error: `Being "${req.params.id}" not found.` });
+        return;
+      }
+      res.json(updated);
+    } catch (err: any) {
+      console.error("[daedalus] PUT beings/:id/presence error:", err?.message);
+      res.status(500).json({ error: err?.message ?? "Failed to update being presence" });
     }
-    res.json(updated);
   },
 );
 

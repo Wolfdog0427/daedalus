@@ -1,0 +1,46 @@
+.alignment-meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.alignment-meter__label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text, #e6edf3);
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.alignment-meter__track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  position: relative;
+}
+
+.alignment-meter__bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease, background 0.3s ease;
+  min-width: 2px;
+}
+
+.alignment-meter__value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: right;
+  color: var(--text, #e6edf3);
+}
+
+/* tier-colored value text */
+.alignment-meter--excellent .alignment-meter__value { color: #3fb950; }
+.alignment-meter--strong .alignment-meter__value    { color: #58a6ff; }
+.alignment-meter--moderate .alignment-meter__value  { color: #d29922; }
+.alignment-meter--low .alignment-meter__value       { color: #f0883e; }
+.alignment-meter--critical .alignment-meter__value  { color: #f85149; }

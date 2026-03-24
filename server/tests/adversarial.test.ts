@@ -143,17 +143,18 @@ describe("Node Impersonation", () => {
     resetNodeMirrorRegistry();
   });
 
-  test("duplicate nodeId join: second join rejected (active → joining invalid)", async () => {
+  test("duplicate nodeId join: second join re-syncs the existing active node", async () => {
     const join1 = { ...mkJoin("dup-node"), profile: { ...mkJoin("dup-node").profile, model: "first-model" } };
     await request(app).post("/daedalus/mirror/join").send(join1).expect(201);
 
     const join2 = { ...mkJoin("dup-node"), profile: { ...mkJoin("dup-node").profile, model: "second-model" } };
-    await request(app).post("/daedalus/mirror/join").send(join2).expect(500);
+    await request(app).post("/daedalus/mirror/join").send(join2).expect(201);
 
     const reg = getNodeMirrorRegistry();
     const mirror = reg.getMirror("dup-node");
     expect(mirror).toBeDefined();
-    expect(mirror!.profile.model).toBe("first-model");
+    expect(mirror!.profile.model).toBe("second-model");
+    expect(mirror!.lifecycle.phase).toBe("active");
   });
 
   test("heartbeat for never-joined node: 404", async () => {

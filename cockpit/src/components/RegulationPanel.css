@@ -1,0 +1,174 @@
+.regulation-panel {
+  background: rgba(13, 17, 23, 0.6);
+  border: 1px solid rgba(48, 54, 61, 0.6);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.regulation-panel__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text, #e6edf3);
+  margin: 0 0 12px 0;
+}
+
+.regulation-panel__error {
+  color: #f85149;
+  font-size: 0.82rem;
+}
+
+.regulation-panel__muted {
+  color: #8b949e;
+  font-size: 0.82rem;
+}
+
+.regulation-panel__config {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-size: 0.75rem;
+  color: #8b949e;
+}
+
+.regulation-panel__config span {
+  background: rgba(48, 54, 61, 0.4);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.regulation-panel__output {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Drift Metrics ─────────────────────────────────────────── */
+
+.regulation-drift {
+  display: flex;
+  gap: 8px;
+}
+
+.regulation-drift__cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(48, 54, 61, 0.3);
+}
+
+.regulation-drift__label {
+  font-size: 0.65rem;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.regulation-drift__value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text, #e6edf3);
+}
+
+.drift--low .regulation-drift__value { color: #4caf50; }
+.drift--medium .regulation-drift__value { color: #ffb300; }
+.drift--high .regulation-drift__value { color: #f85149; }
+
+/* ── Adjustment Bars ───────────────────────────────────────── */
+
+.regulation-panel__adjustments {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.regulation-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.regulation-bar__label {
+  width: 40px;
+  font-size: 0.72rem;
+  color: #8b949e;
+  font-weight: 600;
+}
+
+.regulation-bar__track {
+  flex: 1;
+  height: 8px;
+  background: rgba(48, 54, 61, 0.4);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.regulation-bar__fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.regulation-bar__fill--positive { background: #4caf50; }
+.regulation-bar__fill--negative { background: #f85149; }
+.regulation-bar__fill--neutral { background: #8b949e; width: 0 !important; }
+
+.regulation-bar__value {
+  width: 50px;
+  text-align: right;
+  font-size: 0.72rem;
+  color: var(--text, #e6edf3);
+  font-family: monospace;
+}
+
+/* ── Macro detail ──────────────────────────────────────────── */
+
+.regulation-panel__macro-detail {
+  display: flex;
+  gap: 10px;
+  font-size: 0.72rem;
+  color: #8b949e;
+  padding: 4px 8px;
+  background: rgba(248, 81, 73, 0.06);
+  border-radius: 6px;
+  border: 1px solid rgba(248, 81, 73, 0.15);
+}
+
+.regulation-panel__reason {
+  font-weight: 700;
+  color: #f85149;
+}
+
+/* ── Governance Signals ────────────────────────────────────── */
+
+.regulation-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.regulation-signal {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.regulation-signal--critical {
+  background: rgba(248, 81, 73, 0.15);
+  color: #f85149;
+}
+
+.regulation-signal--high {
+  background: rgba(255, 179, 0, 0.15);
+  color: #ffb300;
+}
+
+.regulation-signal--recovery {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
+}

@@ -2,7 +2,7 @@
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(260px, 1.2fr);
   gap: 16px;
-  height: 100%;
+  min-height: 0;
 }
 
 .daedalus-orchestrator-panel.cin-shell {

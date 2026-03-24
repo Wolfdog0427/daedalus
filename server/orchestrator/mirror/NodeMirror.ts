@@ -100,8 +100,27 @@ export class NodeMirrorRegistry {
   }
 
   handleJoin(payload: NodeJoinPayload): NodeMirror {
-    let mirror = this.mirrors.get(payload.nodeId) ?? createFreshMirror(payload.nodeId);
-    mirror = processJoin(mirror, payload);
+    const existing = this.mirrors.get(payload.nodeId);
+    let mirror: NodeMirror;
+
+    if (existing && (existing.lifecycle.phase === "active" || existing.lifecycle.phase === "degraded")) {
+      mirror = {
+        ...existing,
+        name: payload.name,
+        profile: payload.profile,
+        capabilities: { entries: [...payload.capabilities] },
+        expressive: { ...payload.expressive },
+        lifecycle: {
+          ...existing.lifecycle,
+          lastCapSync: new Date().toISOString(),
+          lastExpressiveSync: new Date().toISOString(),
+          lastProfileSync: new Date().toISOString(),
+        },
+      };
+    } else {
+      mirror = processJoin(existing ?? createFreshMirror(payload.nodeId), payload);
+    }
+
     mirror = refreshExpressiveFromPhase(mirror);
     this.mirrors.set(payload.nodeId, mirror);
     this.emit({ type: "NODE_JOINED", nodeId: payload.nodeId, mirror });

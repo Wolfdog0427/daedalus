@@ -6,19 +6,37 @@ import { SummaryPanel } from './components/SummaryPanel';
 import { IncidentPanel } from './components/IncidentPanel';
 import { EventHistoryPanel } from './components/EventHistoryPanel';
 import { ActionLogPanel } from './components/ActionLogPanel';
+import { StrategyPanel } from './components/StrategyPanel';
+import { AlignmentControls } from './components/AlignmentControls';
+import { ApprovalGatePanel } from './components/ApprovalGatePanel';
+import { RegulationPanel } from './components/RegulationPanel';
+import { ChangeRegistryPanel } from './components/ChangeRegistryPanel';
+import { OperatorTrustPanel } from './components/OperatorTrustPanel';
 
 export function App() {
   return (
     <Layout>
       <SummaryPanel />
       <DaedalusOrchestratorPanel />
-      <IncidentPanel />
+      <div className="grid-row-2col">
+        <StrategyPanel />
+        <IncidentPanel />
+      </div>
       <CockpitNodeListPanel />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <OperatorTrustPanel />
+      <div className="grid-row-2col">
+        <AlignmentControls />
+        <ConstitutionPanel />
+      </div>
+      <div className="grid-row-2col">
+        <RegulationPanel />
+        <ApprovalGatePanel />
+      </div>
+      <ChangeRegistryPanel />
+      <div className="grid-row-2col">
         <EventHistoryPanel />
         <ActionLogPanel />
       </div>
-      <ConstitutionPanel />
     </Layout>
   );
 }

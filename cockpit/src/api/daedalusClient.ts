@@ -103,6 +103,442 @@ export async function updateBeingPresence(
   return handleJson<BeingPresenceDetail>(res);
 }
 
+// ── Strategy Alignment ────────────────────────────────────────────
+
+export interface AlignmentBreakdown {
+  sovereignty: number;
+  identity: number;
+  governance: number;
+  stability: number;
+}
+
+export type StrategyName =
+  | "sovereignty_stable"
+  | "sovereignty_contested"
+  | "identity_reinforcement"
+  | "governance_attentive"
+  | "governance_undercorrection"
+  | "stability_recovery"
+  | "alignment_nominal"
+  | "alignment_degraded"
+  | "alignment_guard_critical"
+  | "alignment_guard_cautious"
+  | "autonomy_paused_alignment_critical";
+
+export type EscalationLevel = "none" | "medium" | "high" | "critical";
+
+export interface EscalationResult {
+  level: EscalationLevel;
+  reason?: string;
+}
+
+export interface SafeModeState {
+  active: boolean;
+  reason?: string;
+  since?: number;
+}
+
+export interface StrategyEvaluation {
+  name: StrategyName;
+  confidence: number;
+  alignment: number;
+  alignmentBreakdown: AlignmentBreakdown;
+  weakestAxis: keyof AlignmentBreakdown;
+  strongestAxis: keyof AlignmentBreakdown;
+  notes: string;
+  evaluatedAt: string;
+  gated?: boolean;
+  originalStrategy?: string;
+  escalationLevel?: EscalationLevel;
+}
+
+export interface AlignmentDriftResult {
+  drifting: boolean;
+  delta: number;
+  window: number;
+  firstAlignment: number | null;
+  lastAlignment: number | null;
+}
+
+export interface KernelPosture {
+  responsiveness: number;
+  caution: number;
+}
+
+export interface AlignmentTrend {
+  avgAlignment: number | null;
+  belowFloor: boolean;
+  sampleCount: number;
+}
+
+export interface StrategyResponse extends StrategyEvaluation {
+  posture: KernelPosture | null;
+  drift: AlignmentDriftResult | null;
+  selfCorrected: boolean;
+  trend: AlignmentTrend | null;
+  escalation: EscalationResult | null;
+  safeMode: SafeModeState | null;
+}
+
+export async function fetchStrategy(): Promise<StrategyResponse> {
+  const res = await fetch(`${basePath}/strategy`, { headers: authHeaders() });
+  return handleJson<StrategyResponse>(res);
+}
+
+export interface AlignmentHistoryPoint {
+  timestamp: number;
+  strategy: StrategyName;
+  alignment: number;
+  confidence: number;
+}
+
+export interface TelemetrySnapshot {
+  events: Array<{
+    type: string;
+    timestamp: number;
+    strategy: StrategyName;
+    confidence: number;
+    alignment: number;
+    breakdown: AlignmentBreakdown;
+    gated?: boolean;
+    escalationLevel?: EscalationLevel;
+  }>;
+  alignmentEvents: Array<{
+    type: string;
+    timestamp: number;
+    strategy?: StrategyName;
+    alignment?: number;
+  }>;
+  recentStrategies: StrategyEvaluation[];
+  alignment: Array<{
+    strategy: StrategyName;
+    alignment: number;
+    confidence: number;
+  }>;
+  alignmentHistory: AlignmentHistoryPoint[];
+  drift: AlignmentDriftResult;
+  lastEscalation: { level: EscalationLevel; reason?: string; strategy?: StrategyName; alignment?: number } | null;
+  safeMode: SafeModeState;
+}
+
+// ── Alignment Config ──────────────────────────────────────────────
+
+export interface AlignmentConfig {
+  sovereigntyWeight: number;
+  identityWeight: number;
+  governanceWeight: number;
+  stabilityWeight: number;
+  alignmentFloor: number;
+}
+
+export async function fetchAlignmentConfig(): Promise<AlignmentConfig> {
+  const res = await fetch(`${basePath}/alignment-config`, { headers: authHeaders() });
+  return handleJson<AlignmentConfig>(res);
+}
+
+export async function saveAlignmentConfig(config: Partial<AlignmentConfig>): Promise<AlignmentConfig> {
+  const res = await fetch(`${basePath}/alignment-config`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(config),
+  });
+  return handleJson<AlignmentConfig>(res);
+}
+
+// ── Auto-Approval Gate ───────────────────────────────────────────
+
+export type ChangeProposalKind =
+  | "alignment_config"
+  | "kernel_config"
+  | "strategy_override"
+  | "posture_override"
+  | "safe_mode_toggle"
+  | "governance_override";
+
+export type ChangeImpact = "low" | "medium" | "high";
+
+export interface ChangeProposal {
+  id: string;
+  kind: ChangeProposalKind;
+  description: string;
+  payload: Record<string, unknown>;
+  proposedAt: number;
+  proposedBy?: string;
+}
+
+export interface ApprovalReasonBreakdown {
+  alignmentOK: boolean;
+  confidenceOK: boolean;
+  impactOK: boolean;
+  invariantsOK: boolean;
+  reversibleOK: boolean;
+  safeModeOK: boolean;
+  cooldownOK: boolean;
+}
+
+export interface ApprovalDecision {
+  autoApprove: boolean;
+  proposal: ChangeProposal;
+  reasons: ApprovalReasonBreakdown;
+  derivedImpact: ChangeImpact;
+  touchesInvariants: boolean;
+  reversible: boolean;
+  alignment: number;
+  confidence: number;
+  decidedAt: number;
+}
+
+export interface ApprovalGateConfig {
+  alignmentThreshold: number;
+  confidenceThreshold: number;
+  cooldownMs: number;
+  allowDuringSafeMode: boolean;
+}
+
+export interface ApprovalGateResponse {
+  config: ApprovalGateConfig;
+  recentDecisions: ApprovalDecision[];
+}
+
+export async function fetchApprovalGate(): Promise<ApprovalGateResponse> {
+  const res = await fetch(`${basePath}/approval-gate`, { headers: authHeaders() });
+  return handleJson<ApprovalGateResponse>(res);
+}
+
+export async function submitChangeProposal(proposal: Partial<ChangeProposal> & { kind: ChangeProposalKind; description: string }): Promise<ApprovalDecision> {
+  const res = await fetch(`${basePath}/propose-change`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(proposal),
+  });
+  return handleJson<ApprovalDecision>(res);
+}
+
+export async function updateApprovalGateConfig(patch: Partial<ApprovalGateConfig>): Promise<ApprovalGateConfig> {
+  const res = await fetch(`${basePath}/approval-gate/config`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(patch),
+  });
+  return handleJson<ApprovalGateConfig>(res);
+}
+
+export async function fetchTelemetry(): Promise<TelemetrySnapshot> {
+  const res = await fetch(`${basePath}/telemetry`, { headers: authHeaders() });
+  return handleJson<TelemetrySnapshot>(res);
+}
+
+// ── Alignment Regulation Loop ────────────────────────────────────
+
+export interface DriftMetrics {
+  magnitude: number;
+  slope: number;
+  acceleration: number;
+}
+
+export interface RegulationConfig {
+  targetAlignment: number;
+  floorAlignment: number;
+  microGain: number;
+  macroGain: number;
+  macroDamping: number;
+  macroDriftThreshold: number;
+  macroAccelerationThreshold: number;
+  criticalAlignmentThreshold: number;
+  catastrophicAlignmentThreshold: number;
+}
+
+export interface RegulationTelemetry {
+  appliedMicro: boolean;
+  appliedMacro: boolean;
+  macroRawCorrection: number;
+  macroDampedCorrection: number;
+  reason: string;
+}
+
+export interface RegulationOutput {
+  microAdjustment: number;
+  macroAdjustment: number;
+  shouldEnterSafeMode: boolean;
+  shouldExitSafeMode: boolean;
+  shouldPauseAutonomy: boolean;
+  shouldResumeAutonomy: boolean;
+  driftMetrics: DriftMetrics;
+  telemetry: RegulationTelemetry;
+}
+
+export interface RegulationResponse {
+  config: RegulationConfig;
+  lastOutput: RegulationOutput | null;
+}
+
+export async function fetchRegulation(): Promise<RegulationResponse> {
+  const res = await fetch(`${basePath}/regulation`, { headers: authHeaders() });
+  return handleJson<RegulationResponse>(res);
+}
+
+export async function updateRegulationConfig(patch: Partial<RegulationConfig>): Promise<RegulationConfig> {
+  const res = await fetch(`${basePath}/regulation/config`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(patch),
+  });
+  return handleJson<RegulationConfig>(res);
+}
+
+// ── Change Classifier + Rollback Registry ────────────────────────
+
+export type ChangeSurface =
+  | "telemetry" | "logging" | "ui_presentation" | "non_critical_config"
+  | "performance_tuning" | "alignment_tuning" | "governance_policy"
+  | "identity" | "continuity" | "posture" | "node_authority"
+  | "persistence" | "network_topology";
+
+export type ChangeDepth = "shallow" | "moderate" | "deep";
+
+export type InvariantSurface =
+  | "governance_policy" | "identity" | "continuity" | "posture"
+  | "node_authority" | "alignment_core" | "safety_constraints";
+
+export interface AppliedChangeRecord {
+  id: string;
+  description: string;
+  appliedAtTick: number;
+  evaluationWindow: number;
+  baselineAlignment: number;
+  surfaces: ChangeSurface[];
+  impact: ChangeImpact;
+  rollbackPayload: Record<string, unknown>;
+  status: "active" | "accepted" | "rolled_back";
+}
+
+export interface RollbackEvent {
+  changeId: string;
+  reason: string;
+  deltaAlignment: number;
+  rolledBackAt: number;
+}
+
+export interface RollbackRegistrySnapshot {
+  activeChanges: AppliedChangeRecord[];
+  recentRollbacks: RollbackEvent[];
+  acceptedCount: number;
+  rolledBackCount: number;
+}
+
+export async function fetchRollbackRegistry(): Promise<RollbackRegistrySnapshot> {
+  const res = await fetch(`${basePath}/rollback-registry`, { headers: authHeaders() });
+  return handleJson<RollbackRegistrySnapshot>(res);
+}
+
+export async function classifyChangeRequest(input: {
+  surfaces: ChangeSurface[];
+  depth: ChangeDepth;
+  reversible: boolean;
+}): Promise<{
+  impact: { impact: ChangeImpact; score: number; reasons: string[] };
+  invariants: { touchesInvariants: boolean; invariantsTouched: InvariantSurface[] };
+}> {
+  const res = await fetch(`${basePath}/classify-change`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handleJson(res);
+}
+
+// ── Operator Identity ────────────────────────────────────────────
+
+export type OperatorTrustPosture =
+  | "unbound" | "trusted_canonical" | "trusted_uncalibrated"
+  | "cautious" | "hostile_or_unknown";
+
+export type ComfortPosture = "fluid" | "neutral" | "careful";
+
+export interface OperatorTrustAxes {
+  credentials: number;
+  deviceGraph: number;
+  behaviorProfile: number;
+  continuity: number;
+}
+
+export interface ConstitutionalFreezeState {
+  frozen: boolean;
+  reason: string | null;
+}
+
+export interface HighRiskDecisionLogEntry {
+  tick: number;
+  action: string;
+  allowed: boolean;
+  posture: OperatorTrustPosture;
+  trustScore: number;
+  axes: OperatorTrustAxes;
+  reasons: string[];
+}
+
+export interface OperatorTrustCockpitSnapshot {
+  boundOperatorId: string | null;
+  boundOperatorName: string | null;
+  posture: OperatorTrustPosture;
+  comfortPosture: ComfortPosture;
+  trustScore: number;
+  axes: OperatorTrustAxes;
+  calibrated: boolean;
+  narrative: string;
+  freeze: ConstitutionalFreezeState;
+  recentHighRiskDecisions: HighRiskDecisionLogEntry[];
+}
+
+export async function fetchOperatorTrust(): Promise<OperatorTrustCockpitSnapshot> {
+  const res = await fetch(`${basePath}/operator/trust`, { headers: authHeaders() });
+  return handleJson<OperatorTrustCockpitSnapshot>(res);
+}
+
+export async function bindOperatorProfile(profile: {
+  id: string;
+  displayName: string;
+  values?: Record<string, boolean>;
+  continuityAnchors?: string[];
+  risk?: Record<string, boolean>;
+}): Promise<unknown> {
+  const res = await fetch(`${basePath}/operator/bind`, {
+    method: "POST", headers: authHeaders(), body: JSON.stringify(profile),
+  });
+  return handleJson(res);
+}
+
+export async function unbindOperator(): Promise<unknown> {
+  const res = await fetch(`${basePath}/operator/unbind`, {
+    method: "POST", headers: authHeaders(),
+  });
+  return handleJson(res);
+}
+
+export async function fetchOperatorHighRiskLog(): Promise<HighRiskDecisionLogEntry[]> {
+  const res = await fetch(`${basePath}/operator/high-risk-log`, { headers: authHeaders() });
+  return handleJson<HighRiskDecisionLogEntry[]>(res);
+}
+
+export async function enableFreeze(reason: string): Promise<ConstitutionalFreezeState> {
+  const res = await fetch(`${basePath}/operator/freeze`, {
+    method: "POST", headers: authHeaders(), body: JSON.stringify({ reason }),
+  });
+  return handleJson<ConstitutionalFreezeState>(res);
+}
+
+export async function disableFreeze(): Promise<ConstitutionalFreezeState> {
+  const res = await fetch(`${basePath}/operator/unfreeze`, {
+    method: "POST", headers: authHeaders(),
+  });
+  return handleJson<ConstitutionalFreezeState>(res);
+}
+
+export async function fetchOperatorIntrospection(): Promise<{ explanation: string }> {
+  const res = await fetch(`${basePath}/operator/introspect`, { headers: authHeaders() });
+  return handleJson<{ explanation: string }>(res);
+}
+
 // ── Cockpit (sensory cortex) ──────────────────────────────────────
 
 export interface CockpitNodeView {

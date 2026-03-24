@@ -200,6 +200,10 @@ class DaedalusStore {
     return this.beingPresences.get(beingId);
   }
 
+  addBeingPresence(being: BeingPresenceDetail): void {
+    this.beingPresences.set(being.id, being);
+  }
+
   updateBeingPresence(
     beingId: string,
     patch: Partial<Omit<BeingPresenceDetail, "id" | "updatedAt">>,

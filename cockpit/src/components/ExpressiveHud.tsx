@@ -96,17 +96,18 @@ export function ExpressiveHud({
   const [telemetryOpen, setTelemetryOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [adaptationOpen, setAdaptationOpen] = useState(false);
+  const [hudCollapsed, setHudCollapsed] = useState(true);
 
   if (!EXPRESSIVE_HUD_ENABLED) return null;
 
   const visibleEvents = telemetry.slice(-TELEMETRY_VISIBLE_COUNT).reverse();
 
   return (
-    <div className="expressive-hud cin-arrive">
-      <div className="hud-title">
+    <div className={`expressive-hud cin-arrive${hudCollapsed ? " expressive-hud--collapsed" : ""}`}>
+      <div className="hud-title" onClick={() => setHudCollapsed((v) => !v)} style={{ cursor: "pointer" }}>
         <span>Expressive HUD</span>
         <span className={`hud-scene-name hud-scene--${scene.sceneName}`}>{scene.sceneName}</span>
-        <span className="hud-frame-id">f{frameId}</span>
+        <span className="hud-frame-id">{hudCollapsed ? "▸" : "▾"} f{frameId}</span>
       </div>
 
       <div className={`hud-kernel-bar hud-kernel--${halo.kernelStatus}${halo.shellStatus === "degraded" ? " hud-shell--degraded" : ""}`}>

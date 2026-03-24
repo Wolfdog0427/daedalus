@@ -27,21 +27,38 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`[daedalus] Orchestrator listening on http://${HOST}:${PORT}`);
 
   const persistence = getSnapshotPersistence();
-  const saved = persistence.load();
-  if (saved) {
-    console.log(`[persistence] Restoring snapshot from ${saved.savedAt}`);
-    for (const being of saved.beings ?? []) {
-      daedalusStore.updateBeingPresence(being.id, being);
+  try {
+    const saved = persistence.load();
+    if (saved) {
+      console.log(`[persistence] Restoring snapshot from ${saved.savedAt}`);
+      for (const being of saved.beings ?? []) {
+        try {
+          const updated = daedalusStore.updateBeingPresence(being.id, being);
+          if (!updated) {
+            daedalusStore.addBeingPresence(being);
+          }
+        } catch (err: any) {
+          console.warn(`[persistence] Skipping being "${being?.id}":`, err?.message);
+        }
+      }
+      for (const override of saved.overrides ?? []) {
+        try { governanceService.applyOverride(override); } catch (err: any) {
+          console.warn("[persistence] Skipping override:", err?.message);
+        }
+      }
+      for (const vote of saved.votes ?? []) {
+        try { governanceService.castVote(vote); } catch (err: any) {
+          console.warn("[persistence] Skipping vote:", err?.message);
+        }
+      }
+      for (const drift of saved.drifts ?? []) {
+        try { governanceService.recordDrift(drift); } catch (err: any) {
+          console.warn("[persistence] Skipping drift:", err?.message);
+        }
+      }
     }
-    for (const override of saved.overrides ?? []) {
-      governanceService.applyOverride(override);
-    }
-    for (const vote of saved.votes ?? []) {
-      governanceService.castVote(vote);
-    }
-    for (const drift of saved.drifts ?? []) {
-      governanceService.recordDrift(drift);
-    }
+  } catch (err: any) {
+    console.error("[persistence] Failed to restore snapshot:", err?.message);
   }
 
   persistence.startAutoSave(collectSnapshot);
