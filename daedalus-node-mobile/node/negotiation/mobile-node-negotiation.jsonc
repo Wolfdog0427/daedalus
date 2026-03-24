@@ -1,0 +1,73 @@
+{
+  "id": "node.negotiation.mobile",
+  "version": 1,
+  "description": "Negotiation protocol for bringing a mobile node online with continuity, physiology, and glow alignment.",
+
+  "phases": [
+    {
+      "id": "announce",
+      "emit": "node.negotiation.start",
+      "payload": {
+        "node_id": "$DEVICE_ID",
+        "capabilities": [
+          "continuity",
+          "physiology",
+          "glow",
+          "presence"
+        ]
+      }
+    },
+    {
+      "id": "capability-handshake",
+      "expect": "fabric.negotiation.ack",
+      "timeout_ms": 5000,
+      "on_timeout": "node.negotiation.timeout"
+    },
+    {
+      "id": "continuity-bind",
+      "emit": "node.negotiation.bind-continuity",
+      "payload": {
+        "streams": [
+          "operator-context",
+          "node-state",
+          "expressive-modifiers"
+        ]
+      }
+    },
+    {
+      "id": "physiology-bind",
+      "emit": "node.negotiation.bind-physiology",
+      "payload": {
+        "channels": [
+          "glow",
+          "breath",
+          "pulse",
+          "stance",
+          "continuity-modifiers"
+        ]
+      }
+    },
+    {
+      "id": "glow-align",
+      "emit": "node.negotiation.glow-align",
+      "payload": {
+        "palette": "threshold",
+        "mode": "node-aware"
+      }
+    },
+    {
+      "id": "presence-online",
+      "emit": "node.presence.online",
+      "payload": {
+        "node_id": "$DEVICE_ID",
+        "timestamp": "$NOW"
+      }
+    }
+  ],
+
+  "security": {
+    "verification_required": true,
+    "risk_tier": "node-join",
+    "fallback": "device-gate"
+  }
+}

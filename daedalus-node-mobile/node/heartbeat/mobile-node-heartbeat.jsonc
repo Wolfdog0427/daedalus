@@ -1,0 +1,47 @@
+{
+  "id": "node.heartbeat.mobile",
+  "version": 1,
+  "description": "Mobile node heartbeat: presence, continuity sync, expressive physiology, and glow-state broadcast.",
+
+  "interval_ms": 4000,
+
+  "emit": [
+    {
+      "event": "node.presence.ping",
+      "payload": {
+        "node_id": "$DEVICE_ID",
+        "timestamp": "$NOW",
+        "continuity_state": "$CONTINUITY.STATE",
+        "physiology": {
+          "warmth": "$PHYSIO.WARMTH",
+          "strain": "$PHYSIO.STRAIN",
+          "focus": "$PHYSIO.FOCUS",
+          "breath": "$PHYSIO.BREATH"
+        },
+        "glow": {
+          "intensity": "$GLOW.INTENSITY",
+          "mode": "$GLOW.MODE"
+        }
+      }
+    }
+  ],
+
+  "sync": {
+    "streams": [
+      "operator-context",
+      "node-state",
+      "expressive-modifiers"
+    ],
+    "on_failure": {
+      "event": "node.heartbeat.sync-failed",
+      "severity": "warn",
+      "retry_ms": 8000
+    }
+  },
+
+  "security": {
+    "verification_required": true,
+    "risk_tier": "node-heartbeat",
+    "fallback": "device-gate"
+  }
+}

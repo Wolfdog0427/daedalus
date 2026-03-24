@@ -1,0 +1,72 @@
+{
+  "id": "cockpit.mobile-node.integration",
+  "version": 1,
+  "description": "Cockpit integration for mobile node presence, negotiation, glow, and continuity events.",
+
+  "sse": {
+    "subscribe": [
+      "node.negotiation.start",
+      "node.negotiation.bind-continuity",
+      "node.negotiation.bind-physiology",
+      "node.negotiation.glow-align",
+      "node.negotiation.complete",
+      "node.presence.online",
+      "node.presence.ping",
+      "node.heartbeat.sync-failed"
+    ]
+  },
+
+  "timeline": {
+    "map": [
+      {
+        "event": "node.negotiation.start",
+        "label": "Node negotiation initiated",
+        "severity": "info"
+      },
+      {
+        "event": "node.negotiation.bind-continuity",
+        "label": "Continuity binding",
+        "severity": "info"
+      },
+      {
+        "event": "node.negotiation.bind-physiology",
+        "label": "Physiology binding",
+        "severity": "info"
+      },
+      {
+        "event": "node.negotiation.glow-align",
+        "label": "Glow alignment",
+        "severity": "info"
+      },
+      {
+        "event": "node.negotiation.complete",
+        "label": "Node negotiation complete",
+        "severity": "success"
+      },
+      {
+        "event": "node.presence.online",
+        "label": "Node presence established",
+        "severity": "success"
+      },
+      {
+        "event": "node.presence.ping",
+        "label": "Node heartbeat",
+        "severity": "trace"
+      },
+      {
+        "event": "node.heartbeat.sync-failed",
+        "label": "Heartbeat sync failure",
+        "severity": "warn"
+      }
+    ]
+  },
+
+  "glow": {
+    "node_aware": true,
+    "rules": {
+      "node.presence.online": "soft",
+      "node.negotiation.complete": "bright",
+      "node.heartbeat.sync-failed": "alert"
+    }
+  }
+}

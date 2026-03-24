@@ -1,0 +1,72 @@
+{
+  "id": "node.join.mobile",
+  "version": 1,
+  "description": "Registers this mobile device as a sovereign Daedalus node with continuity, physiology, glow, and cockpit‑timeline presence.",
+
+  "continuity": {
+    "enable": true,
+    "node_identity": "$DEVICE_ID",
+    "handoff": {
+      "allow": true,
+      "surfaces": ["attention", "task", "emotion", "presence"]
+    },
+    "memory_streams": {
+      "sync": ["operator-context", "node-state", "expressive-modifiers"]
+    }
+  },
+
+  "physiology": {
+    "bind": true,
+    "channels": [
+      "glow",
+      "breath",
+      "pulse",
+      "stance",
+      "continuity-modifiers"
+    ],
+    "node_awareness": {
+      "enable": true,
+      "expose": ["warmth", "strain", "focus", "presence"]
+    }
+  },
+
+  "glow": {
+    "enable": true,
+    "mode": "node-aware",
+    "palette": "threshold",
+    "intensity_rules": {
+      "negotiation": "medium",
+      "presence": "soft",
+      "handoff": "bright"
+    }
+  },
+
+  "cockpit_timeline": {
+    "events": [
+      {
+        "id": "node.negotiation.start",
+        "label": "Node negotiation initiated",
+        "severity": "info",
+        "visible": true
+      },
+      {
+        "id": "node.negotiation.complete",
+        "label": "Node negotiation complete",
+        "severity": "success",
+        "visible": true
+      },
+      {
+        "id": "node.presence.online",
+        "label": "Node presence established",
+        "severity": "success",
+        "visible": true
+      }
+    ]
+  },
+
+  "security": {
+    "verification_required": true,
+    "risk_tiers": ["handoff", "node-join", "continuity-sync"],
+    "fallback": "device-gate"
+  }
+}
