@@ -8,13 +8,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "jest",
-    "server": "cd server && npm run dev",
-    "server:start": "cd server && npm start"
+    "test": "jest"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^3.0.1",
-    "axios": "^1.7.7",
     "expo": "~54.0.0",
     "expo-asset": "^55.0.10",
     "expo-constants": "~17.0.3",

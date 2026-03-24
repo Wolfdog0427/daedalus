@@ -1,0 +1,268 @@
+.cockpit-nodes {
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+/* ── Summary strip ────────────────────────────────────────────────── */
+
+.cockpit-summary {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cockpit-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 48px;
+}
+
+.cockpit-stat-val {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cockpit-stat-label {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+/* ── Node cards ───────────────────────────────────────────────────── */
+
+.cockpit-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cockpit-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  transition: border-color 0.2s ease;
+}
+
+.cockpit-card:hover {
+  border-color: rgba(88, 166, 255, 0.25);
+}
+
+/* ── Glow indicator ───────────────────────────────────────────────── */
+
+.cockpit-glow {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+.cockpit-glow--none {
+  background-color: #444;
+  box-shadow: none;
+}
+
+.cockpit-glow--low {
+  background-color: #4da3ff;
+  box-shadow: 0 0 4px #4da3ff33;
+}
+
+.cockpit-glow--medium {
+  background-color: #58a6ff;
+  box-shadow: 0 0 6px #58a6ff55;
+}
+
+.cockpit-glow--high {
+  background-color: #79c0ff;
+  box-shadow: 0 0 10px #79c0ff77;
+  animation: cockpit-pulse 1.8s infinite alternate;
+}
+
+@keyframes cockpit-pulse {
+  from { opacity: 0.75; box-shadow: 0 0 6px #79c0ff55; }
+  to   { opacity: 1;    box-shadow: 0 0 12px #79c0ff99; }
+}
+
+/* ── Identity column ──────────────────────────────────────────────── */
+
+.cockpit-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.cockpit-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cockpit-meta {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  margin-top: 1px;
+  font-family: var(--mono);
+}
+
+/* ── Posture tag ──────────────────────────────────────────────────── */
+
+.cockpit-posture {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
+.cockpit-posture--sentinel {
+  background: rgba(248, 81, 73, 0.12);
+  color: #f85149;
+}
+
+.cockpit-posture--companion {
+  background: rgba(63, 185, 80, 0.12);
+  color: #3fb950;
+}
+
+.cockpit-posture--observer {
+  background: rgba(88, 166, 255, 0.12);
+  color: #58a6ff;
+}
+
+.cockpit-posture--dormant {
+  background: rgba(139, 148, 158, 0.12);
+  color: #8b949e;
+}
+
+/* ── Status badge ─────────────────────────────────────────────────── */
+
+.cockpit-status {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.cockpit-status--trusted {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--green);
+}
+
+.cockpit-status--pending {
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--yellow);
+}
+
+.cockpit-status--quarantined {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--red);
+}
+
+.cockpit-status--unknown {
+  background: rgba(139, 148, 158, 0.15);
+  color: var(--text-dim);
+}
+
+/* ── Detail row ───────────────────────────────────────────────────── */
+
+.cockpit-detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cockpit-caps {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  max-width: 160px;
+}
+
+.cockpit-cap-chip {
+  font-size: 0.6rem;
+  font-family: var(--mono);
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(88, 166, 255, 0.08);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* ── Risk badge ────────────────────────────────────────────────────── */
+
+.cockpit-risk {
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.cockpit-risk--low {
+  background: rgba(63, 185, 80, 0.12);
+  color: var(--green);
+}
+
+.cockpit-risk--medium {
+  background: rgba(210, 153, 34, 0.12);
+  color: var(--yellow);
+}
+
+.cockpit-risk--high {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--red);
+}
+
+/* ── Continuity label ─────────────────────────────────────────────── */
+
+.cockpit-continuity {
+  font-size: 0.6rem;
+  font-family: var(--mono);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* ── Card tail (error + heartbeat) ────────────────────────────────── */
+
+.cockpit-card-tail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+  min-width: 60px;
+}
+
+.cockpit-error-count {
+  font-size: 0.6rem;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--red);
+}
+
+.cockpit-heartbeat {
+  font-size: 0.65rem;
+  font-family: var(--mono);
+  color: var(--text-dim);
+  text-align: right;
+}

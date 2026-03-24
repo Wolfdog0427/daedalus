@@ -105,6 +105,7 @@ export interface GovernanceOverride {
   scope: "NODE" | "CAPABILITY" | "GLOBAL";
   targetId?: string;
   effect: "ALLOW" | "DENY" | "ESCALATE";
+  expiresAt?: string;
 }
 
 export interface ContinuityDrift {
@@ -112,6 +113,7 @@ export interface ContinuityDrift {
   detectedAt: string;
   severity: "LOW" | "MEDIUM" | "HIGH";
   summary: string;
+  expiresAt?: string;
 }
 
 export interface PostureSnapshot {

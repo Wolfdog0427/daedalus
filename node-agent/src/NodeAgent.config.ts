@@ -1,4 +1,5 @@
 import type { Capability, DaedalusPosture, GlowState, AttentionState, ContinuityState } from "../../shared/daedalus/contracts";
+import { CANONICAL_OPERATOR_ID } from "../../shared/daedalus/identity";
 
 export interface NodeAgentConfig {
   readonly nodeId: string;
@@ -21,8 +22,8 @@ export const DEFAULT_AGENT_CONFIG: NodeAgentConfig = Object.freeze({
   model: "",
   os: "",
   osVersion: "",
-  operatorId: "",
-  orchestratorUrl: "http://localhost:4000",
+  operatorId: CANONICAL_OPERATOR_ID,
+  orchestratorUrl: "http://localhost:3001",
   heartbeatIntervalMs: 4000,
   expressiveSyncIntervalMs: 8000,
   capabilities: [],

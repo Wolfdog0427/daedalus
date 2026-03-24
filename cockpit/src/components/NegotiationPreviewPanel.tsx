@@ -11,7 +11,7 @@ export function NegotiationPreviewPanel({ event }: Props) {
   return (
     <div className="panel negotiation-preview-panel">
       <div className="panel-title">Negotiation Preview</div>
-      {event.beings.map((b) => (
+      {event.beings.map((b: any) => (
         <div key={b.being.id} className="neg-vote-row">
           <span className="neg-being-label">{b.being.label}</span>
           <span className={`badge badge-${b.vote.toLowerCase()}`}>{b.vote}</span>

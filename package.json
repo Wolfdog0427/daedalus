@@ -1,0 +1,18 @@
+{
+  "name": "daedalus-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "server",
+    "cockpit",
+    "node-agent",
+    "shared",
+    "daedalus-node-mobile"
+  ],
+  "scripts": {
+    "start": "npm run start --workspace=server",
+    "dev:cockpit": "npm run dev --workspace=cockpit",
+    "test": "npm test --workspace=server",
+    "install:all": "npm install --workspaces"
+  }
+}

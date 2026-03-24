@@ -3,9 +3,9 @@ import { createServer } from "./api/server";
 
 const defaultState: DaedalusState = {
     version: "1.0.0",
-    operatorId: "system",
+    operatorId: "operator",
     activeTier: "baseline",
-    posture: "neutral",
+    posture: "observer",
     expression: "neutral",
     comfortLevel: 1,
     lastUpdated: Date.now(),

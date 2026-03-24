@@ -9,6 +9,8 @@
  * display but never into governance logic.
  */
 
+import { CANONICAL_ANCHOR_BEING_ID } from "./identity";
+
 export type ContinuityHealth = "healthy" | "shifting" | "fragile";
 
 export interface SystemContinuitySnapshot {
@@ -32,5 +34,5 @@ export const SYSTEM_CONTINUITY_IDLE: SystemContinuitySnapshot = Object.freeze({
   composite: 1,
   health: "healthy" as ContinuityHealth,
   driftSignalCount: 0,
-  anchorBeingId: null,
+  anchorBeingId: CANONICAL_ANCHOR_BEING_ID,
 });

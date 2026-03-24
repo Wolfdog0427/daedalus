@@ -1,43 +1,49 @@
-# Daedalus Node Mobile · S26 Ultra
+# Daedalus Node Mobile
 
-This project is a **self-contained Daedalus mobile node** for your S26 Ultra:
+A Daedalus mobile node built with Expo React Native. Connects to the central orchestrator as a first-class node in the Daedalus fabric.
 
-- **Identity:** `node-s26-ultra-01`, labeled `S26 Ultra · Node 1`
-- **Heartbeat:** periodic POST to the local presence server
-- **Continuity:** last heartbeat / join / presence timestamps stored locally
-- **Presence server:** lightweight Express service in `server/`
-- **Join request:** explicit `/join` call from the mobile shell
-- **Ready to zip and deploy**
+- **Identity:** configured in `src/config/identity.ts`
+- **Heartbeat:** periodic POST to the orchestrator via `NodeAgent`
+- **Continuity:** timestamps stored locally via AsyncStorage
+- **Auth:** sends `x-daedalus-token` header (configured in `app.json` → `extra.daedalusToken`)
 
 ## Layout
 
 - `App.tsx` — Daedalus node shell UI
 - `src/config/identity.ts` — canonical identity for this node
-- `src/services/heartbeat.ts` — heartbeat engine
+- `src/services/heartbeat.ts` — heartbeat engine (direct HTTP)
+- `src/services/presenceClient.ts` — full `NodeAgent`-backed presence client
 - `src/services/continuity.ts` — continuity storage (AsyncStorage)
-- `src/services/presenceClient.ts` — join request + presence client
 - `src/context/DaedalusContext.tsx` — wiring for identity, heartbeat, continuity, join
-- `server/` — presence server (Express)
 
-## Running on your S26 Ultra
+## Prerequisites
+
+- The Daedalus orchestrator must be running (default: `http://localhost:3001`)
+- For Android emulator, the orchestrator is reachable at `http://10.0.2.2:3001`
+- Set orchestrator URL in `app.json` → `extra.orchestratorUrl`
+
+## Quick Start
 
 1. Install dependencies:
 
    ```bash
    cd daedalus-node-mobile
    npm install
-   cd server
-   npm install
    ```
 
-2. Start the presence server:
-
-   ```bash
-   npm run server
-   ```
-
-3. Start the Expo app:
+2. Start the Expo app:
 
    ```bash
    npm start
    ```
+
+3. Scan the QR code with Expo Go on your device.
+
+## Configuration
+
+Set these in `app.json` → `extra`:
+
+| Key | Default | Description |
+|---|---|---|
+| `orchestratorUrl` | `http://10.0.2.2:3001` | Orchestrator base URL |
+| `daedalusToken` | `daedalus-dev-token` | Auth token for API calls |

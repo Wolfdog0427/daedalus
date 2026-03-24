@@ -25,6 +25,7 @@ import type {
   NodeJoinPayload,
   NodeHeartbeatPayload,
   ExpressiveState,
+  CockpitNodeView,
 } from "../orchestrator/mirror";
 
 function mkProfile(id = "n1") {
@@ -264,7 +265,8 @@ describe("NodeMirrorRegistry", () => {
     reg.handleQuarantine("n1");
     expect(reg.getMirror("n1")!.status).toBe("quarantined");
     reg.handleDetach("n1");
-    expect(reg.getMirror("n1")!.lifecycle.phase).toBe("detached");
+    expect(reg.getMirror("n1")).toBeUndefined();
+    expect(reg.getCount()).toBe(0);
   });
 
   test("handleCapSync returns deltas", () => {
@@ -306,5 +308,121 @@ describe("NodeMirrorRegistry", () => {
     reg.handleJoin(mkJoinPayload("a"));
     reg.handleJoin(mkJoinPayload("b"));
     expect(reg.getAllMirrors()).toHaveLength(2);
+  });
+});
+
+// ─── Cockpit projection ──────────────────────────────────────────────
+
+describe("NodeMirrorRegistry.toCockpitView", () => {
+  test("returns empty array when no nodes exist", () => {
+    const reg = new NodeMirrorRegistry();
+    expect(reg.toCockpitView()).toEqual([]);
+  });
+
+  test("projects a single joined node correctly", () => {
+    const reg = new NodeMirrorRegistry();
+    reg.handleJoin(mkJoinPayload("n1"));
+
+    const views = reg.toCockpitView();
+    expect(views).toHaveLength(1);
+
+    const v = views[0];
+    expect(v.id).toBe("n1");
+    expect(v.name).toBe("Test Node");
+    expect(v.status).toBe("trusted");
+    expect(v.phase).toBe("active");
+    expect(v.kind).toBe("mobile");
+    expect(v.glow).toBe("high");
+    expect(v.glowIntensity).toBeGreaterThan(0);
+    expect(v.posture).toBe("companion");
+    expect(v.capabilities).toEqual(["vision", "audio"]);
+    expect(v.heartbeatCount).toBe(0);
+    expect(v.errorCount).toBe(0);
+  });
+
+  test("reflects heartbeat count and timestamp after heartbeats", () => {
+    const reg = new NodeMirrorRegistry();
+    reg.handleJoin(mkJoinPayload("n1"));
+    reg.handleHeartbeat(mkHeartbeat("n1"));
+    reg.handleHeartbeat(mkHeartbeat("n1"));
+
+    const v = reg.toCockpitView()[0];
+    expect(v.heartbeatCount).toBe(2);
+    expect(v.lastHeartbeatAt).not.toBeNull();
+  });
+
+  test("reflects degraded status and posture change", () => {
+    const reg = new NodeMirrorRegistry();
+    reg.handleJoin(mkJoinPayload("n1"));
+    reg.handleHeartbeat(mkHeartbeat("n1", "degraded"));
+
+    const v = reg.toCockpitView()[0];
+    expect(v.phase).toBe("degraded");
+    expect(v.glow).toBe("low");
+    expect(v.posture).toBe("observer");
+  });
+
+  test("reflects quarantined state", () => {
+    const reg = new NodeMirrorRegistry();
+    reg.handleJoin(mkJoinPayload("n1"));
+    reg.handleQuarantine("n1");
+
+    const v = reg.toCockpitView()[0];
+    expect(v.status).toBe("quarantined");
+    expect(v.risk).toBe("high");
+    expect(v.glow).toBe("none");
+    expect(v.posture).toBe("dormant");
+  });
+
+  test("reflects error count", () => {
+    const reg = new NodeMirrorRegistry();
+    reg.handleJoin(mkJoinPayload("n1"));
+    reg.handleError("n1", "oops");
+    reg.handleError("n1", "oops again");
+
+    const v = reg.toCockpitView()[0];
+    expect(v.errorCount).toBe(2);
+  });
+
+  test("projects multiple nodes independently", () => {
+    const reg = new NodeMirrorRegistry();
+    reg.handleJoin(mkJoinPayload("a"));
+    reg.handleJoin(mkJoinPayload("b"));
+    reg.handleQuarantine("b");
+
+    const views = reg.toCockpitView();
+    expect(views).toHaveLength(2);
+
+    const a = views.find(v => v.id === "a")!;
+    const b = views.find(v => v.id === "b")!;
+
+    expect(a.status).toBe("trusted");
+    expect(b.status).toBe("quarantined");
+    expect(a.glow).not.toBe(b.glow);
+  });
+
+  test("capabilities update reflects in cockpit view", () => {
+    const reg = new NodeMirrorRegistry();
+    reg.handleJoin(mkJoinPayload("n1"));
+    reg.handleCapSync({
+      nodeId: "n1",
+      capabilities: [
+        { name: "x", value: "enabled", enabled: true },
+        { name: "y", value: "enabled", enabled: true },
+      ],
+      timestamp: new Date().toISOString(),
+    });
+
+    const v = reg.toCockpitView()[0];
+    expect(v.capabilities).toEqual(["x", "y"]);
+  });
+
+  test("continuity label reflects healthy state", () => {
+    const reg = new NodeMirrorRegistry();
+    reg.handleJoin(mkJoinPayload("n1"));
+
+    const v = reg.toCockpitView()[0];
+    expect(typeof v.continuity).toBe("string");
+    expect(v.continuity).toMatch(/healthy|degraded/);
   });
 });

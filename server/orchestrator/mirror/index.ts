@@ -47,4 +47,4 @@ export {
   getNodeMirrorRegistry,
   resetNodeMirrorRegistry,
 } from "./NodeMirror";
-export type { MirrorEvent } from "./NodeMirror";
+export type { MirrorEvent, CockpitNodeView, SafetyEnvelope } from "./NodeMirror";

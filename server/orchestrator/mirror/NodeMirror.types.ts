@@ -105,7 +105,7 @@ export const IDLE_EXPRESSIVE: ExpressiveState = Object.freeze({
   glow: Object.freeze({ level: "medium" as GlowLevel, intensity: 0.5 }),
   posture: "observer" as DaedalusPosture,
   attention: Object.freeze({ level: "aware" as const }),
-  continuity: Object.freeze({ streak: 0, lastCheckIn: "", healthy: false }),
+  continuity: Object.freeze({ streak: 0, lastCheckIn: "", healthy: true }),
 });
 
 export const IDLE_LIFECYCLE: NodeLifecycleState = Object.freeze({

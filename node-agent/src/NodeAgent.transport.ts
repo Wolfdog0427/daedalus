@@ -10,13 +10,21 @@ export interface NodeAgentTransport {
   get<T = unknown>(path: string): Promise<TransportResponse<T>>;
 }
 
-export function createHttpTransport(baseUrl: string): NodeAgentTransport {
+export interface HttpTransportOptions {
+  token?: string;
+}
+
+export function createHttpTransport(baseUrl: string, options?: HttpTransportOptions): NodeAgentTransport {
   async function request<T>(method: string, path: string, body?: unknown): Promise<TransportResponse<T>> {
     try {
       const url = `${baseUrl}${path}`;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (options?.token) {
+        headers["x-daedalus-token"] = options.token;
+      }
       const opts: RequestInit = {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers,
       };
       if (body !== undefined) opts.body = JSON.stringify(body);
 

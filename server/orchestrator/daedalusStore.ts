@@ -1,25 +1,20 @@
 import {
-  Capability,
   CapabilityReasonCode,
   CapabilityTrace,
   CapabilityTraceStep,
-  GlowLevel,
   NegotiationApplyResult,
   NegotiationDecision,
   NegotiationInput,
   NegotiationPreview,
-  NodePresence,
-  NodeStatus,
   OrchestratorSnapshot,
-  RiskTier,
   BeingPresenceDetail,
 } from "../../shared/daedalus/contracts";
 import { getDaedalusEventBus, nowIso as eventNowIso } from "./DaedalusEventBus";
+import { getNodeMirrorRegistry } from "./mirror/NodeMirror";
 
 const nowIso = () => new Date().toISOString();
 
 class DaedalusStore {
-  private nodes: Map<string, NodePresence> = new Map();
   private beingPresences: Map<string, BeingPresenceDetail> = new Map();
 
   constructor() {
@@ -58,38 +53,23 @@ class DaedalusStore {
       autopilot: { enabled: true, scope: "local" },
       updatedAt: nowIso(),
     });
-
-    const seedNodes: NodePresence[] = [
-      {
-        id: "core-orchestrator",
-        status: "trusted",
-        lastHeartbeat: nowIso(),
-        glow: "high",
-        risk: "low",
-        capabilities: [
-          { name: "negotiation", value: "enabled", enabled: true },
-          { name: "capability-trace", value: "enabled", enabled: true },
-          { name: "node-registry", value: "enabled", enabled: true },
-        ],
-      },
-      {
-        id: "perception-node-1",
-        status: "pending",
-        lastHeartbeat: nowIso(),
-        glow: "medium",
-        risk: "medium",
-        capabilities: [
-          { name: "vision", value: "enabled", enabled: true },
-          { name: "audio", value: "disabled", enabled: false },
-        ],
-      },
-    ];
-
-    seedNodes.forEach((n) => this.nodes.set(n.id, n));
   }
 
   getSnapshot(): OrchestratorSnapshot {
-    const nodes = Array.from(this.nodes.values());
+    const registry = getNodeMirrorRegistry();
+    const views = registry.toCockpitView();
+    const nodes = views.map((v) => ({
+      id: v.id,
+      status: v.status as any,
+      lastHeartbeat: v.lastHeartbeatAt ?? nowIso(),
+      glow: v.glow as any,
+      risk: v.risk as any,
+      capabilities: v.capabilities.map((name) => ({
+        name,
+        value: "enabled",
+        enabled: true,
+      })),
+    }));
     return {
       nodes,
       beings: [
@@ -104,36 +84,12 @@ class DaedalusStore {
     };
   }
 
-  getNodes(): NodePresence[] {
-    return Array.from(this.nodes.values());
-  }
-
-  getNode(nodeId: string): NodePresence | undefined {
-    return this.nodes.get(nodeId);
-  }
-
-  private computeRiskForNode(node: NodePresence): RiskTier {
-    // Simple heuristic: high risk if any disabled capability with "security" in name.
-    const hasSecurityDisable = node.capabilities.some(
-      (c) => !c.enabled && c.name.toLowerCase().includes("security"),
-    );
-    if (hasSecurityDisable) return "high";
-    if (node.status === "pending") return "medium";
-    return node.risk;
-  }
-
-  private computeGlowForNode(node: NodePresence): GlowLevel {
-    if (node.status === "trusted") return "high";
-    if (node.status === "pending") return "medium";
-    if (node.status === "quarantined") return "low";
-    return node.glow;
-  }
-
   getCapabilityTrace(nodeId: string, capabilityName: string): CapabilityTrace | null {
-    const node = this.nodes.get(nodeId);
-    if (!node) return null;
+    const registry = getNodeMirrorRegistry();
+    const mirror = registry.getMirror(nodeId);
+    if (!mirror) return null;
 
-    const cap = node.capabilities.find((c) => c.name === capabilityName);
+    const cap = mirror.capabilities.entries.find((c) => c.name === capabilityName);
     const steps: CapabilityTraceStep[] = [];
 
     if (!cap) {
@@ -144,37 +100,20 @@ class DaedalusStore {
         message: `Capability "${capabilityName}" is not present on node "${nodeId}".`,
         timestamp: nowIso(),
       });
-
-      return {
-        nodeId,
-        capabilityName,
-        effectiveEnabled: false,
-        steps,
-      };
+      return { nodeId, capabilityName, effectiveEnabled: false, steps };
     }
 
-    // Node-level state
-    if (!cap.enabled) {
-      steps.push({
-        level: "node",
-        sourceId: nodeId,
-        reason: "NODE_VETO",
-        message: `Node "${nodeId}" has capability "${capabilityName}" disabled.`,
-        timestamp: nowIso(),
-      });
-    } else {
-      steps.push({
-        level: "node",
-        sourceId: nodeId,
-        reason: "NOT_PRESENT",
-        message: `Node "${nodeId}" has capability "${capabilityName}" enabled at node level.`,
-        timestamp: nowIso(),
-      });
-    }
+    steps.push({
+      level: "node",
+      sourceId: nodeId,
+      reason: cap.enabled ? ("NOT_PRESENT" as CapabilityReasonCode) : "NODE_VETO",
+      message: cap.enabled
+        ? `Node "${nodeId}" has capability "${capabilityName}" enabled at node level.`
+        : `Node "${nodeId}" has capability "${capabilityName}" disabled.`,
+      timestamp: nowIso(),
+    });
 
-    // Risk escalation
-    const risk = this.computeRiskForNode(node);
-    if (risk === "high") {
+    if (mirror.risk === "high") {
       steps.push({
         level: "orchestrator",
         sourceId: "core-orchestrator",
@@ -184,143 +123,70 @@ class DaedalusStore {
       });
     }
 
-    // Governance / continuity placeholders
     steps.push({
       level: "governance",
       sourceId: "governance-engine",
       reason: "NOT_PRESENT",
-      message:
-        "No explicit governance override recorded for this capability in the current snapshot.",
+      message: "No explicit governance override recorded for this capability in the current snapshot.",
       timestamp: nowIso(),
     });
 
-    return {
-      nodeId,
-      capabilityName,
-      effectiveEnabled: cap.enabled,
-      steps,
-    };
+    return { nodeId, capabilityName, effectiveEnabled: cap.enabled, steps };
   }
 
   previewNegotiation(input: NegotiationInput): NegotiationPreview | null {
-    const node = this.nodes.get(input.targetNodeId);
-    if (!node) return null;
+    const registry = getNodeMirrorRegistry();
+    const mirror = registry.getMirror(input.targetNodeId);
+    if (!mirror) return null;
 
-    const existing = node.capabilities.find(
-      (c) => c.name === input.capabilityName,
-    );
-
+    const existing = mirror.capabilities.entries.find((c) => c.name === input.capabilityName);
     const fromEnabled = existing ? existing.enabled : false;
     const toEnabled = input.desiredEnabled;
 
-    const reason: CapabilityReasonCode | null =
-      fromEnabled === toEnabled ? null : "NODE_VETO";
-
+    const reason: CapabilityReasonCode | null = fromEnabled === toEnabled ? null : "NODE_VETO";
     const message =
       fromEnabled === toEnabled
-        ? `No change: capability "${input.capabilityName}" already ${
-            fromEnabled ? "enabled" : "disabled"
-          }.`
-        : `Capability "${input.capabilityName}" would change from ${
-            fromEnabled ? "enabled" : "disabled"
-          } to ${toEnabled ? "enabled" : "disabled"} for node "${node.id}".`;
-
-    const decision: NegotiationDecision = {
-      capabilityName: input.capabilityName,
-      fromEnabled,
-      toEnabled,
-      reason,
-      message,
-    };
+        ? `No change: capability "${input.capabilityName}" already ${fromEnabled ? "enabled" : "disabled"}.`
+        : `Capability "${input.capabilityName}" would change from ${fromEnabled ? "enabled" : "disabled"} to ${toEnabled ? "enabled" : "disabled"} for node "${mirror.id}".`;
 
     return {
-      nodeId: node.id,
+      nodeId: mirror.id,
       requestedBy: input.requestedBy,
-      decisions: [decision],
+      decisions: [{ capabilityName: input.capabilityName, fromEnabled, toEnabled, reason, message }],
     };
   }
 
   applyNegotiation(input: NegotiationInput): NegotiationApplyResult | null {
-    const node = this.nodes.get(input.targetNodeId);
-    if (!node) return null;
+    const registry = getNodeMirrorRegistry();
+    const mirror = registry.getMirror(input.targetNodeId);
+    if (!mirror) return null;
 
-    let cap = node.capabilities.find((c) => c.name === input.capabilityName);
+    let cap = mirror.capabilities.entries.find((c) => c.name === input.capabilityName);
     const fromEnabled = cap ? cap.enabled : false;
     const toEnabled = input.desiredEnabled;
 
     if (!cap) {
-      cap = {
-        name: input.capabilityName,
-        value: toEnabled ? "enabled" : "disabled",
-        enabled: toEnabled,
-      };
-      node.capabilities.push(cap);
+      mirror.capabilities.entries.push({ name: input.capabilityName, value: toEnabled ? "enabled" : "disabled", enabled: toEnabled });
     } else {
       cap.enabled = toEnabled;
       cap.value = toEnabled ? "enabled" : "disabled";
     }
 
-    node.lastHeartbeat = nowIso();
-    const prevRisk = node.risk;
-    const prevGlow = node.glow;
-    node.risk = this.computeRiskForNode(node);
-    node.glow = this.computeGlowForNode(node);
-
     const bus = getDaedalusEventBus();
-
-    if (node.glow !== prevGlow) {
-      bus.publish({
-        type: "NODE_GLOW_UPDATED",
-        timestamp: eventNowIso(),
-        nodeId: node.id,
-        glow: node.glow,
-      });
-    }
-
-    if (node.risk !== prevRisk) {
-      bus.publish({
-        type: "NODE_RISK_UPDATED",
-        timestamp: eventNowIso(),
-        nodeId: node.id,
-        risk: node.risk,
-      });
-    }
-
-    const reason: CapabilityReasonCode | null =
-      fromEnabled === toEnabled ? null : "NODE_VETO";
-
+    const reason: CapabilityReasonCode | null = fromEnabled === toEnabled ? null : "NODE_VETO";
     const message =
       fromEnabled === toEnabled
-        ? `No change applied: capability "${input.capabilityName}" already ${
-            fromEnabled ? "enabled" : "disabled"
-          }.`
-        : `Applied change: capability "${input.capabilityName}" from ${
-            fromEnabled ? "enabled" : "disabled"
-          } to ${toEnabled ? "enabled" : "disabled"} on node "${node.id}".`;
-
-    const decision: NegotiationDecision = {
-      capabilityName: input.capabilityName,
-      fromEnabled,
-      toEnabled,
-      reason,
-      message,
-    };
-
-    this.nodes.set(node.id, node);
+        ? `No change applied: capability "${input.capabilityName}" already ${fromEnabled ? "enabled" : "disabled"}.`
+        : `Applied change: capability "${input.capabilityName}" from ${fromEnabled ? "enabled" : "disabled"} to ${toEnabled ? "enabled" : "disabled"} on node "${mirror.id}".`;
 
     if (fromEnabled !== toEnabled) {
-      bus.publish({
-        type: "NEGOTIATION_COMPLETED",
-        timestamp: eventNowIso(),
-        nodeId: node.id,
-        summary: message,
-      });
+      bus.publish({ type: "NEGOTIATION_COMPLETED", timestamp: eventNowIso(), nodeId: mirror.id, summary: message });
     }
 
     return {
-      nodeId: node.id,
+      nodeId: mirror.id,
       applied: fromEnabled !== toEnabled,
-      decisions: [decision],
+      decisions: [{ capabilityName: input.capabilityName, fromEnabled, toEnabled, reason, message }],
     };
   }
 

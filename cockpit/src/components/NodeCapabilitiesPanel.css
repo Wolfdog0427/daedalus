@@ -71,7 +71,60 @@
 .cap-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   padding: 2px 0;
+}
+
+.cap-name-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cap-negotiate-btn {
+  flex-shrink: 0;
+  background: rgba(80, 160, 255, 0.12);
+  border: 1px solid rgba(80, 160, 255, 0.35);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  cursor: pointer;
+  color: inherit;
+}
+
+.cap-negotiate-btn:hover:not(:disabled) {
+  background: rgba(80, 160, 255, 0.22);
+}
+
+.cap-negotiate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cap-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.negotiation-feedback {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.negotiation-feedback--ok {
+  background: rgba(0, 200, 100, 0.12);
+  border: 1px solid rgba(0, 200, 100, 0.35);
+}
+
+.negotiation-feedback--err {
+  background: rgba(255, 80, 80, 0.12);
+  border: 1px solid rgba(255, 80, 80, 0.35);
 }
 
 .cap-row-clickable {

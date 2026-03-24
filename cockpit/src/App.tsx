@@ -1,32 +1,24 @@
 import { Layout } from './components/Layout';
-import { HealthPanel } from './components/HealthPanel';
-import { GlowPanel } from './components/GlowPanel';
-import { RiskPanel } from './components/RiskPanel';
-import { StatePanel } from './components/StatePanel';
-import { NodesPanel } from './components/NodesPanel';
-import { NodeCapabilitiesPanel } from './components/NodeCapabilitiesPanel';
-import { CapabilitiesPanel } from './components/CapabilitiesPanel';
-import { ProfilesPanel } from './components/ProfilesPanel';
-import { EventsPanel } from './components/EventsPanel';
-import { EchoCommandPanel } from './components/EchoCommandPanel';
-import { NotificationsPanel } from './components/NotificationsPanel';
-import { ContinuityTimelinePanel } from './components/ContinuityTimelinePanel';
+import DaedalusOrchestratorPanel from './components/DaedalusOrchestratorPanel';
+import { CockpitNodeListPanel } from './components/CockpitNodeListPanel';
+import { ConstitutionPanel } from './components/ConstitutionPanel';
+import { SummaryPanel } from './components/SummaryPanel';
+import { IncidentPanel } from './components/IncidentPanel';
+import { EventHistoryPanel } from './components/EventHistoryPanel';
+import { ActionLogPanel } from './components/ActionLogPanel';
 
 export function App() {
   return (
     <Layout>
-      <HealthPanel />
-      <GlowPanel />
-      <RiskPanel />
-      <CapabilitiesPanel />
-      <ProfilesPanel />
-      <StatePanel />
-      <NodesPanel />
-      <NodeCapabilitiesPanel />
-      <EventsPanel />
-      <EchoCommandPanel />
-      <NotificationsPanel />
-      <ContinuityTimelinePanel />
+      <SummaryPanel />
+      <DaedalusOrchestratorPanel />
+      <IncidentPanel />
+      <CockpitNodeListPanel />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <EventHistoryPanel />
+        <ActionLogPanel />
+      </div>
+      <ConstitutionPanel />
     </Layout>
   );
 }

@@ -8,6 +8,32 @@ import {
   ComfortFlag,
   NODE_PHYSIOLOGY_IDLE,
 } from './nodeContracts';
+import type { DaedalusPosture } from './contracts';
+
+/**
+ * Bridge: NodePosture (health-level) → DaedalusPosture (being-level).
+ *
+ * NodePosture is derived from hardware/network signals (CALM/ALERT/DEFENSIVE/DEGRADED).
+ * DaedalusPosture is the expressive archetype (sentinel/companion/observer/dormant).
+ * This bridge translates the node's physical state into Daedalus's expressive vocabulary.
+ */
+export function nodePostureToDaedalusPosture(np: NodePosture): DaedalusPosture {
+  switch (np) {
+    case 'CALM': return 'companion';
+    case 'ALERT': return 'sentinel';
+    case 'DEFENSIVE': return 'sentinel';
+    case 'DEGRADED': return 'dormant';
+  }
+}
+
+export function daedalusPostureToNodePosture(dp: DaedalusPosture): NodePosture {
+  switch (dp) {
+    case 'sentinel': return 'ALERT';
+    case 'companion': return 'CALM';
+    case 'observer': return 'CALM';
+    case 'dormant': return 'DEGRADED';
+  }
+}
 
 export interface PhysiologySignals {
   readonly health: NodeHealthSnapshot;

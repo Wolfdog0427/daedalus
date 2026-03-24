@@ -3,11 +3,15 @@
   "version": "0.6.0",
   "private": true,
   "scripts": {
+    "start": "ts-node index.ts",
     "build": "tsc",
     "test": "jest --runInBand"
   },
   "dependencies": {
-    "express": "^4.21.0"
+    "@types/cors": "^2.8.19",
+    "cors": "^2.8.6",
+    "express": "^4.21.0",
+    "ts-node": "^10.9.2"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

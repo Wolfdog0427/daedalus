@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "declaration": true,
+    "noEmit": true
+  },
+  "include": [
+    "harness/**/*.ts",
+    "utils/**/*.ts",
+    "cases/**/*.ts",
+    "index.ts",
+    "../../node-agent/src/**/*.ts",
+    "../../shared/daedalus/**/*.ts"
+  ]
+}

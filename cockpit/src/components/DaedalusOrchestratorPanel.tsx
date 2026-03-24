@@ -81,6 +81,7 @@ function DaedalusOrchestratorPanel() {
     negotiationMessage,
     loadingNegotiation,
     selectCapability,
+    reload,
     sseEvent,
     sseConnected,
     highlightNodeId,
@@ -319,6 +320,7 @@ function DaedalusOrchestratorPanel() {
       capabilities: n.capabilities.map((c) => ({
         name: c.name,
         value: c.value,
+        enabled: c.enabled,
       })),
     })) ?? [];
 
@@ -532,6 +534,7 @@ function DaedalusOrchestratorPanel() {
                   nodes={nodes}
                   highlightNodeId={highlightNodeId}
                   onCapabilityClick={selectCapability}
+                  onNegotiationApplied={reload}
                 />
               </section>
             </div>

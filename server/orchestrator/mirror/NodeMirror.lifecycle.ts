@@ -6,6 +6,7 @@ import type {
 } from "./NodeMirror.types";
 import { IDLE_LIFECYCLE, IDLE_EXPRESSIVE } from "./NodeMirror.types";
 import type { NodeStatus } from "../../../shared/daedalus/contracts";
+import { CANONICAL_OPERATOR_ID } from "../../../shared/daedalus/identity";
 
 const nowIso = () => new Date().toISOString();
 
@@ -151,7 +152,7 @@ export function createFreshMirror(id: string): NodeMirror {
       model: "",
       os: "",
       osVersion: "",
-      operatorId: "",
+      operatorId: CANONICAL_OPERATOR_ID,
     },
     expressive: { ...IDLE_EXPRESSIVE },
     lifecycle: { ...IDLE_LIFECYCLE },

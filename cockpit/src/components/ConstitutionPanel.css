@@ -1,0 +1,134 @@
+.constitution-panel {
+  background: #1a1a2e;
+  color: #fff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-top: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.constitution-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.constitution-panel__title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.constitution-panel__refresh {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.constitution-panel__refresh:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.constitution-panel__muted {
+  margin: 0;
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
+.constitution-panel__error {
+  margin: 0;
+  color: #ff6b6b;
+  font-size: 0.9rem;
+}
+
+.constitution-panel__summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 0.95rem;
+}
+
+.constitution-panel__summary-label {
+  opacity: 0.85;
+}
+
+.constitution-panel__badge {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.constitution-panel__badge--ok {
+  color: #4ade80;
+}
+
+.constitution-panel__badge--fail {
+  color: #f87171;
+}
+
+.constitution-panel__failed-count {
+  opacity: 0.8;
+  font-size: 0.85rem;
+}
+
+.constitution-panel__checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.constitution-panel__check {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 0;
+}
+
+.constitution-panel__check:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.constitution-panel__check-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.constitution-panel__mark {
+  font-weight: 700;
+}
+
+.constitution-panel__mark--ok {
+  color: #4ade80;
+}
+
+.constitution-panel__mark--fail {
+  color: #f87171;
+}
+
+.constitution-panel__check-name {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+
+.constitution-panel__check-status {
+  opacity: 0.75;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.constitution-panel__check-detail {
+  margin: 8px 0 0 28px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 0.95;
+}

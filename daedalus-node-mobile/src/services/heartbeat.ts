@@ -1,4 +1,3 @@
-import axios from "axios";
 import Constants from "expo-constants";
 import { IDENTITY } from "../config/identity";
 import { saveContinuity } from "./continuity";
@@ -12,7 +11,7 @@ export class HeartbeatEngine {
   private status: HeartbeatStatus = "idle";
   private listeners: Array<(status: HeartbeatStatus) => void> = [];
 
-  constructor(private presenceServerUrl: string) {}
+  constructor(private orchestratorUrl: string) {}
 
   subscribe(listener: (status: HeartbeatStatus) => void) {
     this.listeners.push(listener);
@@ -46,14 +45,19 @@ export class HeartbeatEngine {
   private async sendHeartbeat() {
     try {
       this.setStatus("sending");
-      await axios.post(`${this.presenceServerUrl}/heartbeat`, {
-        nodeId: IDENTITY.nodeId,
-        label: IDENTITY.label,
-        platform: IDENTITY.platform,
-        deviceType: IDENTITY.deviceType,
-        operator: IDENTITY.operator,
-        timestamp: new Date().toISOString()
+      const base = this.orchestratorUrl.replace(/\/+$/, "");
+      const url = `${base}/daedalus/mirror/heartbeat`;
+      const token = (Constants.expoConfig?.extra as { daedalusToken?: string } | undefined)?.daedalusToken ?? "daedalus-dev-token";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-daedalus-token": token },
+        body: JSON.stringify({
+          nodeId: IDENTITY.nodeId,
+          timestamp: new Date().toISOString(),
+          status: "alive" as const,
+        }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await saveContinuity({ lastHeartbeatAt: new Date().toISOString() });
       this.setStatus("ok");
     } catch (e) {
@@ -64,8 +68,8 @@ export class HeartbeatEngine {
 }
 
 export function createHeartbeatEngine() {
-  const presenceServerUrl =
-    (Constants.expoConfig?.extra as any)?.presenceServerUrl ??
-    "http://10.0.2.2:4001";
-  return new HeartbeatEngine(presenceServerUrl);
+  const orchestratorUrl =
+    (Constants.expoConfig?.extra as { orchestratorUrl?: string } | undefined)?.orchestratorUrl ??
+    "http://10.0.2.2:3001";
+  return new HeartbeatEngine(orchestratorUrl);
 }

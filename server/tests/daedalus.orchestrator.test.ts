@@ -6,9 +6,31 @@ import {
   NegotiationPreview,
   OrchestratorSnapshot,
 } from "../../shared/daedalus/contracts";
+import {
+  getNodeMirrorRegistry,
+  resetNodeMirrorRegistry,
+} from "../orchestrator/mirror/NodeMirror";
+
+function seedTestNode() {
+  resetNodeMirrorRegistry();
+  const reg = getNodeMirrorRegistry();
+  reg.handleJoin({
+    nodeId: "test-node",
+    name: "Test Node",
+    capabilities: [
+      { name: "negotiation", value: "enabled", enabled: true },
+      { name: "capability-trace", value: "enabled", enabled: true },
+    ],
+    expressive: { glow: { level: "medium", intensity: 0.5 }, posture: "companion" as const, attention: { level: "aware" }, continuity: { streak: 1, lastCheckIn: new Date().toISOString(), healthy: true } },
+    profile: { id: "test-node", name: "Test Node", kind: "server" as const, model: "test", os: "test", osVersion: "1.0", operatorId: "operator" },
+  });
+}
 
 describe("Daedalus Orchestrator", () => {
   const app = createOrchestratorApp();
+
+  beforeEach(() => seedTestNode());
+  afterAll(() => resetNodeMirrorRegistry());
 
   it("returns a snapshot with nodes and beings", async () => {
     const res = await request(app).get("/daedalus/snapshot").expect(200);
@@ -27,19 +49,14 @@ describe("Daedalus Orchestrator", () => {
   });
 
   it("returns a capability trace for an existing capability", async () => {
-    const snapshotRes = await request(app).get("/daedalus/snapshot").expect(200);
-    const snapshot = snapshotRes.body as OrchestratorSnapshot;
-    const node = snapshot.nodes[0];
-    const cap = node.capabilities[0];
-
     const res = await request(app)
       .get("/daedalus/capabilities/trace")
-      .query({ nodeId: node.id, capabilityName: cap.name })
+      .query({ nodeId: "test-node", capabilityName: "negotiation" })
       .expect(200);
 
     const trace = res.body as CapabilityTrace;
-    expect(trace.nodeId).toBe(node.id);
-    expect(trace.capabilityName).toBe(cap.name);
+    expect(trace.nodeId).toBe("test-node");
+    expect(trace.capabilityName).toBe("negotiation");
     expect(Array.isArray(trace.steps)).toBe(true);
   });
 
@@ -53,16 +70,11 @@ describe("Daedalus Orchestrator", () => {
   });
 
   it("previews a negotiation", async () => {
-    const snapshotRes = await request(app).get("/daedalus/snapshot").expect(200);
-    const snapshot = snapshotRes.body as OrchestratorSnapshot;
-    const node = snapshot.nodes[0];
-    const cap = node.capabilities[0];
-
     const payload = {
       requestedBy: { id: "operator" },
-      targetNodeId: node.id,
-      capabilityName: cap.name,
-      desiredEnabled: !cap.enabled,
+      targetNodeId: "test-node",
+      capabilityName: "negotiation",
+      desiredEnabled: false,
     };
 
     const res = await request(app)
@@ -71,22 +83,17 @@ describe("Daedalus Orchestrator", () => {
       .expect(200);
 
     const preview = res.body as NegotiationPreview;
-    expect(preview.nodeId).toBe(node.id);
+    expect(preview.nodeId).toBe("test-node");
     expect(preview.decisions.length).toBe(1);
-    expect(preview.decisions[0].capabilityName).toBe(cap.name);
+    expect(preview.decisions[0].capabilityName).toBe("negotiation");
   });
 
   it("applies a negotiation", async () => {
-    const snapshotRes = await request(app).get("/daedalus/snapshot").expect(200);
-    const snapshot = snapshotRes.body as OrchestratorSnapshot;
-    const node = snapshot.nodes[0];
-    const cap = node.capabilities[0];
-
     const payload = {
       requestedBy: { id: "operator" },
-      targetNodeId: node.id,
-      capabilityName: cap.name,
-      desiredEnabled: !cap.enabled,
+      targetNodeId: "test-node",
+      capabilityName: "negotiation",
+      desiredEnabled: false,
     };
 
     const res = await request(app)
@@ -95,7 +102,7 @@ describe("Daedalus Orchestrator", () => {
       .expect(200);
 
     const result = res.body as NegotiationApplyResult;
-    expect(result.nodeId).toBe(node.id);
+    expect(result.nodeId).toBe("test-node");
     expect(result.decisions.length).toBe(1);
   });
 });

@@ -23,7 +23,7 @@
       }
     },
     "extra": {
-      "presenceServerUrl": "http://10.0.2.2:4001"
+      "orchestratorUrl": "http://10.0.2.2:3001"
     }
   }
 }

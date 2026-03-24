@@ -7,7 +7,16 @@ export type DaedalusEventType =
   | "POSTURE_CHANGED"
   | "GOVERNANCE_OVERRIDE_APPLIED"
   | "CONTINUITY_DRIFT_DETECTED"
-  | "BEING_PRESENCE_UPDATED";
+  | "BEING_PRESENCE_UPDATED"
+  | "MIRROR_NODE_JOINED"
+  | "MIRROR_NODE_HEARTBEAT"
+  | "MIRROR_NODE_QUARANTINED"
+  | "MIRROR_NODE_DETACHED"
+  | "MIRROR_NODE_ERROR"
+  | "MIRROR_NODE_STALE"
+  | "MIRROR_NODE_CAP_SYNCED"
+  | "MIRROR_NODE_EXPRESSIVE_SYNCED"
+  | "MIRROR_NODE_PROFILE_SYNCED";
 
 export interface DaedalusEventPayload {
   type: DaedalusEventType;
@@ -23,12 +32,16 @@ export interface DaedalusEventPayload {
   continuityDriftId?: string;
   beingId?: string;
   beingPresence?: BeingPresenceDetail;
+  mirrorPhase?: string;
+  mirrorStatus?: string;
 }
 
 type Listener = (event: DaedalusEventPayload) => void;
 
 export class DaedalusEventBus {
   private listeners: Set<Listener> = new Set();
+  private history: DaedalusEventPayload[] = [];
+  private static readonly MAX_HISTORY = 1000;
 
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener);
@@ -38,6 +51,11 @@ export class DaedalusEventBus {
   }
 
   publish(event: DaedalusEventPayload): void {
+    if (this.history.length >= DaedalusEventBus.MAX_HISTORY) {
+      this.history.shift();
+    }
+    this.history.push(event);
+
     for (const listener of this.listeners) {
       try {
         listener(event);
@@ -45,6 +63,21 @@ export class DaedalusEventBus {
         // Swallow to avoid poisoning the bus.
       }
     }
+  }
+
+  getHistory(limit?: number): DaedalusEventPayload[] {
+    if (!limit) return [...this.history];
+    return this.history.slice(-limit);
+  }
+
+  getHistoryByType(type: DaedalusEventType, limit?: number): DaedalusEventPayload[] {
+    const filtered = this.history.filter((e) => e.type === type);
+    if (!limit) return filtered;
+    return filtered.slice(-limit);
+  }
+
+  clearHistory(): void {
+    this.history = [];
   }
 }
 

@@ -2,3 +2,5 @@ node_modules/
 dist/
 .env
 *.local
+.daedalus-snapshot.json
+*.daedalus-log*
