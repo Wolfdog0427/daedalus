@@ -8,7 +8,9 @@
     "allowJs": true,
     "noEmit": true,
     "resolveJsonModule": true,
-    "types": ["expo", "react", "react-native"]
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true
   },
   "exclude": ["server", "node_modules"]
 }

@@ -26,8 +26,10 @@ export const useDaedalus = () => {
   return ctx;
 };
 
-export const DaedalusProvider: React.FC<{ children: React.ReactNode }> = ({
+export const DaedalusProvider = ({
   children
+}: {
+  children: React.ReactNode;
 }) => {
   const [heartbeatStatus, setHeartbeatStatus] =
     useState<HeartbeatStatus>("idle");

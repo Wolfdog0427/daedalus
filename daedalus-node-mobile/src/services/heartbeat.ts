@@ -8,7 +8,7 @@ const HEARTBEAT_INTERVAL_MS = 15_000;
 export type HeartbeatStatus = "idle" | "sending" | "ok" | "error";
 
 export class HeartbeatEngine {
-  private timer: NodeJS.Timer | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
   private status: HeartbeatStatus = "idle";
   private listeners: Array<(status: HeartbeatStatus) => void> = [];
 
