@@ -1,0 +1,11 @@
+export { NodeAgent } from "./NodeAgent";
+export type { NodeAgentConfig } from "./NodeAgent.config";
+export { DEFAULT_AGENT_CONFIG } from "./NodeAgent.config";
+export type { NodeAgentTransport, TransportResponse } from "./NodeAgent.transport";
+export { createHttpTransport, createMockTransport } from "./NodeAgent.transport";
+export type { AgentPhase, LifecycleState, LifecycleManager } from "./NodeAgent.lifecycle";
+export { createLifecycleManager, IDLE_LIFECYCLE_STATE } from "./NodeAgent.lifecycle";
+export type { CapabilityManager, CapabilityDelta } from "./NodeAgent.capabilities";
+export { createCapabilityManager } from "./NodeAgent.capabilities";
+export type { AgentExpressiveState, ExpressiveManager } from "./NodeAgent.expressive";
+export { createExpressiveManager, IDLE_AGENT_EXPRESSIVE } from "./NodeAgent.expressive";

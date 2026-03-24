@@ -1,0 +1,29 @@
+import type { Capability, DaedalusPosture, GlowState, AttentionState, ContinuityState } from "../../shared/daedalus/contracts";
+
+export interface NodeAgentConfig {
+  readonly nodeId: string;
+  readonly nodeName: string;
+  readonly kind: "mobile" | "desktop" | "server" | "embedded";
+  readonly model: string;
+  readonly os: string;
+  readonly osVersion: string;
+  readonly operatorId: string;
+  readonly orchestratorUrl: string;
+  readonly heartbeatIntervalMs: number;
+  readonly expressiveSyncIntervalMs: number;
+  readonly capabilities: Capability[];
+}
+
+export const DEFAULT_AGENT_CONFIG: NodeAgentConfig = Object.freeze({
+  nodeId: "",
+  nodeName: "",
+  kind: "mobile" as const,
+  model: "",
+  os: "",
+  osVersion: "",
+  operatorId: "",
+  orchestratorUrl: "http://localhost:4000",
+  heartbeatIntervalMs: 4000,
+  expressiveSyncIntervalMs: 8000,
+  capabilities: [],
+});
