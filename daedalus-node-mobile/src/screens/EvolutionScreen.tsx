@@ -13,11 +13,17 @@ import {
   fetchApprovalGate,
   submitChangeProposal,
   fetchRollbackRegistry,
+  fetchPendingProposals,
+  fetchProposalHistory,
+  approveDaedalusProposal,
+  denyDaedalusProposal,
   type ApprovalGateResponse,
   type ApprovalDecision,
   type ApprovalReasonBreakdown,
   type ChangeProposalKind,
   type RollbackRegistrySnapshot,
+  type DaedalusProposal,
+  type ProposalHistoryEntry,
 } from '../api/daedalusApi';
 import { colors, spacing, radius, fonts } from '../theme';
 
@@ -95,7 +101,66 @@ function DecisionCard({ decision }: { decision: ApprovalDecision }) {
   );
 }
 
+const PROPOSAL_KIND_META: Record<string, { label: string; color: string }> = {
+  alignment_boost: { label: 'Alignment', color: colors.accent },
+  regulation_tune: { label: 'Regulation', color: colors.accent },
+  sensitivity_reduction: { label: 'Sensitivity', color: colors.accent },
+  safe_mode_recovery: { label: 'Recovery', color: colors.accent },
+  drift_correction: { label: 'Drift Fix', color: colors.accent },
+  resilience_upgrade: { label: 'Resilience', color: '#bc8cff' },
+  capability_expansion: { label: 'Capability', color: '#39d353' },
+  monitoring_enhancement: { label: 'Monitoring', color: '#bc8cff' },
+  architecture_improvement: { label: 'Architecture', color: '#bc8cff' },
+  pattern_learning: { label: 'Learning', color: '#39d353' },
+  trust_recovery_protocol: { label: 'Trust', color: '#bc8cff' },
+  fleet_expansion: { label: 'Fleet', color: '#39d353' },
+  self_assessment: { label: 'Self-Check', color: '#bc8cff' },
+};
+
+function DaedalusProposalCard({ proposal, onApprove, onDeny }: { proposal: DaedalusProposal; onApprove: (id: string) => void; onDeny: (id: string) => void }) {
+  const ageS = Math.round((Date.now() - proposal.createdAt) / 1000);
+  const ageStr = ageS < 60 ? `${ageS}s ago` : `${Math.round(ageS / 60)}m ago`;
+  const alColor = proposal.alignment >= 85 ? colors.green : proposal.alignment >= 70 ? colors.yellow : colors.red;
+  const coColor = proposal.confidence >= 80 ? colors.green : proposal.confidence >= 60 ? colors.yellow : colors.red;
+  const kindMeta = PROPOSAL_KIND_META[proposal.kind] ?? { label: proposal.kind, color: colors.accent };
+
+  return (
+    <View style={s.dpCard}>
+      <View style={s.dpHeader}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+          <Text style={s.dpTitle}>◈ {proposal.title}</Text>
+          <View style={[s.kindBadge, { borderColor: kindMeta.color + '33', backgroundColor: kindMeta.color + '14' }]}>
+            <Text style={[s.kindText, { color: kindMeta.color }]}>{kindMeta.label}</Text>
+          </View>
+        </View>
+        <Text style={s.dpAge}>{ageStr}</Text>
+      </View>
+      <Text style={s.dpDesc}>{proposal.description}</Text>
+      <Text style={s.dpRationale}>{proposal.rationale}</Text>
+      <View style={s.dpMetrics}>
+        <Text style={[s.dpMetric, { color: alColor }]}>A: {proposal.alignment}%</Text>
+        <Text style={[s.dpMetric, { color: coColor }]}>C: {proposal.confidence}%</Text>
+        <View style={[s.impactBadge, proposal.impact === 'low' ? s.impactLow : proposal.impact === 'medium' ? s.impactMedium : s.impactHigh]}>
+          <Text style={[s.impactText, proposal.impact === 'low' ? s.impactTextLow : proposal.impact === 'medium' ? s.impactTextMed : s.impactTextHigh]}>
+            {proposal.impact.toUpperCase()}
+          </Text>
+        </View>
+      </View>
+      <View style={s.dpActions}>
+        <TouchableOpacity style={s.dpApprove} onPress={() => onApprove(proposal.id)} activeOpacity={0.7}>
+          <Text style={s.dpApproveText}>Approve</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.dpDeny} onPress={() => onDeny(proposal.id)} activeOpacity={0.7}>
+          <Text style={s.dpDenyText}>Deny</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 export const EvolutionScreen: React.FC = () => {
+  const [pending, setPending] = React.useState<DaedalusProposal[]>([]);
+  const [history, setHistory] = React.useState<ProposalHistoryEntry[]>([]);
   const [gate, setGate] = React.useState<ApprovalGateResponse | null>(null);
   const [rollback, setRollback] = React.useState<RollbackRegistrySnapshot | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -107,7 +172,14 @@ export const EvolutionScreen: React.FC = () => {
 
   const load = React.useCallback(async () => {
     try {
-      const [g, r] = await Promise.all([fetchApprovalGate(), fetchRollbackRegistry()]);
+      const [p, h, g, r] = await Promise.all([
+        fetchPendingProposals(),
+        fetchProposalHistory(),
+        fetchApprovalGate(),
+        fetchRollbackRegistry(),
+      ]);
+      setPending(p);
+      setHistory(h);
       setGate(g);
       setRollback(r);
       setError(null);
@@ -144,6 +216,14 @@ export const EvolutionScreen: React.FC = () => {
     }
   }, [selectedKind, description, submitting, load]);
 
+  const handleApprove = React.useCallback(async (id: string) => {
+    try { await approveDaedalusProposal(id); void load(); } catch { setError('Approval failed'); }
+  }, [load]);
+
+  const handleDeny = React.useCallback(async (id: string) => {
+    try { await denyDaedalusProposal(id); void load(); } catch { setError('Denial failed'); }
+  }, [load]);
+
   const decisions = gate?.recentDecisions ?? [];
   const needsReview = decisions.filter(d => !d.autoApprove).length;
 
@@ -163,9 +243,9 @@ export const EvolutionScreen: React.FC = () => {
     >
       <View style={s.header}>
         <Text style={s.title}>◈ Evolution</Text>
-        <View style={[s.headerBadge, needsReview > 0 ? s.headerBadgePending : s.headerBadgeClear]}>
-          <Text style={[s.headerBadgeText, needsReview > 0 ? s.headerBadgeTextPending : s.headerBadgeTextClear]}>
-            {needsReview > 0 ? `${needsReview} awaiting review` : 'All clear'}
+        <View style={[s.headerBadge, pending.length > 0 ? s.headerBadgePending : s.headerBadgeClear]}>
+          <Text style={[s.headerBadgeText, pending.length > 0 ? s.headerBadgeTextPending : s.headerBadgeTextClear]}>
+            {pending.length > 0 ? `${pending.length} awaiting approval` : 'All clear'}
           </Text>
         </View>
       </View>
@@ -173,6 +253,15 @@ export const EvolutionScreen: React.FC = () => {
       {error && (
         <View style={s.errorBox}>
           <Text style={s.errorText}>{error}</Text>
+        </View>
+      )}
+
+      {pending.length > 0 && (
+        <View style={s.sectionBox}>
+          <Text style={s.sectionTitle}>Daedalus Proposals</Text>
+          {pending.map(p => (
+            <DaedalusProposalCard key={p.id} proposal={p} onApprove={handleApprove} onDeny={handleDeny} />
+          ))}
         </View>
       )}
 
@@ -243,6 +332,28 @@ export const EvolutionScreen: React.FC = () => {
             <Text style={s.statText}>Accepted: <Text style={s.statNum}>{rollback.acceptedCount}</Text></Text>
             <Text style={s.statText}>Rolled back: <Text style={s.statNum}>{rollback.rolledBackCount}</Text></Text>
           </View>
+        </View>
+      )}
+
+      {history.length > 0 && (
+        <View style={s.sectionBox}>
+          <Text style={s.sectionTitle}>Proposal History</Text>
+          {history.slice().reverse().slice(0, 12).map(entry => {
+            const deltaColor = entry.effectDelta == null ? colors.textFaint : entry.effectDelta > 0 ? colors.green : entry.effectDelta < 0 ? colors.red : colors.textMuted;
+            return (
+              <View key={entry.id} style={[s.histRow, entry.status === 'denied' ? s.histDenied : s.histApproved]}>
+                <View style={s.histTop}>
+                  <Text style={s.histTitle}>{entry.title}</Text>
+                  <Text style={s.histStatus}>{entry.status.replace('_', ' ')}</Text>
+                </View>
+                {entry.effectDelta != null && (
+                  <Text style={[s.histDelta, { color: deltaColor }]}>
+                    Effect: {entry.effectDelta > 0 ? '+' : ''}{entry.effectDelta.toFixed(1)}%
+                  </Text>
+                )}
+              </View>
+            );
+          })}
         </View>
       )}
 
@@ -332,4 +443,29 @@ const s = StyleSheet.create({
 
   emptyBox: { padding: spacing.lg, alignItems: 'center' },
   emptyText: { color: colors.textFaint, fontSize: fonts.body, textAlign: 'center' },
+
+  sectionBox: { gap: spacing.sm },
+  sectionTitle: { fontSize: fonts.small, fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: spacing.xs },
+
+  dpCard: { backgroundColor: 'rgba(88,166,255,0.03)', borderWidth: 1, borderColor: 'rgba(88,166,255,0.15)', borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  dpHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dpTitle: { fontSize: fonts.body, fontWeight: '600', color: colors.text, flex: 1 },
+  dpAge: { fontSize: fonts.micro, color: colors.textFaint },
+  dpDesc: { fontSize: fonts.body, color: colors.textSecondary, lineHeight: 20 },
+  dpRationale: { fontSize: fonts.small, color: colors.textMuted, lineHeight: 18, paddingLeft: spacing.sm, borderLeftWidth: 2, borderLeftColor: 'rgba(88,166,255,0.2)' },
+  dpMetrics: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
+  dpMetric: { fontSize: fonts.body, fontWeight: '700' },
+  dpActions: { flexDirection: 'row', gap: spacing.sm },
+  dpApprove: { flex: 1, paddingVertical: 10, borderRadius: radius.md, backgroundColor: 'rgba(63,185,80,0.1)', borderWidth: 1, borderColor: 'rgba(63,185,80,0.3)', alignItems: 'center' },
+  dpApproveText: { color: colors.green, fontWeight: '600', fontSize: fonts.body },
+  dpDeny: { flex: 1, paddingVertical: 10, borderRadius: radius.md, backgroundColor: 'rgba(248,81,73,0.06)', borderWidth: 1, borderColor: 'rgba(248,81,73,0.2)', alignItems: 'center' },
+  dpDenyText: { color: colors.red, fontWeight: '600', fontSize: fonts.body },
+
+  histRow: { borderRadius: radius.sm, padding: spacing.sm, borderWidth: 1 },
+  histApproved: { backgroundColor: 'rgba(63,185,80,0.03)', borderColor: 'rgba(63,185,80,0.1)' },
+  histDenied: { backgroundColor: 'rgba(248,81,73,0.03)', borderColor: 'rgba(248,81,73,0.1)' },
+  histTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  histTitle: { fontSize: fonts.small, fontWeight: '600', color: colors.textSecondary },
+  histStatus: { fontSize: fonts.micro, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase' },
+  histDelta: { fontSize: fonts.small, fontWeight: '700', marginTop: 2 },
 });

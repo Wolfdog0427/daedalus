@@ -75,7 +75,7 @@ export function CockpitNodeListPanel() {
       )}
 
       {nodes.length === 0 && summary && (
-        <div className="empty">No nodes registered in the mirror registry</div>
+        <div className="empty">No nodes registered yet. Nodes will appear here after joining via the mirror API. Capabilities and traces populate once nodes sync their capabilities.</div>
       )}
 
       <div className="cockpit-nodes">

@@ -1,5 +1,6 @@
 /* ── Evolution Panel ─────────────────────────────────────────────
    Primary proposal & approval interface for Daedalus evolution.
+   Three sections: Daedalus proposals, operator proposals, history.
    ─────────────────────────────────────────────────────────────── */
 
 .evolution-panel {
@@ -9,7 +10,7 @@
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .evolution-panel__header {
@@ -29,14 +30,12 @@
   gap: 8px;
 }
 
-.evolution-panel__icon {
-  font-size: 1.2rem;
-}
+.evolution-panel__icon { font-size: 1.2rem; }
 
 .evolution-panel__badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 10px;
+  padding: 3px 12px;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 600;
@@ -46,12 +45,299 @@
   background: rgba(210, 153, 34, 0.12);
   border: 1px solid rgba(210, 153, 34, 0.25);
   color: #d29922;
+  animation: evo-pulse 2s ease-in-out infinite;
 }
 
-.evolution-panel__badge--clear {
+@keyframes evo-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+/* ── Section layout ────────────────────────────────────────────── */
+
+.evo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid #1a1e30;
+}
+
+.evo-section:first-of-type { border-top: none; padding-top: 0; }
+
+.evo-section__header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.evo-section__title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #c3c7e0;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.evo-section__subtitle {
+  font-size: 0.75rem;
+  color: #6c7299;
+}
+
+.evo-section__empty {
+  font-size: 0.84rem;
+  color: #6c7299;
+  padding: 14px 16px;
+  background: #0e1117;
+  border-radius: 8px;
+  border: 1px dashed #262a3f;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ── Daedalus Proposal Card ────────────────────────────────────── */
+
+.evo-daedalus-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.evo-daedalus-card {
+  border: 1px solid rgba(88, 166, 255, 0.15);
+  border-radius: 10px;
+  background: rgba(88, 166, 255, 0.03);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.evo-daedalus-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.evo-daedalus-card__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.evo-daedalus-card__icon {
+  color: #58a6ff;
+  font-size: 1rem;
+}
+
+.evo-daedalus-card__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e6edf3;
+}
+
+.evo-daedalus-card__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.evo-daedalus-card__age {
+  font-size: 0.7rem;
+  color: #6c7299;
+}
+
+.evo-daedalus-card__desc {
+  font-size: 0.84rem;
+  color: #c3c7e0;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.evo-daedalus-card__rationale {
+  font-size: 0.78rem;
+  color: #8b949e;
+  line-height: 1.4;
+  margin: 0;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border-left: 2px solid rgba(88, 166, 255, 0.2);
+}
+
+/* ── Metrics bars ──────────────────────────────────────────────── */
+
+.evo-daedalus-card__metrics {
+  display: flex;
+  gap: 16px;
+}
+
+.evo-metric {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.evo-metric__label {
+  font-size: 0.72rem;
+  color: #8b949e;
+  width: 68px;
+  flex-shrink: 0;
+}
+
+.evo-metric__bar-bg {
+  flex: 1;
+  height: 6px;
+  background: #161b22;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.evo-metric__bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.evo-metric__val {
+  font-size: 0.78rem;
+  font-weight: 700;
+  width: 36px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Axes badges ───────────────────────────────────────────────── */
+
+.evo-daedalus-card__axes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.evo-axis {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.evo-axis--ok {
+  color: #3fb950;
+  background: rgba(63, 185, 80, 0.06);
+  border: 1px solid rgba(63, 185, 80, 0.12);
+}
+
+.evo-axis--warn {
+  color: #d29922;
+  background: rgba(210, 153, 34, 0.06);
+  border: 1px solid rgba(210, 153, 34, 0.15);
+}
+
+.evo-axis--auto {
+  color: #58a6ff;
+  background: rgba(88, 166, 255, 0.06);
+  border: 1px solid rgba(88, 166, 255, 0.12);
+}
+
+/* ── Kind badges (category) ──────────────────────────────────── */
+
+.evo-kind {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.evo-kind--align {
+  color: #58a6ff;
+  background: rgba(88, 166, 255, 0.08);
+  border: 1px solid rgba(88, 166, 255, 0.15);
+}
+
+.evo-kind--self {
+  color: #bc8cff;
+  background: rgba(188, 140, 255, 0.08);
+  border: 1px solid rgba(188, 140, 255, 0.15);
+}
+
+.evo-kind--cap {
+  color: #39d353;
+  background: rgba(57, 211, 83, 0.08);
+  border: 1px solid rgba(57, 211, 83, 0.15);
+}
+
+/* ── Approve / Deny buttons ────────────────────────────────────── */
+
+.evo-daedalus-card__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.evo-btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  border: 1px solid;
+}
+
+.evo-btn:active { transform: scale(0.97); }
+
+.evo-btn--approve {
+  background: rgba(63, 185, 80, 0.1);
+  border-color: rgba(63, 185, 80, 0.3);
+  color: #3fb950;
+}
+
+.evo-btn--approve:hover {
+  background: rgba(63, 185, 80, 0.2);
+  border-color: rgba(63, 185, 80, 0.5);
+}
+
+.evo-btn--deny {
+  background: rgba(248, 81, 73, 0.06);
+  border-color: rgba(248, 81, 73, 0.2);
+  color: #f85149;
+}
+
+.evo-btn--deny:hover {
+  background: rgba(248, 81, 73, 0.14);
+  border-color: rgba(248, 81, 73, 0.4);
+}
+
+/* ── Impact badge ──────────────────────────────────────────────── */
+
+.evo-impact {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+}
+
+.evo-impact--low {
+  color: #3fb950;
   background: rgba(63, 185, 80, 0.08);
   border: 1px solid rgba(63, 185, 80, 0.15);
-  color: #3fb950;
+}
+
+.evo-impact--medium {
+  color: #d29922;
+  background: rgba(210, 153, 34, 0.08);
+  border: 1px solid rgba(210, 153, 34, 0.15);
+}
+
+.evo-impact--high {
+  color: #f85149;
+  background: rgba(248, 81, 73, 0.08);
+  border: 1px solid rgba(248, 81, 73, 0.15);
 }
 
 /* ── Gate status strip ─────────────────────────────────────────── */
@@ -139,13 +425,13 @@
   cursor: not-allowed;
 }
 
-/* ── Decision cards ────────────────────────────────────────────── */
+/* ── Decision cards (operator) ─────────────────────────────────── */
 
 .evolution-decisions {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 420px;
+  max-height: 400px;
   overflow-y: auto;
 }
 
@@ -155,7 +441,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  transition: border-color 0.15s ease;
 }
 
 .evolution-decision--approved {
@@ -221,31 +506,6 @@
   border: 1px solid rgba(88, 166, 255, 0.15);
 }
 
-.evolution-decision__impact {
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 1px 8px;
-  border-radius: 999px;
-}
-
-.evolution-decision__impact--low {
-  color: #3fb950;
-  background: rgba(63, 185, 80, 0.08);
-  border: 1px solid rgba(63, 185, 80, 0.15);
-}
-
-.evolution-decision__impact--medium {
-  color: #d29922;
-  background: rgba(210, 153, 34, 0.08);
-  border: 1px solid rgba(210, 153, 34, 0.15);
-}
-
-.evolution-decision__impact--high {
-  color: #f85149;
-  background: rgba(248, 81, 73, 0.08);
-  border: 1px solid rgba(248, 81, 73, 0.15);
-}
-
 .evolution-decision__score {
   font-size: 0.72rem;
   color: #8b949e;
@@ -277,24 +537,125 @@
   border: 1px solid rgba(248, 81, 73, 0.12);
 }
 
+/* ── History tracker ───────────────────────────────────────────── */
+
+.evo-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.evo-hist-row {
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.evo-hist--approved {
+  background: rgba(63, 185, 80, 0.03);
+  border: 1px solid rgba(63, 185, 80, 0.1);
+}
+
+.evo-hist--denied {
+  background: rgba(248, 81, 73, 0.03);
+  border: 1px solid rgba(248, 81, 73, 0.1);
+}
+
+.evo-hist--expired {
+  background: rgba(139, 148, 158, 0.03);
+  border: 1px solid rgba(139, 148, 158, 0.08);
+}
+
+.evo-hist-row__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.evo-hist-row__title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #c3c7e0;
+}
+
+.evo-hist-row__status {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #8b949e;
+  letter-spacing: 0.3px;
+}
+
+.evo-hist-row__meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.evo-hist-row__time {
+  font-size: 0.7rem;
+  color: #6c7299;
+}
+
+.evo-hist-row__score {
+  font-size: 0.7rem;
+  color: #8b949e;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Effect bar ────────────────────────────────────────────────── */
+
+.evo-hist-row__effect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.evo-hist-row__effect-label {
+  font-size: 0.68rem;
+  color: #6c7299;
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.evo-hist-row__effect-bar-bg {
+  flex: 1;
+  height: 4px;
+  background: #161b22;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.evo-hist-row__effect-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.evo-hist-row__effect-val {
+  font-size: 0.72rem;
+  font-weight: 700;
+  width: 44px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Rollback section ──────────────────────────────────────────── */
 
 .evolution-rollback {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
+  gap: 6px;
+  padding: 10px 14px;
   background: #0e1117;
   border: 1px solid #1a1e30;
   border-radius: 8px;
-}
-
-.evolution-rollback__title {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #c3c7e0;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
 }
 
 .evolution-rollback__stats {
@@ -314,13 +675,6 @@
   font-weight: 700;
   color: #c3c7e0;
   font-variant-numeric: tabular-nums;
-}
-
-.evolution-empty {
-  font-size: 0.84rem;
-  color: #6c7299;
-  text-align: center;
-  padding: 16px;
 }
 
 .evolution-error {

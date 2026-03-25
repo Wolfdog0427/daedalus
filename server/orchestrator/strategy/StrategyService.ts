@@ -78,6 +78,45 @@ import {
 } from "../../../kernel/src";
 import type { BeingPresenceDetail } from "../../../shared/daedalus/contracts";
 
+export interface DaedalusProposal {
+  id: string;
+  kind: string;
+  title: string;
+  description: string;
+  rationale: string;
+  alignment: number;
+  confidence: number;
+  impact: "low" | "medium" | "high";
+  touchesInvariants: boolean;
+  reversible: boolean;
+  autoApprovable: boolean;
+  payload: Record<string, unknown>;
+  createdAt: number;
+  status: "pending" | "approved" | "denied" | "expired" | "auto_approved";
+  resolvedAt?: number;
+  effectBaseline?: number;
+  effectAfter?: number;
+}
+
+export interface ProposalHistoryEntry {
+  id: string;
+  title: string;
+  kind: string;
+  status: "approved" | "denied" | "auto_approved" | "expired";
+  alignment: number;
+  confidence: number;
+  impact: "low" | "medium" | "high";
+  effectBaseline: number | null;
+  effectAfter: number | null;
+  effectDelta: number | null;
+  createdAt: number;
+  resolvedAt: number;
+}
+
+const MAX_PENDING_PROPOSALS = 10;
+const MAX_PROPOSAL_HISTORY = 50;
+const PROPOSAL_EXPIRE_MS = 15 * 60 * 1000;
+
 class StrategyService {
   private lastEvaluation: StrategyEvaluation | null = null;
   private lastStrategyName: StrategyName | null = null;
@@ -85,6 +124,13 @@ class StrategyService {
   private kernelConfig: KernelRuntimeConfig = { ...DEFAULT_KERNEL_CONFIG };
   private alignmentConfig: AlignmentConfig = { ...DEFAULT_ALIGNMENT_CONFIG };
   private prevAcceptedCount = 0;
+  private tickCounter = 0;
+  private safeModeStreak = 0;
+  private stableStreak = 0;
+  private lastProposalKindTick: Map<string, number> = new Map();
+
+  private pendingDaedalusProposals: DaedalusProposal[] = [];
+  private proposalHistory: ProposalHistoryEntry[] = [];
 
   evaluate(): StrategyEvaluation {
     const ctx = this.buildContext();
@@ -172,6 +218,9 @@ class StrategyService {
     this.lastStrategyName = tick.strategy.name;
     this.lastEvaluation = tick.strategy;
     this.lastTickResult = tick;
+
+    this.generateDaedalusProposals(tick);
+
     return tick.strategy;
   }
 
@@ -204,6 +253,394 @@ class StrategyService {
 
   getKernelConfig(): KernelRuntimeConfig {
     return { ...this.kernelConfig };
+  }
+
+  // ── Daedalus-Initiated Proposals ──────────────────────────────
+
+  private generateDaedalusProposals(tick: KernelTickResult): void {
+    this.expireStalePendingProposals();
+    this.tickCounter++;
+
+    const eval_ = tick.strategy;
+    const safeMode = tick.safeMode;
+    const regulation = tick.regulation;
+    const pendingIds = new Set(this.pendingDaedalusProposals.map(p => p.kind));
+
+    if (safeMode.active) this.safeModeStreak++;
+    else this.safeModeStreak = 0;
+
+    if (eval_.alignment >= 88 && eval_.confidence >= 80) this.stableStreak++;
+    else this.stableStreak = 0;
+
+    const cooldown = (kind: string, minTicks: number) => {
+      const last = this.lastProposalKindTick.get(kind) ?? -Infinity;
+      return this.tickCounter - last >= minTicks;
+    };
+    const mark = (kind: string) => this.lastProposalKindTick.set(kind, this.tickCounter);
+
+    // ── Alignment & Governance Proposals ──────────────────────────
+
+    if (eval_.alignment < 80 && !pendingIds.has("alignment_boost") && !safeMode.active && cooldown("alignment_boost", 20)) {
+      mark("alignment_boost");
+      this.createDaedalusProposal({
+        kind: "alignment_boost",
+        title: "Increase governance strictness",
+        description: `Alignment is at ${eval_.alignment}%. Daedalus recommends tightening governance strictness to stabilize.`,
+        rationale: `Current alignment (${eval_.alignment}%) is below the target of 92%. Increasing governance strictness from ${this.kernelConfig.governanceStrictness?.toFixed(2) ?? "0.80"} will help prevent further drift.`,
+        impact: "medium",
+        touchesInvariants: false,
+        reversible: true,
+        payload: { governanceStrictness: Math.min(1, (this.kernelConfig.governanceStrictness ?? 0.8) + 0.05) },
+        eval_,
+      });
+    }
+
+    if (regulation.telemetry.appliedMacro && !pendingIds.has("regulation_tune") && cooldown("regulation_tune", 15)) {
+      mark("regulation_tune");
+      this.createDaedalusProposal({
+        kind: "regulation_tune",
+        title: "Adjust regulation damping",
+        description: `Macro-correction fired (${regulation.telemetry.reason}). Daedalus recommends adjusting damping to reduce oscillation.`,
+        rationale: `The regulation loop applied a macro-correction of ${regulation.telemetry.macroDampedCorrection.toFixed(2)}. Increasing macro damping will smooth future corrections.`,
+        impact: "low",
+        touchesInvariants: false,
+        reversible: true,
+        payload: { macroDamping: 0.75 },
+        eval_,
+      });
+    }
+
+    if (eval_.confidence < 70 && !pendingIds.has("sensitivity_reduction") && cooldown("sensitivity_reduction", 20)) {
+      mark("sensitivity_reduction");
+      this.createDaedalusProposal({
+        kind: "sensitivity_reduction",
+        title: "Reduce strategy sensitivity",
+        description: `Confidence is low (${eval_.confidence}%). Daedalus recommends reducing strategy sensitivity to avoid unstable decisions.`,
+        rationale: `Low confidence suggests the system is uncertain about its strategy. Reducing sensitivity from ${this.kernelConfig.strategySensitivity?.toFixed(2) ?? "1.00"} will make strategy selection more conservative.`,
+        impact: "low",
+        touchesInvariants: false,
+        reversible: true,
+        payload: { strategySensitivity: Math.max(0.5, (this.kernelConfig.strategySensitivity ?? 1.0) - 0.1) },
+        eval_,
+      });
+    }
+
+    if (safeMode.active && !pendingIds.has("safe_mode_recovery") && cooldown("safe_mode_recovery", 30)) {
+      mark("safe_mode_recovery");
+      this.createDaedalusProposal({
+        kind: "safe_mode_recovery",
+        title: "Safe mode recovery plan",
+        description: `System is in safe mode (${safeMode.reason ?? "alignment critically low"}). Daedalus recommends a recovery configuration.`,
+        rationale: "Safe mode indicates critical alignment failure. This proposal applies conservative settings to stabilize the system before exiting safe mode.",
+        impact: "high",
+        touchesInvariants: true,
+        reversible: true,
+        payload: { governanceStrictness: 0.95, strategySensitivity: 0.6 },
+        eval_,
+      });
+    }
+
+    const drift = tick.drift;
+    if (drift.drifting && !pendingIds.has("drift_correction") && cooldown("drift_correction", 20)) {
+      mark("drift_correction");
+      this.createDaedalusProposal({
+        kind: "drift_correction",
+        title: "Correct alignment drift",
+        description: `Alignment drift detected (Δ${drift.delta?.toFixed(1)}). Daedalus recommends a correction.`,
+        rationale: `Alignment is drifting downward by ${Math.abs(drift.delta ?? 0).toFixed(1)} points over the measurement window. Raising the alignment floor will trigger earlier self-correction.`,
+        impact: "medium",
+        touchesInvariants: false,
+        reversible: true,
+        payload: { alignmentFloor: Math.min(80, (this.alignmentConfig.alignmentFloor ?? 60) + 5) },
+        eval_,
+      });
+    }
+
+    // ── Self-Improvement & New Capability Proposals ───────────────
+
+    // After surviving safe mode, propose resilience improvements
+    if (this.safeModeStreak === 0 && this.tickCounter > 5) {
+      const recentSafeModeRecovery = this.proposalHistory.some(
+        p => p.kind === "safe_mode_recovery" && p.status === "approved" && Date.now() - p.resolvedAt < 60_000,
+      );
+      if (recentSafeModeRecovery && !pendingIds.has("resilience_upgrade") && cooldown("resilience_upgrade", 50)) {
+        mark("resilience_upgrade");
+        this.createDaedalusProposal({
+          kind: "resilience_upgrade",
+          title: "Strengthen post-crisis resilience",
+          description: "Daedalus recently recovered from safe mode. I propose tightening the alignment floor and reducing sensitivity to prevent re-entry.",
+          rationale: "Post-crisis analysis: the system entered safe mode and recovered. Preemptively raising the floor and reducing sensitivity will create a larger buffer against future crises.",
+          impact: "medium",
+          touchesInvariants: false,
+          reversible: true,
+          payload: { alignmentFloor: Math.min(80, (this.alignmentConfig.alignmentFloor ?? 60) + 3), strategySensitivity: Math.max(0.6, (this.kernelConfig.strategySensitivity ?? 1) - 0.05) },
+          eval_,
+        });
+      }
+    }
+
+    // When stable for a sustained period, propose capability expansion
+    if (this.stableStreak >= 30 && !pendingIds.has("capability_expansion") && cooldown("capability_expansion", 100)) {
+      mark("capability_expansion");
+      this.createDaedalusProposal({
+        kind: "capability_expansion",
+        title: "Expand autonomous capabilities",
+        description: "The system has been stable (alignment ≥88%, confidence ≥80%) for a sustained period. Daedalus proposes expanding autonomous decision-making capabilities.",
+        rationale: `${this.stableStreak} consecutive stable ticks demonstrate the system can be trusted with broader autonomy. This enables auto-approval of low-impact changes and expands the intent recognition vocabulary.`,
+        impact: "medium",
+        touchesInvariants: false,
+        reversible: true,
+        payload: { enableExpandedAutonomy: true, stableTicksAtProposal: this.stableStreak },
+        eval_,
+      });
+    }
+
+    // Propose monitoring improvements when alignment oscillates
+    const history = this.proposalHistory.filter(p => Date.now() - p.resolvedAt < 300_000);
+    const driftCorrections = history.filter(p => p.kind === "drift_correction").length;
+    if (driftCorrections >= 2 && !pendingIds.has("monitoring_enhancement") && cooldown("monitoring_enhancement", 80)) {
+      mark("monitoring_enhancement");
+      this.createDaedalusProposal({
+        kind: "monitoring_enhancement",
+        title: "Enhance drift monitoring precision",
+        description: `${driftCorrections} drift corrections in the recent window suggest alignment is oscillating. Daedalus proposes narrowing the drift detection window for earlier intervention.`,
+        rationale: "Repeated drift corrections indicate the current detection window may be too wide, allowing drift to accumulate before intervention. Tightening the window enables smoother micro-corrections and reduces the need for macro-corrections.",
+        impact: "low",
+        touchesInvariants: false,
+        reversible: true,
+        payload: { driftWindowReduction: true, proposedDriftThreshold: 8 },
+        eval_,
+      });
+    }
+
+    // Propose architectural improvements when rollback count is high
+    const recentRollbacks = tick.rollbacks.length;
+    if (recentRollbacks >= 2 && !pendingIds.has("architecture_improvement") && cooldown("architecture_improvement", 60)) {
+      mark("architecture_improvement");
+      this.createDaedalusProposal({
+        kind: "architecture_improvement",
+        title: "Improve change evaluation architecture",
+        description: `${recentRollbacks} rollbacks occurred this tick. Daedalus proposes extending the change evaluation window and tightening the degradation threshold.`,
+        rationale: "Multiple rollbacks indicate changes are being applied that degrade alignment. A longer evaluation window and stricter degradation threshold will catch harmful changes earlier.",
+        impact: "low",
+        touchesInvariants: false,
+        reversible: true,
+        payload: { evaluationWindowExtension: 50, degradationThresholdReduction: 2 },
+        eval_,
+      });
+    }
+
+    // Propose learning from successful patterns when many proposals have been approved
+    const approvedRecent = history.filter(p => p.status === "approved" || p.status === "auto_approved");
+    if (approvedRecent.length >= 3 && !pendingIds.has("pattern_learning") && cooldown("pattern_learning", 120)) {
+      const avgDelta = approvedRecent.reduce((s, p) => s + (p.effectDelta ?? 0), 0) / approvedRecent.length;
+      if (avgDelta > 0) {
+        mark("pattern_learning");
+        this.createDaedalusProposal({
+          kind: "pattern_learning",
+          title: "Codify successful improvement patterns",
+          description: `${approvedRecent.length} recent proposals improved alignment by an average of ${avgDelta.toFixed(1)}%. Daedalus proposes codifying these patterns for automatic future application.`,
+          rationale: "Repeated successful proposals of similar types suggest a stable improvement pattern. Codifying this allows Daedalus to apply similar corrections automatically when conditions recur, reducing operator overhead.",
+          impact: "medium",
+          touchesInvariants: false,
+          reversible: true,
+          payload: { codifyPatterns: true, patternCount: approvedRecent.length, avgEffectDelta: avgDelta },
+          eval_,
+        });
+      }
+    }
+
+    // Propose communication improvement when operator trust is below threshold
+    if (tick.operatorTrust.trustScore < 60 && tick.operatorTrust.boundOperatorId && !pendingIds.has("trust_recovery_protocol") && cooldown("trust_recovery_protocol", 40)) {
+      mark("trust_recovery_protocol");
+      this.createDaedalusProposal({
+        kind: "trust_recovery_protocol",
+        title: "Initiate trust recovery protocol",
+        description: `Operator trust is at ${tick.operatorTrust.trustScore}%. Daedalus proposes increasing transparency and requiring explicit confirmation for all changes until trust stabilizes.`,
+        rationale: `Trust score ${tick.operatorTrust.trustScore}% (posture: ${tick.operatorTrust.posture}) indicates the operator-Daedalus relationship needs reinforcement. Increasing confirmation requirements and providing richer explanations will help rebuild trust.`,
+        impact: "low",
+        touchesInvariants: false,
+        reversible: true,
+        payload: { requireExplicitConfirmation: true, enhancedExplanations: true, trustAtProposal: tick.operatorTrust.trustScore },
+        eval_,
+      });
+    }
+
+    // Propose new node capability when fleet is healthy but small
+    const nodeCount = this.buildContext().nodeCount;
+    if (nodeCount < 3 && eval_.alignment >= 85 && !pendingIds.has("fleet_expansion") && cooldown("fleet_expansion", 100)) {
+      mark("fleet_expansion");
+      this.createDaedalusProposal({
+        kind: "fleet_expansion",
+        title: "Recommend fleet expansion",
+        description: `Only ${nodeCount} node(s) active. Daedalus recommends expanding the fleet for better resilience and distributed governance.`,
+        rationale: `A fleet of ${nodeCount} node(s) has limited fault tolerance. Adding nodes improves heartbeat coverage, distributes governance load, and increases the system's ability to survive node failures.`,
+        impact: "medium",
+        touchesInvariants: false,
+        reversible: true,
+        payload: { recommendedNodeCount: Math.max(5, nodeCount + 2), currentNodeCount: nodeCount },
+        eval_,
+      });
+    }
+
+    // Propose self-assessment ritual when system has been running a while without one
+    if (this.tickCounter > 0 && this.tickCounter % 200 === 0 && !pendingIds.has("self_assessment") && cooldown("self_assessment", 200)) {
+      mark("self_assessment");
+      const approvedCount = this.proposalHistory.filter(p => p.status === "approved" || p.status === "auto_approved").length;
+      const deniedCount = this.proposalHistory.filter(p => p.status === "denied").length;
+      this.createDaedalusProposal({
+        kind: "self_assessment",
+        title: "Periodic self-assessment report",
+        description: `Daedalus has run for ${this.tickCounter} ticks. Proposals: ${approvedCount} approved, ${deniedCount} denied. Current alignment: ${eval_.alignment}%, confidence: ${eval_.confidence}%.`,
+        rationale: `Regular self-assessment helps maintain awareness of the system's trajectory. Over ${this.tickCounter} ticks, Daedalus has proposed ${this.proposalHistory.length} changes. This ritual confirms the operator is aware of the system's current state and trajectory.`,
+        impact: "low",
+        touchesInvariants: false,
+        reversible: true,
+        payload: { tickCount: this.tickCounter, totalProposals: this.proposalHistory.length, approvedCount, deniedCount, currentAlignment: eval_.alignment, currentConfidence: eval_.confidence },
+        eval_,
+      });
+    }
+  }
+
+  private createDaedalusProposal(opts: {
+    kind: string;
+    title: string;
+    description: string;
+    rationale: string;
+    impact: "low" | "medium" | "high";
+    touchesInvariants: boolean;
+    reversible: boolean;
+    payload: Record<string, unknown>;
+    eval_: StrategyEvaluation;
+  }): void {
+    if (this.pendingDaedalusProposals.length >= MAX_PENDING_PROPOSALS) return;
+
+    const autoApprovable =
+      opts.eval_.alignment >= 95 &&
+      opts.eval_.confidence >= 80 &&
+      opts.impact === "low" &&
+      !opts.touchesInvariants &&
+      opts.reversible;
+
+    const proposal: DaedalusProposal = {
+      id: `dp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      kind: opts.kind,
+      title: opts.title,
+      description: opts.description,
+      rationale: opts.rationale,
+      alignment: opts.eval_.alignment,
+      confidence: opts.eval_.confidence,
+      impact: opts.impact,
+      touchesInvariants: opts.touchesInvariants,
+      reversible: opts.reversible,
+      autoApprovable,
+      payload: opts.payload,
+      createdAt: Date.now(),
+      status: autoApprovable ? "auto_approved" : "pending",
+      effectBaseline: opts.eval_.alignment,
+    };
+
+    if (autoApprovable) {
+      proposal.resolvedAt = Date.now();
+      this.recordProposalHistory(proposal);
+      getDaedalusEventBus().publish({
+        type: "DAEDALUS_PROPOSAL_CREATED",
+        timestamp: nowIso(),
+        summary: `Daedalus auto-approved: ${opts.title} (alignment ${opts.eval_.alignment}%)`,
+        alignment: opts.eval_.alignment,
+      });
+    } else {
+      this.pendingDaedalusProposals.push(proposal);
+      getDaedalusEventBus().publish({
+        type: "DAEDALUS_PROPOSAL_CREATED",
+        timestamp: nowIso(),
+        summary: `Daedalus proposes: ${opts.title} (alignment ${opts.eval_.alignment}%, impact ${opts.impact})`,
+        alignment: opts.eval_.alignment,
+      });
+    }
+  }
+
+  private expireStalePendingProposals(): void {
+    const now = Date.now();
+    const expired: DaedalusProposal[] = [];
+    this.pendingDaedalusProposals = this.pendingDaedalusProposals.filter(p => {
+      if (now - p.createdAt > PROPOSAL_EXPIRE_MS) {
+        p.status = "expired";
+        p.resolvedAt = now;
+        expired.push(p);
+        return false;
+      }
+      return true;
+    });
+    for (const p of expired) this.recordProposalHistory(p);
+  }
+
+  private recordProposalHistory(proposal: DaedalusProposal): void {
+    const effectAfter = this.lastEvaluation?.alignment ?? null;
+    const entry: ProposalHistoryEntry = {
+      id: proposal.id,
+      title: proposal.title,
+      kind: proposal.kind,
+      status: proposal.status as ProposalHistoryEntry["status"],
+      alignment: proposal.alignment,
+      confidence: proposal.confidence,
+      impact: proposal.impact,
+      effectBaseline: proposal.effectBaseline ?? null,
+      effectAfter,
+      effectDelta: (proposal.effectBaseline != null && effectAfter != null)
+        ? effectAfter - proposal.effectBaseline
+        : null,
+      createdAt: proposal.createdAt,
+      resolvedAt: proposal.resolvedAt ?? Date.now(),
+    };
+    this.proposalHistory.push(entry);
+    if (this.proposalHistory.length > MAX_PROPOSAL_HISTORY) {
+      this.proposalHistory = this.proposalHistory.slice(-MAX_PROPOSAL_HISTORY);
+    }
+  }
+
+  getPendingDaedalusProposals(): DaedalusProposal[] {
+    this.expireStalePendingProposals();
+    return [...this.pendingDaedalusProposals];
+  }
+
+  getProposalHistory(): ProposalHistoryEntry[] {
+    return [...this.proposalHistory];
+  }
+
+  approveDaedalusProposal(proposalId: string): DaedalusProposal | null {
+    const idx = this.pendingDaedalusProposals.findIndex(p => p.id === proposalId);
+    if (idx < 0) return null;
+    const proposal = this.pendingDaedalusProposals[idx];
+    proposal.status = "approved";
+    proposal.resolvedAt = Date.now();
+    proposal.effectAfter = this.lastEvaluation?.alignment ?? undefined;
+    this.pendingDaedalusProposals.splice(idx, 1);
+    this.recordProposalHistory(proposal);
+    getDaedalusEventBus().publish({
+      type: "DAEDALUS_PROPOSAL_APPROVED",
+      timestamp: nowIso(),
+      summary: `Operator approved: ${proposal.title}`,
+      alignment: this.lastEvaluation?.alignment,
+    });
+    return proposal;
+  }
+
+  denyDaedalusProposal(proposalId: string): DaedalusProposal | null {
+    const idx = this.pendingDaedalusProposals.findIndex(p => p.id === proposalId);
+    if (idx < 0) return null;
+    const proposal = this.pendingDaedalusProposals[idx];
+    proposal.status = "denied";
+    proposal.resolvedAt = Date.now();
+    this.pendingDaedalusProposals.splice(idx, 1);
+    this.recordProposalHistory(proposal);
+    getDaedalusEventBus().publish({
+      type: "DAEDALUS_PROPOSAL_DENIED",
+      timestamp: nowIso(),
+      summary: `Operator denied: ${proposal.title}`,
+      alignment: this.lastEvaluation?.alignment,
+    });
+    return proposal;
   }
 
   submitChangeProposal(proposal: ChangeProposal): ApprovalDecision {

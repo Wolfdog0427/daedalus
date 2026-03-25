@@ -7,7 +7,7 @@ import { createMirrorRouter } from "./mirror/MirrorRoutes";
 import { incidentService } from "./governance/IncidentService";
 import { actionLog } from "./governance/ActionLog";
 import { strategyService } from "./strategy/StrategyService";
-import { processMessage, getChatHistory, clearChatHistory, getWelcomeMessage } from "./chat/ChatService";
+import { processMessage, getChatHistory, clearChatHistory, getWelcomeMessage, getChatHelp } from "./chat/ChatService";
 import {
   BeingPresenceDetail,
   CapabilityTrace,
@@ -168,6 +168,68 @@ daedalusRouter.post("/alignment-config", (req: Request, res: Response) => {
   } catch (err: any) {
     console.error("[daedalus] /alignment-config POST error:", err?.message);
     res.status(500).json({ error: err?.message ?? "Failed to update alignment config" });
+  }
+});
+
+/**
+ * GET /daedalus/proposals/pending
+ * Returns Daedalus-initiated proposals awaiting operator approval.
+ */
+daedalusRouter.get("/proposals/pending", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getPendingDaedalusProposals());
+  } catch (err: any) {
+    console.error("[daedalus] /proposals/pending GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch pending proposals" });
+  }
+});
+
+/**
+ * GET /daedalus/proposals/history
+ * Returns resolved proposal history with effect tracking.
+ */
+daedalusRouter.get("/proposals/history", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getProposalHistory());
+  } catch (err: any) {
+    console.error("[daedalus] /proposals/history GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch proposal history" });
+  }
+});
+
+/**
+ * POST /daedalus/proposals/:id/approve
+ * Approve a pending Daedalus proposal.
+ */
+daedalusRouter.post("/proposals/:id/approve", (req: Request, res: Response) => {
+  try {
+    const result = strategyService.approveDaedalusProposal(req.params.id);
+    if (!result) {
+      res.status(404).json({ error: "Proposal not found or already resolved" });
+      return;
+    }
+    res.json(result);
+  } catch (err: any) {
+    console.error("[daedalus] /proposals/:id/approve error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to approve proposal" });
+  }
+});
+
+/**
+ * POST /daedalus/proposals/:id/deny
+ * Deny a pending Daedalus proposal.
+ */
+daedalusRouter.post("/proposals/:id/deny", (req: Request, res: Response) => {
+  try {
+    const result = strategyService.denyDaedalusProposal(req.params.id);
+    if (!result) {
+      res.status(404).json({ error: "Proposal not found or already resolved" });
+      return;
+    }
+    res.json(result);
+  } catch (err: any) {
+    console.error("[daedalus] /proposals/:id/deny error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to deny proposal" });
   }
 });
 
@@ -840,16 +902,26 @@ daedalusRouter.post("/actions/:id/undo", (req: Request, res: Response) => {
 
 daedalusRouter.post("/chat", (req: Request, res: Response) => {
   try {
-    const { content } = req.body;
-    if (!content || typeof content !== "string" || !content.trim()) {
-      res.status(400).json({ error: "Message content is required" });
+    const text: string | undefined = req.body.message ?? req.body.content;
+    const sessionId: string | undefined = req.body.sessionId;
+    if (!text || typeof text !== "string" || !text.trim()) {
+      res.status(400).json({ error: "Message content is required (send 'message' or 'content')" });
       return;
     }
-    const result = processMessage(content.trim());
-    res.json(result);
+    const { userMessage, daedalusMessage, response } = processMessage(text.trim(), sessionId);
+    res.json({ userMessage, daedalusMessage, ...response });
   } catch (err: any) {
     console.error("[daedalus] /chat POST error:", err?.message);
     res.status(500).json({ error: err?.message ?? "Failed to process chat message" });
+  }
+});
+
+daedalusRouter.get("/chat/help", (_req: Request, res: Response) => {
+  try {
+    res.json(getChatHelp());
+  } catch (err: any) {
+    console.error("[daedalus] /chat/help GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to get chat help" });
   }
 });
 
@@ -863,9 +935,10 @@ daedalusRouter.get("/chat/history", (req: Request, res: Response) => {
   }
 });
 
-daedalusRouter.delete("/chat/history", (_req: Request, res: Response) => {
+daedalusRouter.delete("/chat/history", (req: Request, res: Response) => {
   try {
-    clearChatHistory();
+    const sessionId: string | undefined = req.body?.sessionId;
+    clearChatHistory(sessionId);
     res.json({ cleared: true });
   } catch (err: any) {
     console.error("[daedalus] /chat/history DELETE error:", err?.message);

@@ -330,6 +330,67 @@ export async function updateApprovalGateConfig(patch: Partial<ApprovalGateConfig
   return handleJson<ApprovalGateConfig>(res);
 }
 
+// ── Daedalus-Initiated Proposals ─────────────────────────────────
+
+export interface DaedalusProposal {
+  id: string;
+  kind: string;
+  title: string;
+  description: string;
+  rationale: string;
+  alignment: number;
+  confidence: number;
+  impact: "low" | "medium" | "high";
+  touchesInvariants: boolean;
+  reversible: boolean;
+  autoApprovable: boolean;
+  payload: Record<string, unknown>;
+  createdAt: number;
+  status: "pending" | "approved" | "denied" | "expired" | "auto_approved";
+  resolvedAt?: number;
+}
+
+export interface ProposalHistoryEntry {
+  id: string;
+  title: string;
+  kind: string;
+  status: "approved" | "denied" | "auto_approved" | "expired";
+  alignment: number;
+  confidence: number;
+  impact: "low" | "medium" | "high";
+  effectBaseline: number | null;
+  effectAfter: number | null;
+  effectDelta: number | null;
+  createdAt: number;
+  resolvedAt: number;
+}
+
+export async function fetchPendingProposals(): Promise<DaedalusProposal[]> {
+  const res = await fetch(`${basePath}/proposals/pending`, { headers: authHeaders() });
+  return handleJson<DaedalusProposal[]>(res);
+}
+
+export async function fetchProposalHistory(): Promise<ProposalHistoryEntry[]> {
+  const res = await fetch(`${basePath}/proposals/history`, { headers: authHeaders() });
+  return handleJson<ProposalHistoryEntry[]>(res);
+}
+
+export async function approveDaedalusProposal(id: string): Promise<DaedalusProposal> {
+  const res = await fetch(`${basePath}/proposals/${id}/approve`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  return handleJson<DaedalusProposal>(res);
+}
+
+export async function denyDaedalusProposal(id: string): Promise<DaedalusProposal> {
+  const res = await fetch(`${basePath}/proposals/${id}/deny`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  return handleJson<DaedalusProposal>(res);
+}
+
 export async function fetchTelemetry(): Promise<TelemetrySnapshot> {
   const res = await fetch(`${basePath}/telemetry`, { headers: authHeaders() });
   return handleJson<TelemetrySnapshot>(res);

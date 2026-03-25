@@ -2,8 +2,10 @@
  * Daedalus Chat — Intent Definitions
  *
  * Each intent has keywords (single tokens that score), phrases (multi-word
- * patterns that score higher), and a base weight.  The scoring classifier
- * uses these to rank intents by relevance instead of first-match regex.
+ * patterns that score higher), a base weight, plus description/examples
+ * for the /chat/help endpoint.
+ *
+ * The scoring classifier uses keywords+phrases to rank intents by relevance.
  */
 
 export interface IntentDef {
@@ -11,6 +13,8 @@ export interface IntentDef {
   keywords: string[];
   phrases: string[];
   weight: number;
+  description: string;
+  examples: string[];
 }
 
 export const INTENT_DEFS: IntentDef[] = [
@@ -20,6 +24,8 @@ export const INTENT_DEFS: IntentDef[] = [
     keywords: ["hi", "hello", "hey", "greetings", "yo", "sup", "howdy", "hiya"],
     phrases: ["good morning", "good afternoon", "good evening"],
     weight: 1.0,
+    description: "Greet Daedalus.",
+    examples: ["hello", "hey", "good morning"],
   },
 
   // ── Identity (who is Daedalus) ────────────────────────────
@@ -31,8 +37,11 @@ export const INTENT_DEFS: IntentDef[] = [
       "tell me about you", "describe yourself", "what is daedalus",
       "your identity", "introduce yourself", "what do you do",
       "your purpose", "what is your purpose",
+      "what is your identity", "what is your identity as a system",
     ],
     weight: 1.2,
+    description: "Ask Daedalus about what it is.",
+    examples: ["who are you", "what are you", "describe yourself"],
   },
 
   // ── Status (broad system overview) ────────────────────────
@@ -55,9 +64,11 @@ export const INTENT_DEFS: IntentDef[] = [
       "what's up", "whats up", "what is up", "catch me up",
       "bring me up to speed", "current state",
       "how is the system doing", "how are things looking",
-      "is everything running", "are we good",
+      "is everything running", "are we good", "update me",
     ],
     weight: 1.0,
+    description: "Ask about overall system health and alignment.",
+    examples: ["what's going on", "give me an overview", "status report", "is everything okay"],
   },
 
   // ── Strategy / Alignment ──────────────────────────────────
@@ -68,9 +79,11 @@ export const INTENT_DEFS: IntentDef[] = [
       "alignment score", "alignment breakdown", "alignment status",
       "how is alignment", "how's alignment", "current strategy",
       "strategy evaluation", "show alignment", "alignment report",
-      "alignment breakdown", "how aligned", "is alignment okay",
+      "how aligned", "is alignment okay",
     ],
     weight: 1.0,
+    description: "Ask about the current strategy and alignment breakdown.",
+    examples: ["current strategy", "alignment status", "show alignment"],
   },
 
   // ── Operator Trust ────────────────────────────────────────
@@ -82,8 +95,11 @@ export const INTENT_DEFS: IntentDef[] = [
       "who am i", "am i bound", "am i trusted", "operator identity",
       "my trust", "operator status", "operator posture",
       "show trust", "trust axes", "trust breakdown",
+      "show me trust", "trust posture",
     ],
     weight: 1.0,
+    description: "Ask about operator trust posture and bindings.",
+    examples: ["show me trust", "trust posture", "trust status"],
   },
 
   // ── Nodes / Fleet ─────────────────────────────────────────
@@ -96,6 +112,8 @@ export const INTENT_DEFS: IntentDef[] = [
       "node health", "show fleet", "node fabric",
     ],
     weight: 1.0,
+    description: "Ask about node health and fleet status.",
+    examples: ["show nodes", "node status", "fleet health"],
   },
 
   // ── Safe Mode / Freeze ────────────────────────────────────
@@ -108,6 +126,8 @@ export const INTENT_DEFS: IntentDef[] = [
       "is it safe", "are we safe", "safety status",
     ],
     weight: 1.1,
+    description: "Ask if the system is in a safe posture.",
+    examples: ["am I safe", "is it safe", "safe mode"],
   },
 
   // ── Regulation ────────────────────────────────────────────
@@ -121,6 +141,8 @@ export const INTENT_DEFS: IntentDef[] = [
       "alignment regulation",
     ],
     weight: 1.0,
+    description: "Ask about the alignment regulation loop and drift corrections.",
+    examples: ["regulation status", "drift metrics", "alignment drift"],
   },
 
   // ── Governance ────────────────────────────────────────────
@@ -132,6 +154,8 @@ export const INTENT_DEFS: IntentDef[] = [
       "governance overrides", "governance votes", "governance state",
     ],
     weight: 1.0,
+    description: "Ask about governance posture, overrides, and votes.",
+    examples: ["governance status", "show governance"],
   },
 
   // ── Escalation ────────────────────────────────────────────
@@ -144,6 +168,8 @@ export const INTENT_DEFS: IntentDef[] = [
       "warning level", "alert level", "any alerts", "any warnings",
     ],
     weight: 1.0,
+    description: "Ask about the current escalation level.",
+    examples: ["show escalations", "escalation status"],
   },
 
   // ── Incidents / Errors ────────────────────────────────────
@@ -155,8 +181,11 @@ export const INTENT_DEFS: IntentDef[] = [
       "show errors", "show incidents", "error count", "incident report",
       "what's wrong", "what is wrong", "is something wrong",
       "is anything wrong", "something broken", "any bugs",
+      "recent incidents",
     ],
     weight: 1.0,
+    description: "Ask about incidents and recent issues.",
+    examples: ["any incidents", "recent incidents", "show errors"],
   },
 
   // ── Help ──────────────────────────────────────────────────
@@ -168,6 +197,8 @@ export const INTENT_DEFS: IntentDef[] = [
       "what do you know", "your capabilities", "how to use",
     ],
     weight: 1.0,
+    description: "See everything Daedalus can answer.",
+    examples: ["help", "what can you do"],
   },
 
   // ── History / Events ──────────────────────────────────────
@@ -178,8 +209,11 @@ export const INTENT_DEFS: IntentDef[] = [
       "event history", "show history", "recent events", "event log",
       "system history", "show events", "show timeline",
       "what happened recently", "recent activity",
+      "show me the history",
     ],
     weight: 1.0,
+    description: "Ask about the recent event log.",
+    examples: ["show history", "event history", "recent events"],
   },
 
   // ── Constitution ──────────────────────────────────────────
@@ -189,8 +223,11 @@ export const INTENT_DEFS: IntentDef[] = [
     phrases: [
       "constitution status", "show constitution", "being constitution",
       "constitutional checks", "invariant checks", "being validation",
+      "constitution check",
     ],
     weight: 1.0,
+    description: "Ask about the being constitution and invariant checks.",
+    examples: ["show constitution", "constitution status", "constitution check"],
   },
 
   // ── Approval Gate ─────────────────────────────────────────
@@ -202,6 +239,8 @@ export const INTENT_DEFS: IntentDef[] = [
       "show approval", "approval config", "approval threshold",
     ],
     weight: 1.0,
+    description: "Ask about the auto-approval gate configuration.",
+    examples: ["approval gate", "auto-approval", "approval status"],
   },
 
   // ── Rollback / Registry ───────────────────────────────────
@@ -210,10 +249,12 @@ export const INTENT_DEFS: IntentDef[] = [
     keywords: ["rollback", "rollbacks"],
     phrases: [
       "rollback registry", "rollback status", "show rollbacks",
-      "undo last change", "revert config", "tracked changes",
-      "change registry", "show registry",
+      "undo last change", "revert config", "revert configuration",
+      "tracked changes", "change registry", "show registry",
     ],
     weight: 1.0,
+    description: "Ask about the rollback registry and tracked changes.",
+    examples: ["rollback", "undo last change", "revert config"],
   },
 
   // ── Acknowledgment ────────────────────────────────────────
@@ -226,19 +267,24 @@ export const INTENT_DEFS: IntentDef[] = [
       "much appreciated", "appreciate it", "all good",
     ],
     weight: 1.3,
+    description: "Short acknowledgments like 'thanks', 'ok', 'got it'.",
+    examples: ["thanks", "ok", "got it", "perfect"],
   },
 
   // ── Follow-up ─────────────────────────────────────────────
   {
     name: "followup",
-    keywords: ["elaborate", "more", "details"],
+    keywords: ["elaborate", "more", "details", "why", "explain"],
     phrases: [
-      "tell me more", "go on", "what else", "explain that",
+      "tell me more", "go on", "what else",
       "can you elaborate", "more details", "expand on that",
       "keep going", "continue", "and then", "what about that",
       "dig deeper", "more info", "more information",
+      "explain more", "why is that",
     ],
     weight: 1.4,
+    description: "Follow-up prompts like 'tell me more', 'go on', 'why'.",
+    examples: ["tell me more", "go on", "why", "elaborate"],
   },
 
   // ── Clarification (operator is confused) ──────────────────
@@ -249,8 +295,11 @@ export const INTENT_DEFS: IntentDef[] = [
       "what do you mean", "i dont understand", "i don't understand",
       "not sure what you mean", "can you clarify", "clarify that",
       "that doesnt make sense", "that doesn't make sense",
-      "explain what you mean",
+      "explain what you mean", "i'm not sure", "not sure",
+      "explain that again",
     ],
     weight: 1.3,
+    description: "Ask Daedalus to clarify its last response.",
+    examples: ["what do you mean", "clarify", "explain that again"],
   },
 ];

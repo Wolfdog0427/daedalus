@@ -166,6 +166,37 @@ export interface RollbackRegistrySnapshot {
   rolledBackCount: number;
 }
 
+export interface DaedalusProposal {
+  id: string;
+  kind: string;
+  title: string;
+  description: string;
+  rationale: string;
+  alignment: number;
+  confidence: number;
+  impact: 'low' | 'medium' | 'high';
+  touchesInvariants: boolean;
+  reversible: boolean;
+  autoApprovable: boolean;
+  createdAt: number;
+  status: 'pending' | 'approved' | 'denied' | 'expired' | 'auto_approved';
+}
+
+export interface ProposalHistoryEntry {
+  id: string;
+  title: string;
+  kind: string;
+  status: 'approved' | 'denied' | 'auto_approved' | 'expired';
+  alignment: number;
+  confidence: number;
+  impact: 'low' | 'medium' | 'high';
+  effectBaseline: number | null;
+  effectAfter: number | null;
+  effectDelta: number | null;
+  createdAt: number;
+  resolvedAt: number;
+}
+
 export async function fetchApprovalGate(): Promise<ApprovalGateResponse> {
   return get('/approval-gate');
 }
@@ -179,6 +210,22 @@ export async function submitChangeProposal(
 
 export async function fetchRollbackRegistry(): Promise<RollbackRegistrySnapshot> {
   return get('/rollback-registry');
+}
+
+export async function fetchPendingProposals(): Promise<DaedalusProposal[]> {
+  return get('/proposals/pending');
+}
+
+export async function fetchProposalHistory(): Promise<ProposalHistoryEntry[]> {
+  return get('/proposals/history');
+}
+
+export async function approveDaedalusProposal(id: string): Promise<DaedalusProposal> {
+  return post(`/proposals/${id}/approve`, {});
+}
+
+export async function denyDaedalusProposal(id: string): Promise<DaedalusProposal> {
+  return post(`/proposals/${id}/deny`, {});
 }
 
 export async function sendHeartbeat(nodeId: string): Promise<boolean> {

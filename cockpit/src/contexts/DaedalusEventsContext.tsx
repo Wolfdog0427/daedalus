@@ -56,6 +56,9 @@ const ALL_EVENT_TYPES: string[] = [
   "MIRROR_NODE_EXPRESSIVE_SYNCED",
   "MIRROR_NODE_PROFILE_SYNCED",
   "OPERATOR_CHAT_MESSAGE",
+  "DAEDALUS_PROPOSAL_CREATED",
+  "DAEDALUS_PROPOSAL_APPROVED",
+  "DAEDALUS_PROPOSAL_DENIED",
 ];
 
 export function DaedalusEventsProvider({ children }: { children: React.ReactNode }) {

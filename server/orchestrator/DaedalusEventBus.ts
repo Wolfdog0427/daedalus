@@ -33,7 +33,10 @@ export type DaedalusEventType =
   | "MIRROR_NODE_CAP_SYNCED"
   | "MIRROR_NODE_EXPRESSIVE_SYNCED"
   | "MIRROR_NODE_PROFILE_SYNCED"
-  | "OPERATOR_CHAT_MESSAGE";
+  | "OPERATOR_CHAT_MESSAGE"
+  | "DAEDALUS_PROPOSAL_CREATED"
+  | "DAEDALUS_PROPOSAL_APPROVED"
+  | "DAEDALUS_PROPOSAL_DENIED";
 
 export interface DaedalusEventPayload {
   type: DaedalusEventType;
