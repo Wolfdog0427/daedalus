@@ -9,7 +9,7 @@
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: 9999;
+  z-index: 10000;
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -61,7 +61,7 @@
   position: fixed;
   bottom: 88px;
   right: 24px;
-  z-index: 9998;
+  z-index: 10000;
   width: 420px;
   max-width: calc(100vw - 48px);
   height: 560px;
@@ -478,20 +478,20 @@
 /* ── Responsive ─────────────────────────────────────────────────── */
 
 @media (max-width: 520px) {
+  .chat-toggle {
+    right: 12px;
+    bottom: 12px;
+    width: 46px;
+    height: 46px;
+    font-size: 18px;
+  }
+
   .chat-window {
     right: 8px;
     bottom: 72px;
     width: calc(100vw - 16px);
     height: calc(100vh - 96px);
     border-radius: 12px;
-  }
-
-  .chat-toggle {
-    bottom: 12px;
-    right: 12px;
-    width: 46px;
-    height: 46px;
-    font-size: 18px;
   }
 }
 

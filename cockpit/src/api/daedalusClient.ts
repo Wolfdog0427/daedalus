@@ -253,7 +253,14 @@ export type ChangeProposalKind =
   | "strategy_override"
   | "posture_override"
   | "safe_mode_toggle"
-  | "governance_override";
+  | "governance_override"
+  | "governance_policy"
+  | "regulation_tuning"
+  | "posture_shift"
+  | "node_authority"
+  | "identity_update"
+  | "telemetry_config"
+  | "other";
 
 export type ChangeImpact = "low" | "medium" | "high";
 
@@ -743,13 +750,31 @@ export interface ChatMessage {
   context?: Record<string, unknown>;
 }
 
-export async function sendChatMessage(content: string): Promise<{ userMessage: ChatMessage; daedalusMessage: ChatMessage }> {
+export interface ChatResponse {
+  userMessage: ChatMessage;
+  daedalusMessage: ChatMessage;
+  reply: string;
+  intent: string;
+  confidence: number;
+  context: {
+    lastIntent: string | null;
+    lastTopic: string | null;
+  };
+}
+
+export interface ChatHelpEntry {
+  name: string;
+  description: string;
+  examples: string[];
+}
+
+export async function sendChatMessage(content: string, sessionId?: string): Promise<ChatResponse> {
   const res = await fetch(`${basePath}/chat`, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ message: content, sessionId }),
   });
-  return handleJson<{ userMessage: ChatMessage; daedalusMessage: ChatMessage }>(res);
+  return handleJson<ChatResponse>(res);
 }
 
 export async function fetchChatHistory(limit = 100): Promise<ChatMessage[]> {
@@ -768,4 +793,9 @@ export async function clearChat(): Promise<void> {
 export async function fetchChatWelcome(): Promise<ChatMessage> {
   const res = await fetch(`${basePath}/chat/welcome`, { headers: authHeaders() });
   return handleJson<ChatMessage>(res);
+}
+
+export async function fetchChatHelp(): Promise<{ intents: ChatHelpEntry[] }> {
+  const res = await fetch(`${basePath}/chat/help`, { headers: authHeaders() });
+  return handleJson<{ intents: ChatHelpEntry[] }>(res);
 }

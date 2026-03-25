@@ -13,12 +13,14 @@ import { RegulationPanel } from './components/RegulationPanel';
 import { ChangeRegistryPanel } from './components/ChangeRegistryPanel';
 import { OperatorTrustPanel } from './components/OperatorTrustPanel';
 import { DaedalusChatPanel } from './components/DaedalusChatPanel';
+import { EvolutionPanel } from './components/EvolutionPanel';
 
 export function App() {
   return (
     <>
       <Layout>
         <SummaryPanel />
+        <EvolutionPanel />
         <DaedalusOrchestratorPanel />
         <div className="grid-row-2col">
           <StrategyPanel />

@@ -22,12 +22,13 @@ export const QuickActions: React.FC<{
   onChat: () => void;
   onRefresh: () => void;
   onPosture: (id: string) => void;
-}> = ({ onChat, onRefresh, onPosture }) => {
+  onEvolve?: () => void;
+}> = ({ onChat, onRefresh, onPosture, onEvolve }) => {
   const actions: QuickAction[] = [
-    { icon: '\u2731', label: 'Chat', description: 'Talk to Daedalus', color: colors.accent, onPress: onChat },
-    { icon: '\u21BB', label: 'Refresh', description: 'Update status', color: colors.green, onPress: onRefresh },
-    { icon: '\u25C8', label: 'Lock', description: 'Defense mode', color: colors.red, onPress: () => onPosture('defense.locked') },
-    { icon: '\u25CE', label: 'Focus', description: 'Analysis mode', color: colors.purple, onPress: () => onPosture('analysis.focused') },
+    { icon: '◈', label: 'Evolve', description: 'Proposals & approvals', color: colors.yellow, onPress: onEvolve ?? (() => {}) },
+    { icon: '✱', label: 'Chat', description: 'Talk to Daedalus', color: colors.accent, onPress: onChat },
+    { icon: '↻', label: 'Refresh', description: 'Update status', color: colors.green, onPress: onRefresh },
+    { icon: '◎', label: 'Focus', description: 'Analysis mode', color: colors.purple, onPress: () => onPosture('analysis.focused') },
   ];
 
   return (

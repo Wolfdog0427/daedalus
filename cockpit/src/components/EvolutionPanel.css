@@ -1,0 +1,333 @@
+/* ── Evolution Panel ─────────────────────────────────────────────
+   Primary proposal & approval interface for Daedalus evolution.
+   ─────────────────────────────────────────────────────────────── */
+
+.evolution-panel {
+  background: #0b0d16;
+  border: 1px solid #262a3f;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.evolution-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.evolution-panel__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #e6edf3;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.evolution-panel__icon {
+  font-size: 1.2rem;
+}
+
+.evolution-panel__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.evolution-panel__badge--pending {
+  background: rgba(210, 153, 34, 0.12);
+  border: 1px solid rgba(210, 153, 34, 0.25);
+  color: #d29922;
+}
+
+.evolution-panel__badge--clear {
+  background: rgba(63, 185, 80, 0.08);
+  border: 1px solid rgba(63, 185, 80, 0.15);
+  color: #3fb950;
+}
+
+/* ── Gate status strip ─────────────────────────────────────────── */
+
+.evolution-gate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #0e1117;
+  border-radius: 8px;
+  border: 1px solid #1a1e30;
+}
+
+.evolution-gate__item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: #8b949e;
+}
+
+.evolution-gate__val {
+  font-weight: 600;
+  color: #c3c7e0;
+}
+
+/* ── Proposal form ─────────────────────────────────────────────── */
+
+.evolution-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: #0e1117;
+  border: 1px solid #262a3f;
+  border-radius: 10px;
+}
+
+.evolution-form__row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.evolution-form__select,
+.evolution-form__input {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  background: #161b22;
+  color: #e6edf3;
+  font-size: 0.84rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.evolution-form__select:focus,
+.evolution-form__input:focus {
+  border-color: rgba(88, 166, 255, 0.4);
+}
+
+.evolution-form__submit {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  background: rgba(88, 166, 255, 0.1);
+  color: #58a6ff;
+  font-weight: 600;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  align-self: flex-start;
+}
+
+.evolution-form__submit:hover:not(:disabled) {
+  background: rgba(88, 166, 255, 0.18);
+  border-color: rgba(88, 166, 255, 0.5);
+}
+
+.evolution-form__submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Decision cards ────────────────────────────────────────────── */
+
+.evolution-decisions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.evolution-decision {
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.15s ease;
+}
+
+.evolution-decision--approved {
+  background: rgba(63, 185, 80, 0.04);
+  border: 1px solid rgba(63, 185, 80, 0.15);
+}
+
+.evolution-decision--review {
+  background: rgba(210, 153, 34, 0.04);
+  border: 1px solid rgba(210, 153, 34, 0.2);
+}
+
+.evolution-decision__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.evolution-decision__verdict {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.verdict--approved {
+  background: rgba(63, 185, 80, 0.12);
+  color: #3fb950;
+}
+
+.verdict--needs-review {
+  background: rgba(210, 153, 34, 0.12);
+  color: #d29922;
+}
+
+.evolution-decision__time {
+  font-size: 0.7rem;
+  color: #6c7299;
+}
+
+.evolution-decision__desc {
+  font-size: 0.84rem;
+  color: #c3c7e0;
+  line-height: 1.4;
+}
+
+.evolution-decision__meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.evolution-decision__kind {
+  font-size: 0.72rem;
+  color: #58a6ff;
+  background: rgba(88, 166, 255, 0.08);
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(88, 166, 255, 0.15);
+}
+
+.evolution-decision__impact {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+
+.evolution-decision__impact--low {
+  color: #3fb950;
+  background: rgba(63, 185, 80, 0.08);
+  border: 1px solid rgba(63, 185, 80, 0.15);
+}
+
+.evolution-decision__impact--medium {
+  color: #d29922;
+  background: rgba(210, 153, 34, 0.08);
+  border: 1px solid rgba(210, 153, 34, 0.15);
+}
+
+.evolution-decision__impact--high {
+  color: #f85149;
+  background: rgba(248, 81, 73, 0.08);
+  border: 1px solid rgba(248, 81, 73, 0.15);
+}
+
+.evolution-decision__score {
+  font-size: 0.72rem;
+  color: #8b949e;
+  font-variant-numeric: tabular-nums;
+}
+
+.evolution-decision__reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.evolution-reason {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+
+.evolution-reason--pass {
+  color: #3fb950;
+  background: rgba(63, 185, 80, 0.06);
+  border: 1px solid rgba(63, 185, 80, 0.12);
+}
+
+.evolution-reason--fail {
+  color: #f85149;
+  background: rgba(248, 81, 73, 0.06);
+  border: 1px solid rgba(248, 81, 73, 0.12);
+}
+
+/* ── Rollback section ──────────────────────────────────────────── */
+
+.evolution-rollback {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #0e1117;
+  border: 1px solid #1a1e30;
+  border-radius: 8px;
+}
+
+.evolution-rollback__title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #c3c7e0;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.evolution-rollback__stats {
+  display: flex;
+  gap: 16px;
+  font-size: 0.78rem;
+  color: #8b949e;
+}
+
+.evolution-rollback__stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.evolution-rollback__num {
+  font-weight: 700;
+  color: #c3c7e0;
+  font-variant-numeric: tabular-nums;
+}
+
+.evolution-empty {
+  font-size: 0.84rem;
+  color: #6c7299;
+  text-align: center;
+  padding: 16px;
+}
+
+.evolution-error {
+  font-size: 0.84rem;
+  color: #f85149;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(248, 81, 73, 0.06);
+  border: 1px solid rgba(248, 81, 73, 0.12);
+}

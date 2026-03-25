@@ -117,6 +117,70 @@ export async function fetchSystemStatus(): Promise<SystemStatus> {
   };
 }
 
+export type ChangeProposalKind =
+  | 'alignment_config' | 'governance_policy' | 'regulation_tuning'
+  | 'posture_shift' | 'node_authority' | 'identity_update'
+  | 'telemetry_config' | 'other';
+
+export interface ApprovalReasonBreakdown {
+  alignmentOK: boolean;
+  confidenceOK: boolean;
+  impactOK: boolean;
+  invariantsOK: boolean;
+  reversibleOK: boolean;
+  safeModeOK: boolean;
+  cooldownOK: boolean;
+}
+
+export interface ApprovalDecision {
+  autoApprove: boolean;
+  proposal: {
+    id?: string;
+    kind: ChangeProposalKind;
+    description: string;
+    proposedAt: number;
+  };
+  reasons: ApprovalReasonBreakdown;
+  derivedImpact: 'low' | 'medium' | 'high';
+  alignment: number;
+  confidence: number;
+  decidedAt: number;
+}
+
+export interface ApprovalGateConfig {
+  alignmentThreshold: number;
+  confidenceThreshold: number;
+  cooldownMs: number;
+  allowDuringSafeMode: boolean;
+}
+
+export interface ApprovalGateResponse {
+  config: ApprovalGateConfig;
+  recentDecisions: ApprovalDecision[];
+}
+
+export interface RollbackRegistrySnapshot {
+  activeChanges: { id: string; description: string; status: string }[];
+  recentRollbacks: { changeId: string; reason: string }[];
+  acceptedCount: number;
+  rolledBackCount: number;
+}
+
+export async function fetchApprovalGate(): Promise<ApprovalGateResponse> {
+  return get('/approval-gate');
+}
+
+export async function submitChangeProposal(
+  kind: ChangeProposalKind,
+  description: string
+): Promise<ApprovalDecision> {
+  return post('/propose-change', { kind, description });
+}
+
+export async function fetchRollbackRegistry(): Promise<RollbackRegistrySnapshot> {
+  return get('/rollback-registry');
+}
+
 export async function sendHeartbeat(nodeId: string): Promise<boolean> {
   try {
     const res = await fetch(`${getBaseUrl()}/daedalus/mirror/heartbeat`, {

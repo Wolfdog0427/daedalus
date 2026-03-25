@@ -6,9 +6,10 @@ import { ConnectionBar } from './src/components/ConnectionBar';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { ChatScreen } from './src/screens/ChatScreen';
 import { NodeScreen } from './src/screens/NodeScreen';
+import { EvolutionScreen } from './src/screens/EvolutionScreen';
 import { colors, spacing, fonts } from './src/theme';
 
-type Tab = 'home' | 'chat' | 'node';
+type Tab = 'home' | 'evolve' | 'chat' | 'node';
 
 interface TabDef {
   id: Tab;
@@ -18,6 +19,7 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { id: 'home', label: 'Home', icon: '\u25C9' },
+  { id: 'evolve', label: 'Evolve', icon: '\u25C8' },
   { id: 'chat', label: 'Chat', icon: '\u2731' },
   { id: 'node', label: 'Node', icon: '\u2666' },
 ];
@@ -58,7 +60,8 @@ const AppContent: React.FC = () => {
       <ConnectionBar status={connection} />
 
       <View style={styles.flex}>
-        {tab === 'home' && <HomeScreen onNavigateChat={() => setTab('chat')} />}
+        {tab === 'home' && <HomeScreen onNavigateChat={() => setTab('chat')} onNavigateEvolve={() => setTab('evolve')} />}
+        {tab === 'evolve' && <EvolutionScreen />}
         {tab === 'chat' && <ChatScreen />}
         {tab === 'node' && <NodeScreen />}
       </View>

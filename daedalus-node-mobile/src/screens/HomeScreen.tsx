@@ -10,9 +10,10 @@ import { colors, spacing } from '../theme';
 
 interface HomeScreenProps {
   onNavigateChat: () => void;
+  onNavigateEvolve?: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateChat }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateChat, onNavigateEvolve }) => {
   const { systemStatus, connection, state, posture, continuity, notify, refreshStatus } = useDaedalus();
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -61,6 +62,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateChat }) => {
 
       <QuickActions
         onChat={onNavigateChat}
+        onEvolve={onNavigateEvolve}
         onRefresh={onRefresh}
         onPosture={handlePosture}
       />
