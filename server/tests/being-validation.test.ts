@@ -200,6 +200,11 @@ describe("D3: Kernel pipeline integrity", () => {
     expect(result).toHaveProperty("regulation");
     expect(result).toHaveProperty("rollbacks");
     expect(result).toHaveProperty("operatorTrust");
+    expect(result).toHaveProperty("expressive");
+    expect(result.expressive).toHaveProperty("subPosture");
+    expect(result.expressive).toHaveProperty("overlay");
+    expect(result.expressive).toHaveProperty("microPosture");
+    expect(result.expressive).toHaveProperty("contextual");
   });
 
   test("strategy result has all alignment fields", () => {
@@ -577,7 +582,7 @@ describe("D9: Edge cases and adversarial inputs", () => {
     expect(result.allowHighRiskActions).toBe(false);
   });
 
-  test("operator trust with all perfect signals (no canonical)", () => {
+  test("operator trust with all perfect signals (no canonical) auto-calibrates", () => {
     bindOperator(spencerProfile);
     for (let t = 1; t <= 200; t++) {
       updateOperatorTrust(mkObs(t, {
@@ -590,7 +595,8 @@ describe("D9: Edge cases and adversarial inputs", () => {
       }));
     }
     const state = getOperatorTrustState();
-    expect(state.calibrated).toBe(false);
+    // Auto-calibration fires after sustained high-trust ticks (every 50 ticks)
+    expect(state.calibrated).toBe(true);
   });
 
   test("change classifier with empty surfaces", () => {

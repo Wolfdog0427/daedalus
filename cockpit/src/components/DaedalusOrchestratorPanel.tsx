@@ -59,6 +59,7 @@ import { SCENE_GRAMMAR_DEFAULTS } from "../shared/daedalus/sceneGrammar";
 import { ANALYTICS_IDLE } from "../shared/daedalus/sceneAnalytics";
 import NodeCapabilitiesPanel from "./NodeCapabilitiesPanel";
 import type { NodeInfo } from "./NodeCapabilitiesPanel";
+import { useStrategy } from "../hooks/useStrategy";
 import "./DaedalusOrchestratorPanel.css";
 import "../styles/cinematics.css";
 import "../styles/operator-affect.css";
@@ -126,6 +127,7 @@ function DaedalusOrchestratorPanel() {
   });
 
   const continuitySignals = useContinuitySignals(beings);
+  const { evaluation: kernelStrategyEval } = useStrategy();
 
   const [governorEnabled, setGovernorEnabled] = useState(true);
   const [governorPreset, setGovernorPreset] = useState<GovernorPresetName>("default");
@@ -657,6 +659,7 @@ function DaedalusOrchestratorPanel() {
         onToggleGovernor={useCallback(() => setGovernorEnabled((v) => !v), [])}
         onSetPreset={setGovernorPreset}
         onNudgePosture={setPostureNudge}
+        expressiveState={kernelStrategyEval?.expressive ?? null}
       />
     </div>
   );

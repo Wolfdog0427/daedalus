@@ -42,7 +42,7 @@ export function registerChange(
   const change: AppliedChangeRecord = {
     ...record,
     appliedAtTick: record.appliedAtTick ?? currentTickCounter,
-    evaluationWindow: record.evaluationWindow || rollbackConfig.defaultEvaluationWindow,
+    evaluationWindow: record.evaluationWindow ?? rollbackConfig.defaultEvaluationWindow,
     status: "active",
   };
 

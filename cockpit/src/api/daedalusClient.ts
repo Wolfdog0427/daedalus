@@ -171,6 +171,35 @@ export interface AlignmentTrend {
   sampleCount: number;
 }
 
+export type SubPosture = "none" | "analytic" | "creative" | "sensitive" | "defensive" | "supportive";
+export type ExpressiveOverlayType = "none" | "focus" | "calm" | "alert" | "recovery" | "transition";
+
+export interface MicroPosture {
+  responsiveness: number;
+  caution: number;
+  expressiveness: number;
+}
+
+export interface ContextualModulation {
+  subPostureBoost: SubPosture;
+  overlayBoost: ExpressiveOverlayType;
+  reason: string;
+}
+
+export interface ExpressiveState {
+  subPosture: SubPosture;
+  overlay: ExpressiveOverlayType;
+  overlayTicksRemaining: number;
+  microPosture: MicroPosture;
+  contextual: ContextualModulation;
+}
+
+export interface OperatorCue {
+  postureBias?: "stable" | "cautious" | "critical";
+  subPostureBias?: SubPosture;
+  overlayBias?: ExpressiveOverlayType;
+}
+
 export interface StrategyResponse extends StrategyEvaluation {
   posture: KernelPosture | null;
   drift: AlignmentDriftResult | null;
@@ -178,11 +207,35 @@ export interface StrategyResponse extends StrategyEvaluation {
   trend: AlignmentTrend | null;
   escalation: EscalationResult | null;
   safeMode: SafeModeState | null;
+  expressive: ExpressiveState | null;
 }
 
 export async function fetchStrategy(): Promise<StrategyResponse> {
   const res = await fetch(`${basePath}/strategy`, { headers: authHeaders() });
   return handleJson<StrategyResponse>(res);
+}
+
+export async function sendOperatorCue(cue: OperatorCue): Promise<{ ok: boolean; activeCue: OperatorCue | null }> {
+  const res = await fetch(`${basePath}/operator/cue`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ cue }),
+  });
+  return handleJson(res);
+}
+
+export async function clearOperatorCue(): Promise<{ ok: boolean }> {
+  const res = await fetch(`${basePath}/operator/cue`, { method: "DELETE", headers: authHeaders() });
+  return handleJson(res);
+}
+
+export async function setDaedalusContext(ctx: { taskType?: string; environment?: string }): Promise<{ ok: boolean; context: { taskType: string; environment: string } }> {
+  const res = await fetch(`${basePath}/context`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(ctx),
+  });
+  return handleJson(res);
 }
 
 export interface AlignmentHistoryPoint {

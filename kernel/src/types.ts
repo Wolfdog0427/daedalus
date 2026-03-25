@@ -590,6 +590,75 @@ export const HIGH_RISK_ACTIONS: readonly string[] = Object.freeze([
   "cluster_config_change",
 ]);
 
+// ── Sub-Postures (constitutional sub-stances) ────────────────────────
+
+export enum SubPosture {
+  NONE = "none",
+  ANALYTIC = "analytic",
+  CREATIVE = "creative",
+  SENSITIVE = "sensitive",
+  DEFENSIVE = "defensive",
+  SUPPORTIVE = "supportive",
+}
+
+// ── Expressive Overlays ──────────────────────────────────────────────
+
+export enum ExpressiveOverlay {
+  NONE = "none",
+  FOCUS = "focus",
+  CALM = "calm",
+  ALERT = "alert",
+  RECOVERY = "recovery",
+  TRANSITION = "transition",
+}
+
+// ── Micro-Posture (continuous modulation inside a posture band) ──────
+
+export interface MicroPosture {
+  responsiveness: number;
+  caution: number;
+  expressiveness: number;
+}
+
+// ── Operator Cue (explicit operator influence on expressive layers) ──
+
+export interface OperatorCue {
+  postureBias?: "stable" | "cautious" | "critical";
+  subPostureBias?: SubPosture;
+  overlayBias?: ExpressiveOverlay;
+}
+
+// ── Context State (task/environment-driven modulation) ───────────────
+
+export type TaskType = "analysis" | "creative" | "review" | "sensitive" | "idle";
+export type EnvironmentType = "normal" | "crisis" | "handoff" | "recovery";
+
+export interface ContextState {
+  taskType: TaskType;
+  environment: EnvironmentType;
+}
+
+export interface ContextualModulation {
+  subPostureBoost: SubPosture;
+  overlayBoost: ExpressiveOverlay;
+  reason: string;
+}
+
+// ── Expressive State (aggregated expressive physiology) ──────────────
+// Named KernelExpressiveState to disambiguate from NodeMirror.types.ExpressiveState
+// which describes node-level glow/posture/attention/continuity.
+
+export interface KernelExpressiveState {
+  subPosture: SubPosture;
+  overlay: ExpressiveOverlay;
+  overlayTicksRemaining: number;
+  microPosture: MicroPosture;
+  contextual: ContextualModulation;
+}
+
+/** @deprecated Use KernelExpressiveState — kept for backward compatibility */
+export type ExpressiveState = KernelExpressiveState;
+
 // ── Tick Result ───────────────────────────────────────────────────────
 
 export interface KernelTickResult {
@@ -606,6 +675,7 @@ export interface KernelTickResult {
   regulation: RegulationOutput;
   rollbacks: RollbackEvent[];
   operatorTrust: OperatorTrustCockpitSnapshot;
+  expressive: KernelExpressiveState;
 }
 
 export type {

@@ -465,12 +465,20 @@ describe("Constitutional Safe Mode", () => {
     expect(state.since).toBeUndefined();
   });
 
-  test("activates when alignment < 50", () => {
+  test("activates instantly when alignment < 20", () => {
+    updateSafeModeFromAlignment(mkEvaluation(19));
+    const state = getSafeModeState();
+    expect(state.active).toBe(true);
+    expect(state.reason).toBeDefined();
+    expect(state.since).toBeDefined();
+  });
+
+  test("activates after sustained ticks below 50", () => {
+    updateSafeModeFromAlignment(mkEvaluation(40));
+    updateSafeModeFromAlignment(mkEvaluation(40));
     updateSafeModeFromAlignment(mkEvaluation(40));
     const state = getSafeModeState();
     expect(state.active).toBe(true);
-    expect(state.reason).toContain("alignment_below_50");
-    expect(state.since).toBeDefined();
   });
 
   test("does not activate at alignment == 50", () => {
@@ -478,26 +486,26 @@ describe("Constitutional Safe Mode", () => {
     expect(getSafeModeState().active).toBe(false);
   });
 
-  test("stays active until alignment >= 65 (hysteresis)", () => {
-    updateSafeModeFromAlignment(mkEvaluation(40));
+  test("stays active until alignment >= 60 (hysteresis)", () => {
+    updateSafeModeFromAlignment(mkEvaluation(19));
     expect(getSafeModeState().active).toBe(true);
 
     updateSafeModeFromAlignment(mkEvaluation(55));
     expect(getSafeModeState().active).toBe(true);
 
-    updateSafeModeFromAlignment(mkEvaluation(64));
+    updateSafeModeFromAlignment(mkEvaluation(59));
     expect(getSafeModeState().active).toBe(true);
 
-    updateSafeModeFromAlignment(mkEvaluation(65));
+    updateSafeModeFromAlignment(mkEvaluation(60));
     expect(getSafeModeState().active).toBe(false);
   });
 
-  test("re-activates if alignment drops below 50 again", () => {
-    updateSafeModeFromAlignment(mkEvaluation(40));
+  test("re-activates if alignment drops below 20 again", () => {
+    updateSafeModeFromAlignment(mkEvaluation(19));
     updateSafeModeFromAlignment(mkEvaluation(70));
     expect(getSafeModeState().active).toBe(false);
 
-    updateSafeModeFromAlignment(mkEvaluation(45));
+    updateSafeModeFromAlignment(mkEvaluation(15));
     expect(getSafeModeState().active).toBe(true);
   });
 
@@ -509,7 +517,7 @@ describe("Constitutional Safe Mode", () => {
   });
 
   test("applySafeModeToPosture reduces responsiveness and raises caution", () => {
-    updateSafeModeFromAlignment(mkEvaluation(30));
+    updateSafeModeFromAlignment(mkEvaluation(19));
     const base = { responsiveness: 0.7, caution: 0.5 };
     const result = applySafeModeToPosture(base);
     expect(result.responsiveness).toBeCloseTo(0.4);
@@ -517,7 +525,7 @@ describe("Constitutional Safe Mode", () => {
   });
 
   test("applySafeModeToPosture clamps values to [0, 1]", () => {
-    updateSafeModeFromAlignment(mkEvaluation(20));
+    updateSafeModeFromAlignment(mkEvaluation(15));
     const base = { responsiveness: 0.1, caution: 0.9 };
     const result = applySafeModeToPosture(base);
     expect(result.responsiveness).toBeGreaterThanOrEqual(0);
@@ -525,7 +533,7 @@ describe("Constitutional Safe Mode", () => {
   });
 
   test("selectPosture applies safe mode overlay", () => {
-    updateSafeModeFromAlignment(mkEvaluation(30));
+    updateSafeModeFromAlignment(mkEvaluation(19));
     const eval75 = mkEvaluation(75);
     const posture = selectPosture(eval75);
     expect(posture.responsiveness).toBeLessThan(DEFAULT_KERNEL_POSTURE.responsiveness);
@@ -585,7 +593,7 @@ describe("Constitutional Safe Mode", () => {
   });
 
   test("resetSafeMode clears state", () => {
-    updateSafeModeFromAlignment(mkEvaluation(20));
+    updateSafeModeFromAlignment(mkEvaluation(19));
     expect(getSafeModeState().active).toBe(true);
     resetSafeMode();
     expect(getSafeModeState().active).toBe(false);

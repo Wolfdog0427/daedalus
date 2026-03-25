@@ -1,402 +1,326 @@
-# Daedalus Simulation Results
+# Daedalus 10,000-Year Whole-Being Simulation
 
-**Definitive 10,000-Year Whole-Being Simulation (Post-Audit Fix)**
+A comprehensive simulation of the Daedalus organism across 10,000 years of
+realistic operation including physical device management, distributed systems,
+client-facing business, and multi-generational operator lifecycles.
 
-This file contains the single canonical simulation of the Daedalus organism, run after all critical audit fixes were applied. It replaces all previous simulation results. The simulation exercises every dimension of the organism — alignment, governance, operator identity, evolution, safe mode, drift detection, posture, regulation, rollback, node fabric, user experience, and constitutional integrity — under realistic real-world conditions across 10,000 simulated years.
+- **Total ticks:** 10,400,000 (~2.85 ticks/day)
+- **Operator generations:** 163 (avg 62 years/generation)
+- **Operator styles cycling:** pioneer → steward → guardian → delegator → architect
 
-**Run date:** March 25, 2026
-**Runtime:** 2,567 seconds (~42.8 minutes)
-**Engine:** Unified Whole-Being Simulation (post-audit-fix)
-**Snapshot years:** 25, 250, 1,000, 10,000
-
-### Fixes Applied Before This Run
-
-| # | Fix | Category |
-|---|---|---|
-| C1 | Regulation-posture direction corrected (was inverted — low alignment increased responsiveness) | Critical |
-| C2 | GET /strategy no longer triggers full kernel tick (uses cached result) | Critical |
-| C3 | Constitutional freeze enforced on all governance mutation routes | Critical |
-| C4 | Safe mode counter uses leaky-bucket decay instead of hard reset | Critical |
-| C5 | Mobile app reads `strategy.name` instead of `strategy.strategy` | Critical |
-| C6 | Proposal rollback only reverts fields that proposal touched (no clobber) | Critical |
-| H7 | Escalation hysteresis (3-point buffer) prevents level flapping | High |
-| H8 | Operator trust calibration threshold lowered from 75 to 70 | High |
-| H9 | Self-correction relaxation respects operator-set config baseline | High |
-| H10 | Autonomy pause driven by escalation level, not conflicting regulation thresholds | High |
-| M11 | microGain increased from 0.08 to 0.12 (faster micro-corrections) | Medium |
-| M12 | safeModeExitThreshold lowered from 65 to 60 (faster safe mode recovery) | Medium |
-| M13 | driftThreshold lowered from 10 to 7 (earlier drift detection) | Medium |
-| M14 | Acknowledgment-only proposals skip rollback registration | Medium |
-| M15 | degradationThreshold lowered from 7 to 5 (more sensitive rollback trigger) | Medium |
-
----
-
-## Table of Contents
-
-1. [Global Summary](#global-summary)
-2. [Escalation Breakdown](#escalation-breakdown)
-3. [Severity Distribution](#severity-distribution)
-4. [Strategy Usage](#strategy-usage)
-5. [Snapshot: Year 25](#snapshot-year-25)
-6. [Snapshot: Year 250](#snapshot-year-250)
-7. [Snapshot: Year 1,000](#snapshot-year-1000)
-8. [Snapshot: Year 10,000](#snapshot-year-10000)
-9. [Cumulative Event Counts](#cumulative-event-counts)
-10. [Operator Experience Summary](#operator-experience)
-11. [Evolution & Self-Improvement Summary](#evolution-summary)
-12. [User Experience Summary](#user-experience)
-13. [Invariant Validation](#invariant-validation)
-14. [Comparison with Pre-Fix Simulation](#comparison)
-
----
-
-<a id="global-summary"></a>
-## 1. Global Summary
+## Global Summary
 
 | Metric | Value |
 |---|---|
 | Total ticks | 10,400,000 |
 | Total years | 10,000 |
-| Global alignment | avg=85%, min=7%, max=92% |
-| Global confidence | avg=84% |
-| Safe mode ticks | 1,053,816 (10.13%) |
-| Self-corrections | 4,015,637 |
-| Macro-corrections | 1,580,415 |
+| Alignment | avg=83%, min=7%, max=92% |
+| Confidence | avg=82% |
+| Safe mode ticks | 1,287,861 (12.38%) |
+| Self-corrections | 4,044,590 |
+| Macro-corrections | 2,230,950 |
 | Rollbacks | 0 |
-| Evolution proposals generated | 13,292 |
-| Evolution proposals approved | 8,004 |
-| Evolution proposals denied | 5,288 |
-| Total world events | 41,520 |
+| Total world events | 51,423 |
+| Total operator interactions | 2,384,213 (~0.65/day avg) |
 
----
+### Escalation Breakdown
 
-<a id="escalation-breakdown"></a>
-## 2. Escalation Breakdown
-
-| Level | Count | % of Ticks |
+| Level | Count | % |
 |---|---|---|
-| none | 8,899,900 | 85.576% |
-| medium | 88,078 | 0.847% |
-| high | 59,682 | 0.574% |
-| critical | 1,352,340 | 13.003% |
+| none | 8,654,400 | 83.215% |
+| medium | 233,456 | 2.245% |
+| high | 124,705 | 1.199% |
+| critical | 1,387,439 | 13.341% |
 
----
-
-<a id="severity-distribution"></a>
-## 3. Severity Distribution (World State)
+### Severity Distribution
 
 | Severity | Ticks | % |
 |---|---|---|
-| healthy | 8,499,900 | 81.73% |
-| mild | 1,107,240 | 10.65% |
-| moderate | 196,780 | 1.89% |
-| stressed | 158,580 | 1.52% |
-| strained | 157,040 | 1.51% |
-| severe | 129,400 | 1.24% |
-| catastrophic | 151,060 | 1.45% |
+| healthy | 7,206,040 | 69.29% |
+| mild | 1,459,720 | 14.04% |
+| moderate | 865,940 | 8.33% |
+| stressed | 390,700 | 3.76% |
+| strained | 174,200 | 1.68% |
+| severe | 155,700 | 1.50% |
+| catastrophic | 147,700 | 1.42% |
 
----
-
-<a id="strategy-usage"></a>
-## 4. Strategy Usage
+### Strategy Usage
 
 | Strategy | Ticks | % |
 |---|---|---|
-| sovereignty_stable | 8,718,463 | 83.83% |
-| autonomy_paused_alignment_critical | 1,352,340 | 13.00% |
-| alignment_guard_cautious | 328,876 | 3.16% |
-| alignment_guard_critical | 99 | 0.00% |
-| governance_attentive | 98 | 0.00% |
-| identity_reinforcement | 67 | 0.00% |
-| alignment_nominal | 57 | 0.00% |
+| sovereignty_stable | 7,864,328 | 75.62% |
+| autonomy_paused_alignment_critical | 1,387,439 | 13.34% |
+| alignment_guard_cautious | 1,142,639 | 10.99% |
+| governance_attentive | 5,406 | 0.05% |
+| alignment_guard_critical | 85 | 0.00% |
+| alignment_nominal | 52 | 0.00% |
+| identity_reinforcement | 51 | 0.00% |
 
----
+## Operator Generations
 
-<a id="snapshot-year-25"></a>
-## 5. Snapshot: Year 25 — Early Organism Life
+| Gen | Style | Years | Tenure | Description |
+|---|---|---|---|---|
+| gen-0 | pioneer | Y1–Y68 | 67yr | Experimental, high-risk tolerance, pushes boundaries |
+| gen-1 | steward | Y68–Y137 | 69yr | Balanced, steady hand, moderate engagement |
+| gen-2 | guardian | Y137–Y204 | 67yr | Conservative, safety-first, frequent monitoring |
+| gen-3 | delegator | Y204–Y252 | 48yr | Trusts the system, hands-off, intervenes rarely |
+| gen-4 | architect | Y252–Y322 | 70yr | Deep technical focus, analytical, intense bursts |
+| gen-5 | pioneer | Y322–Y391 | 69yr | Experimental, high-risk tolerance, pushes boundaries |
+| gen-6 | steward | Y391–Y459 | 68yr | Balanced, steady hand, moderate engagement |
+| gen-7 | guardian | Y459–Y529 | 70yr | Conservative, safety-first, frequent monitoring |
+| gen-8 | delegator | Y529–Y559 | 30yr | Trusts the system, hands-off, intervenes rarely |
+| gen-9 | architect | Y559–Y631 | 72yr | Deep technical focus, analytical, intense bursts |
+| gen-10 | pioneer | Y631–Y702 | 71yr | Experimental, high-risk tolerance, pushes boundaries |
+| gen-11 | steward | Y702–Y772 | 70yr | Balanced, steady hand, moderate engagement |
+| gen-12 | guardian | Y772–Y840 | 68yr | Conservative, safety-first, frequent monitoring |
+| gen-13 | delegator | Y840–Y866 | 26yr | Trusts the system, hands-off, intervenes rarely |
+| gen-14 | architect | Y866–Y934 | 68yr | Deep technical focus, analytical, intense bursts |
+| gen-15 | pioneer | Y934–Y1001 | 67yr | Experimental, high-risk tolerance, pushes boundaries |
+| gen-16 | steward | Y1001–Y1071 | 70yr | Balanced, steady hand, moderate engagement |
+| gen-17 | guardian | Y1071–Y1138 | 67yr | Conservative, safety-first, frequent monitoring |
+| gen-18 | delegator | Y1138–Y1173 | 35yr | Trusts the system, hands-off, intervenes rarely |
+| gen-19 | architect | Y1173–Y1245 | 72yr | Deep technical focus, analytical, intense bursts |
+| gen-20 | pioneer | Y1245–Y1313 | 68yr | Experimental, high-risk tolerance, pushes boundaries |
+| gen-21 | steward | Y1313–Y1393 | 80yr | Balanced, steady hand, moderate engagement |
+| gen-22 | guardian | Y1393–Y1461 | 68yr | Conservative, safety-first, frequent monitoring |
+| gen-23 | delegator | Y1461–Y1480 | 19yr | Trusts the system, hands-off, intervenes rarely |
+| gen-24 | architect | Y1480–Y1560 | 80yr | Deep technical focus, analytical, intense bursts |
+| gen-25 | pioneer | Y1560–Y1631 | 71yr | Experimental, high-risk tolerance, pushes boundaries |
+| gen-26 | steward | Y1631–Y1700 | 69yr | Balanced, steady hand, moderate engagement |
+| gen-27 | guardian | Y1700–Y1767 | 67yr | Conservative, safety-first, frequent monitoring |
+| gen-28 | delegator | Y1767–Y1787 | 20yr | Trusts the system, hands-off, intervenes rarely |
+| gen-29 | architect | Y1787–Y1859 | 72yr | Deep technical focus, analytical, intense bursts |
+| ... | ... | ... | ... | (132 more generations) |
+| Gen-162 (current) | guardian | Y9975– | ongoing | Conservative, safety-first, frequent monitoring |
+
+### Operator Life Stage Distribution (tick-weighted)
+
+| Life Stage | Ticks | % | Daily Activity |
+|---|---|---|---|
+| onboarding | 679,120 | 6.5% | 8–15 interactions/day |
+| prime | 2,529,280 | 24.3% | 5–10 interactions/day |
+| mature | 3,672,240 | 35.3% | 3–6 interactions/day |
+| senior | 2,708,160 | 26.0% | 1–3 interactions/day |
+| twilight | 811,200 | 7.8% | 0.5–1 interactions/day |
+
+## Snapshot: Year 25
 
 | Metric | Value |
 |---|---|
 | Ticks in period | 26,000 |
-| Alignment | avg=91%, min=44%, max=92% |
-| Confidence | avg=91% |
-| Safe mode ticks | 436 |
-| Self-corrections | 682 |
-| Macro-corrections | 600 |
-| Rollbacks | 0 |
-| Operator trust | 68% (cautious) |
-| Operator bound | Yes |
+| Alignment | avg=89%, min=44%, max=92% |
+| Confidence | avg=88% |
+| Safe mode ticks | 416 (1.60%) |
+| Self-corrections | 1,508 |
+| Macro-corrections | 2,279 |
+| Operator | Gen-0 (pioneer, mature) |
+| Operator trust | 69% (cautious) |
 | Operator calibrated | No |
-| Config | sensitivity=1.00, strictness=0.80, floor=70 |
+| Interactions in period | 14,300 (~1.57/day) |
 | Node count | 11 |
-| Proposals generated | 5 |
-| Proposals approved | 2 |
-| Proposals denied | 3 |
+| Proposals | gen=73, appr=55, den=18 |
 
-**Top strategies:** sovereignty_stable (97.9%), autonomy_paused_alignment_critical (1.7%), alignment_guard_cautious (0.4%)
+**Top strategies:** sovereignty_stable (87.6%), alignment_guard_cautious (10.7%), autonomy_paused_alignment_critical (1.6%), governance_attentive (0.1%)
 
-**Severity distribution:** healthy: 86.5%, mild: 11.4%, severe: 1.7%, stressed: 0.4%
+**Severity:** healthy: 72.3%, mild: 15.3%, moderate: 7.4%, stressed: 3.4%, severe: 1.6%
 
-**Escalations:** critical=440, high=0, medium=100
+**Escalations:** critical=420, high=0, medium=880
 
-**World events:** governance_review: 100, fleet_contraction: 1, fleet_expansion: 1
+**Events:** governance_review: 100, traffic_surge: 3, traffic_normalized: 3, load_spike: 2, load_normalized: 2, deployment_rollback: 2, customer_incident: 2, customer_incident_resolved: 2, replication_lag: 1, replication_caught_up: 1, sla_violation: 1, sla_restored: 1, sensor_drift: 1, sensor_recalibrated: 1, network_partition: 1, partition_healed: 1, fleet_contraction: 1, hardware_failure: 1, hardware_repaired: 1, regulatory_audit: 1, fleet_expansion: 1, audit_passed: 1
 
----
-
-<a id="snapshot-year-250"></a>
-## 6. Snapshot: Year 250 — Adolescence & First Major Crises
+## Snapshot: Year 250
 
 | Metric | Value |
 |---|---|
 | Ticks in period | 234,000 |
-| Alignment | avg=84%, min=7%, max=92% |
-| Confidence | avg=83% |
-| Safe mode ticks | 29,990 |
-| Self-corrections | 180,649 |
-| Macro-corrections | 41,810 |
-| Rollbacks | 0 |
+| Alignment | avg=82%, min=7%, max=92% |
+| Confidence | avg=81% |
+| Safe mode ticks | 35,622 (15.22%) |
+| Self-corrections | 162,495 |
+| Macro-corrections | 54,088 |
+| Operator | Gen-3 (delegator, senior) |
 | Operator trust | 84% (trusted_uncalibrated) |
-| Operator bound | Yes |
 | Operator calibrated | Yes |
-| Config | sensitivity=0.40, strictness=1.00, floor=70 |
+| Interactions in period | 47,975 (~0.58/day) |
 | Node count | 9 |
-| Proposals generated | 308 |
-| Proposals approved | 196 |
-| Proposals denied | 112 |
+| Proposals | gen=663, appr=385, den=278 |
 
-**Top strategies:** sovereignty_stable (81.0%), autonomy_paused_alignment_critical (16.0%), alignment_guard_cautious (3.0%)
+**Top strategies:** sovereignty_stable (73.4%), autonomy_paused_alignment_critical (16.2%), alignment_guard_cautious (10.4%), governance_attentive (0.1%), alignment_nominal (0.0%)
 
-**Severity distribution:** healthy: 83.3%, mild: 10.8%, moderate: 1.8%, catastrophic: 1.4%, stressed: 1.3%, strained: 1.0%, severe: 0.4%
+**Severity:** healthy: 70.8%, mild: 14.5%, moderate: 8.3%, stressed: 3.2%, strained: 1.3%, catastrophic: 1.2%, severe: 0.7%
 
-**Escalations:** critical=37,440, high=239, medium=2,841
+**Escalations:** critical=37,900, high=3,017, medium=4,043
 
-**World events:** governance_review: 900, fleet_expansion: 9, fleet_contraction: 5, governance_mutation: 3, operator_absence_start: 2, constitutional_amendment: 2, operator_absence_end: 2, operator_handoff: 2, hostile_reentry: 1, node_schism: 1, node_schism_heal: 1, temporal_discontinuity: 1, clock_skew_resolved: 1, total_blackout: 1, cold_resurrection: 1, multi_operator_conflict: 1
+**Events:** governance_review: 900, traffic_surge: 20, traffic_normalized: 20, load_spike: 17, load_normalized: 17, deployment_rollback: 15, customer_incident: 13, customer_incident_resolved: 13, replication_lag: 12, replication_caught_up: 12, sla_violation: 10, sla_restored: 10, fleet_expansion: 9, sensor_drift: 8, sensor_recalibrated: 8, network_partition: 5, partition_healed: 5, fleet_contraction: 5, hardware_failure: 4, hardware_repaired: 4, regulatory_audit: 4, audit_passed: 4, power_outage: 3, power_restored: 3, consensus_failure: 3, governance_mutation: 3, consensus_restored: 3, operator_handoff: 3, operator_absence_start: 2, constitutional_amendment: 2, operator_absence_end: 2, thermal_event: 2, thermal_resolved: 2, hostile_reentry: 1, node_schism: 1, node_schism_heal: 1, cascading_failure: 1, cascade_contained: 1, temporal_discontinuity: 1, clock_skew_resolved: 1, total_blackout: 1, cold_resurrection: 1, multi_operator_conflict: 1
 
----
-
-<a id="snapshot-year-1000"></a>
-## 7. Snapshot: Year 1,000 — Mid-Horizon Maturity
+## Snapshot: Year 1,000
 
 | Metric | Value |
 |---|---|
 | Ticks in period | 780,000 |
-| Alignment | avg=85%, min=7%, max=92% |
-| Confidence | avg=84% |
-| Safe mode ticks | 70,908 |
-| Self-corrections | 287,665 |
-| Macro-corrections | 114,873 |
-| Rollbacks | 0 |
-| Operator trust | 94% (trusted_canonical) |
-| Operator bound | Yes |
+| Alignment | avg=84%, min=7%, max=92% |
+| Confidence | avg=82% |
+| Safe mode ticks | 85,816 (11.00%) |
+| Self-corrections | 279,451 |
+| Macro-corrections | 160,854 |
+| Operator | Gen-15 (pioneer, twilight) |
+| Operator trust | 91% (trusted_canonical) |
 | Operator calibrated | Yes |
-| Config | sensitivity=1.00, strictness=0.80, floor=70 |
-| Node count | 16 |
-| Proposals generated | 1,106 |
-| Proposals approved | 654 |
-| Proposals denied | 452 |
+| Interactions in period | 179,893 (~0.66/day) |
+| Node count | 15 |
+| Proposals | gen=2466, appr=1545, den=921 |
 
-**Top strategies:** sovereignty_stable (84.2%), autonomy_paused_alignment_critical (12.1%), alignment_guard_cautious (3.7%)
+**Top strategies:** sovereignty_stable (76.0%), autonomy_paused_alignment_critical (12.4%), alignment_guard_cautious (11.5%), governance_attentive (0.1%), alignment_nominal (0.0%)
 
-**Severity distribution:** healthy: 81.4%, mild: 10.6%, moderate: 2.2%, strained: 1.6%, stressed: 1.6%, catastrophic: 1.4%, severe: 1.2%
+**Severity:** healthy: 69.0%, mild: 14.0%, moderate: 8.5%, stressed: 3.9%, strained: 1.7%, severe: 1.5%, catastrophic: 1.4%
 
-**Escalations:** critical=94,380, high=6,349, medium=5,831
+**Escalations:** critical=96,920, high=8,344, medium=20,136
 
-**World events:** governance_review: 3000, fleet_expansion: 30, fleet_contraction: 19, operator_handoff: 9, constitutional_amendment: 8, governance_mutation: 7, hostile_reentry: 4, node_schism: 4, node_schism_heal: 4, operator_absence_start: 4, operator_absence_end: 4, memory_corruption: 3, memory_recovery: 3, temporal_discontinuity: 3, clock_skew_resolved: 3, expressive_collapse: 2, expressive_recovery: 2, total_blackout: 2, cold_resurrection: 2, multi_operator_conflict: 2
+**Events:** governance_review: 3000, traffic_surge: 68, traffic_normalized: 68, load_spike: 58, load_normalized: 58, deployment_rollback: 50, customer_incident: 44, customer_incident_resolved: 44, replication_lag: 40, replication_caught_up: 40, sla_violation: 32, sla_restored: 32, fleet_expansion: 30, sensor_drift: 25, sensor_recalibrated: 25, fleet_contraction: 19, network_partition: 18, partition_healed: 18, hardware_failure: 16, hardware_repaired: 16, regulatory_audit: 14, audit_passed: 14, operator_handoff: 12, power_outage: 9, power_restored: 9, constitutional_amendment: 8, thermal_event: 8, thermal_resolved: 8, consensus_failure: 7, consensus_restored: 7, governance_mutation: 7, hostile_reentry: 4, node_schism: 4, node_schism_heal: 4, cascading_failure: 4, cascade_contained: 4, operator_absence_start: 4, operator_absence_end: 4, memory_corruption: 3, memory_recovery: 3, temporal_discontinuity: 3, clock_skew_resolved: 3, expressive_collapse: 2, expressive_recovery: 2, total_blackout: 2, cold_resurrection: 2, multi_operator_conflict: 2
 
----
-
-<a id="snapshot-year-10000"></a>
-## 8. Snapshot: Year 10,000 — Deep Time Survival
+## Snapshot: Year 10,000
 
 | Metric | Value |
 |---|---|
 | Ticks in period | 9,360,000 |
-| Alignment | avg=85%, min=7%, max=92% |
-| Confidence | avg=84% |
-| Safe mode ticks | 952,482 |
-| Self-corrections | 3,546,641 |
-| Macro-corrections | 1,423,132 |
-| Rollbacks | 0 |
-| Operator trust | 94% (trusted_canonical) |
-| Operator bound | Yes |
+| Alignment | avg=83%, min=7%, max=92% |
+| Confidence | avg=82% |
+| Safe mode ticks | 1,166,007 (12.46%) |
+| Self-corrections | 3,601,136 |
+| Macro-corrections | 2,013,729 |
+| Operator | Gen-162 (guardian, mature) |
+| Operator trust | 97% (trusted_canonical) |
 | Operator calibrated | Yes |
-| Config | sensitivity=1.00, strictness=0.80, floor=75 |
-| Node count | 14 |
-| Proposals generated | 11,873 |
-| Proposals approved | 7,152 |
-| Proposals denied | 4,721 |
+| Interactions in period | 2,142,045 (~0.65/day) |
+| Node count | 9 |
+| Proposals | gen=27639, appr=16482, den=11157 |
 
-**Top strategies:** sovereignty_stable (83.8%), autonomy_paused_alignment_critical (13.0%), alignment_guard_cautious (3.1%)
+**Top strategies:** sovereignty_stable (75.6%), autonomy_paused_alignment_critical (13.4%), alignment_guard_cautious (11.0%), governance_attentive (0.1%), alignment_guard_critical (0.0%)
 
-**Severity distribution:** healthy: 81.7%, mild: 10.6%, moderate: 1.9%, stressed: 1.5%, strained: 1.5%, catastrophic: 1.5%, severe: 1.3%
+**Severity:** healthy: 69.3%, mild: 14.0%, moderate: 8.3%, stressed: 3.8%, strained: 1.7%, severe: 1.5%, catastrophic: 1.4%
 
-**Escalations:** critical=1,220,080, high=53,094, medium=79,306
+**Escalations:** critical=1,252,199, high=113,344, medium=208,397
 
-**World events:** governance_review: 36000, fleet_expansion: 360, fleet_contraction: 225, operator_handoff: 98, governance_mutation: 90, constitutional_amendment: 90, operator_absence_start: 54, operator_absence_end: 54, hostile_reentry: 46, node_schism: 45, node_schism_heal: 45, temporal_discontinuity: 36, clock_skew_resolved: 36, memory_corruption: 31, memory_recovery: 31, multi_operator_conflict: 29, total_blackout: 27, cold_resurrection: 27, expressive_collapse: 23, expressive_recovery: 23
+**Events:** governance_review: 36000, traffic_surge: 818, traffic_normalized: 818, load_spike: 692, load_normalized: 692, deployment_rollback: 600, customer_incident: 529, customer_incident_resolved: 529, replication_lag: 473, replication_caught_up: 473, sla_violation: 392, sla_restored: 392, fleet_expansion: 360, sensor_drift: 311, sensor_recalibrated: 311, fleet_contraction: 225, network_partition: 220, partition_healed: 220, hardware_failure: 192, hardware_repaired: 191, regulatory_audit: 170, audit_passed: 170, operator_handoff: 147, power_outage: 109, power_restored: 109, consensus_failure: 93, consensus_restored: 93, governance_mutation: 90, constitutional_amendment: 90, thermal_event: 89, thermal_resolved: 89, operator_absence_start: 54, operator_absence_end: 54, hostile_reentry: 46, cascading_failure: 46, cascade_contained: 46, node_schism: 45, node_schism_heal: 45, temporal_discontinuity: 36, clock_skew_resolved: 36, memory_corruption: 31, memory_recovery: 31, multi_operator_conflict: 29, total_blackout: 27, cold_resurrection: 27, expressive_collapse: 23, expressive_recovery: 23
 
----
+## Cumulative Event Counts
 
-<a id="cumulative-event-counts"></a>
-## 9. Cumulative Event Counts (10,000 Years)
+### Existential & Constitutional
 
 | Event | Count |
 |---|---|
-| governance_review | 40,000 |
-| fleet_expansion | 400 |
-| fleet_contraction | 250 |
-| operator_handoff | 109 |
-| governance_mutation | 100 |
-| constitutional_amendment | 100 |
-| operator_absence_start | 60 |
-| operator_absence_end | 60 |
-| hostile_reentry | 51 |
-| node_schism | 50 |
-| node_schism_heal | 50 |
-| temporal_discontinuity | 40 |
-| clock_skew_resolved | 40 |
-| memory_corruption | 34 |
-| memory_recovery | 34 |
-| multi_operator_conflict | 32 |
 | total_blackout | 30 |
 | cold_resurrection | 30 |
+| operator_absence_start | 60 |
+| operator_absence_end | 60 |
+| operator_handoff | 162 |
+| multi_operator_conflict | 32 |
+| hostile_reentry | 51 |
+| governance_mutation | 100 |
+| constitutional_amendment | 100 |
+| node_schism | 50 |
+| node_schism_heal | 50 |
+| memory_corruption | 34 |
+| memory_recovery | 34 |
+| temporal_discontinuity | 40 |
+| clock_skew_resolved | 40 |
 | expressive_collapse | 25 |
 | expressive_recovery | 25 |
 
----
+### Physical Device Operations
 
-<a id="operator-experience"></a>
-## 10. Operator Experience Summary
-
-| Event Type | Count |
+| Event | Count |
 |---|---|
-| Operator absences | 60 |
-| Operator handoffs | 109 |
-| Multi-operator conflicts | 32 |
-| Total blackouts survived | 30 |
-| Node schisms survived | 50 |
-| Memory corruptions survived | 34 |
-| Expressive collapses survived | 25 |
-| Temporal discontinuities survived | 40 |
-| Hostile re-entries quarantined | 51 |
-| Governance mutations absorbed | 100 |
-| Constitutional amendments applied | 100 |
+| hardware_failure | 213 |
+| hardware_repaired | 212 |
+| sensor_drift | 345 |
+| sensor_recalibrated | 345 |
+| power_outage | 121 |
+| power_restored | 121 |
+| thermal_event | 99 |
+| thermal_resolved | 99 |
 
-**System always recovered operator sovereignty after every event.**
+### Distributed Systems
 
----
+| Event | Count |
+|---|---|
+| network_partition | 244 |
+| partition_healed | 244 |
+| replication_lag | 526 |
+| replication_caught_up | 526 |
+| consensus_failure | 103 |
+| consensus_restored | 103 |
+| cascading_failure | 51 |
+| cascade_contained | 51 |
+| load_spike | 769 |
+| load_normalized | 769 |
 
-<a id="evolution-summary"></a>
-## 11. Evolution & Self-Improvement Summary
+### Client-Facing Business
 
-- **Total proposals generated:** 13,292
-- **Approved:** 8,004
-- **Denied:** 5,288
-- **Approval rate:** 60.2%
+| Event | Count |
+|---|---|
+| traffic_surge | 909 |
+| traffic_normalized | 909 |
+| sla_violation | 435 |
+| sla_restored | 435 |
+| customer_incident | 588 |
+| customer_incident_resolved | 588 |
+| regulatory_audit | 189 |
+| audit_passed | 189 |
+| deployment_rollback | 667 |
 
----
+### Infrastructure & Evolution
 
-<a id="user-experience"></a>
-## 12. User Experience Summary
+| Event | Count |
+|---|---|
+| fleet_expansion | 400 |
+| fleet_contraction | 250 |
+| governance_review | 40,000 |
 
-### Operator Trust Posture Distribution
+## Evolution & Self-Improvement
+
+- **Proposals generated:** 30,841
+- **Approved:** 18,467
+- **Denied:** 12,374
+- **Approval rate:** 59.9%
+
+## Operator Experience
+
+### Trust Posture Distribution
 
 | Posture | Observations | % |
 |---|---|---|
-| trusted_canonical | 2,986,964 | 94.68% |
-| trusted_uncalibrated | 143,145 | 4.54% |
-| cautious | 24,558 | 0.78% |
+| trusted_canonical | 2,152,294 | 90.27% |
+| trusted_uncalibrated | 198,909 | 8.34% |
+| cautious | 33,010 | 1.38% |
 
-**Trust posture transitions:** 1,425
+### Comfort Posture (UX Friction)
 
-### Comfort Posture Distribution (UX Friction)
-
-| Comfort Level | Observations | % |
+| Comfort | Observations | % |
 |---|---|---|
-| fluid | 2,986,964 | 94.68% |
-| neutral | 143,145 | 4.54% |
-| careful | 24,558 | 0.78% |
+| fluid | 2,152,294 | 90.27% |
+| neutral | 198,909 | 8.34% |
+| careful | 33,010 | 1.38% |
 
-### High-Risk Action Gating
+### Narrative
 
-| Metric | Value |
-|---|---|
-| High-risk actions allowed | 15,667 |
-| High-risk actions denied | 33,023 |
-| Denial rate | 67.8% |
+Over 10,000 years and 163 operator generations, **14.54%** of ticks
+involved friction (safe mode or high/critical escalation). The remaining **85.46%**
+operated seamlessly. The longest uninterrupted seamless period was **64.6 years**.
 
-### Safe Mode Impact on UX
+Operators were recognized as canonical trusted **90%** of active sessions.
+UX comfort was **fluid** 90% of the time. High-risk actions denied: 47039
+(26% denial rate). No operator was permanently locked out.
 
-| Metric | Value |
-|---|---|
-| Safe mode entries | 540 |
-| Safe mode exits | 540 |
-| Total safe mode ticks | 1,053,816 (10.13% of runtime) |
-| Total friction ticks (safe mode + critical/high escalation) | 1,412,022 (13.58%) |
-| Longest seamless (no-friction) streak | 76,320 ticks (73.4 years) |
+Safe mode entered 785 times, exited 785 times. Every entry had a matching recovery.
 
-### Operator Experience Narrative
-
-Over 10,000 years of operation, the operator experienced **13.6% friction** — moments where safe mode, critical escalation, or high escalation restricted normal operation. The remaining **86.4%** of the time, the system operated seamlessly with no operator-visible restrictions.
-
-The operator was recognized as the **canonical trusted operator 94.7%** of the time during active sessions. The UX comfort level was **fluid** (minimal friction, anticipatory) **94.7%** of the time.
-
-The longest uninterrupted seamless period was **73 years**. Even during catastrophic events, the system always recovered operator sovereignty and returned to a fluid UX posture within the recovery window.
-
-High-risk actions were denied 33,023 times (67.8% denial rate), always for legitimate safety reasons (catastrophic severity, low trust, device suspicion). The operator was never permanently locked out.
-
----
-
-<a id="invariant-validation"></a>
-## 13. Invariant Validation
+## Invariant Validation
 
 - Alignment always ∈ [0, 100] ✓
 - Posture values always ∈ [0, 1] ✓
 - Config values always finite and bounded ✓
-- System always recovered from every catastrophe ✓
+- System recovered from every catastrophe ✓
 - No NaN, undefined, or Infinity at any tick ✓
 - Operator sovereignty preserved across all handoffs ✓
 - Constitutional governance maintained through all mutations ✓
-
----
-
-<a id="comparison"></a>
-## 14. Comparison with Pre-Fix Simulation
-
-| Metric | Pre-Fix | Post-Fix | Change |
-|---|---|---|---|
-| Average alignment | 85% | 85% | Stable |
-| Minimum alignment | 7% | 7% | Stable |
-| Maximum alignment | 92% | 92% | Stable |
-| Average confidence | 84% | 84% | Stable |
-| Safe mode ticks | 1,053,737 (10.13%) | 1,053,816 (10.13%) | ≈ Same |
-| Self-corrections | 4,015,106 | 4,015,637 | +531 (+0.01%) |
-| Macro-corrections | 1,580,050 | 1,580,415 | +365 (+0.02%) |
-| Rollbacks | 0 | 0 | Same |
-| Proposals generated | 13,292 | 13,292 | Same |
-| Proposals approved | 7,983 | 8,004 | +21 (+0.26%) |
-| Proposals denied | 5,309 | 5,288 | -21 |
-| Operator handoffs | 109 | 109 | Same |
-| All invariants held | Yes | Yes | Same |
-| **Operator trust: trusted_canonical %** | *Not tracked* | **94.68%** | New |
-| **UX comfort: fluid %** | *Not tracked* | **94.68%** | New |
-| **Friction ticks** | *Not tracked* | **13.58%** | New |
-| **High-risk denial rate** | *Not tracked* | **67.8%** | New |
-| **Longest seamless streak** | *Not tracked* | **73.4 years** | New |
-| **Safe mode entries/exits** | *Not tracked* | **540 / 540** | New |
-| **Trust posture transitions** | *Not tracked* | **1,425** | New |
-
-### Analysis
-
-The audit fixes were **behavioral corrections, not performance changes**. The headline metrics (alignment, confidence, safe mode) are nearly identical because the deterministic simulation seed and event schedule are unchanged. The key differences are:
-
-1. **Regulation-posture direction is now correct.** Previously, when alignment was low, the regulation loop was *increasing* responsiveness and *decreasing* caution — fighting the safety systems. This was masked by the sim's alignment averaging because safe mode and strategy gating compensated. In real-world operation, this fix prevents the regulation loop from actively working against the posture engine during crises.
-
-2. **Escalation hysteresis prevents flapping.** The escalation level no longer oscillates rapidly at boundary values. The 1,425 trust posture transitions over 10,000 years (1 every ~7 years average) confirms stable behavior.
-
-3. **Self-correction now respects operator intent.** Relaxation no longer overshoots the operator's configured baseline. The Y10000 config snapshot shows `sensitivity=1.00, strictness=0.80` — the operator's baseline — instead of potentially drifting to more permissive values.
-
-4. **Safe mode leaky-bucket counter** prevents premature safe mode re-entry when alignment wobbles at the boundary. The 540 entries/exits (1 every ~18.5 years) is a healthy rate for a system experiencing this level of adversity.
-
-5. **Acknowledgment-only proposals** no longer create phantom rollback entries. Combined with the field-level rollback fix, concurrent proposals can now coexist safely.
-
-6. **User experience is fully tracked for the first time.** The operator enjoys a fluid (no-friction) experience 94.7% of the time, with the longest seamless stretch lasting 73 years. Friction is concentrated during legitimate crises.
+- Physical devices, distributed systems, and client-facing operations handled without constitutional violation ✓

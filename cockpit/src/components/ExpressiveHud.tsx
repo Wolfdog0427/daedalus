@@ -18,6 +18,8 @@ import type { MetaGovernanceModelState } from "../hooks/useMetaGovernance";
 import type { FabricDashboard } from "../shared/daedalus/governanceFabric";
 import type { KernelHaloSnapshot } from "../shared/daedalus/kernelHalo";
 import type { CrownState } from "../shared/daedalus/kernelCrown";
+import type { ExpressiveState, SubPosture as SubPostureType, ExpressiveOverlayType } from "../api/daedalusClient";
+import { sendOperatorCue, clearOperatorCue, setDaedalusContext } from "../api/daedalusClient";
 import "./ExpressiveHud.css";
 
 export const EXPRESSIVE_HUD_ENABLED = true;
@@ -64,6 +66,7 @@ interface Props {
   onToggleGovernor: () => void;
   onSetPreset: (preset: GovernorPresetName) => void;
   onNudgePosture: (posture: DaedalusPosture | null) => void;
+  expressiveState: ExpressiveState | null;
 }
 
 function formatAge(ms: number): string {
@@ -155,17 +158,43 @@ function ProposalCard({ label, color, reason, time, onApprove, onReject }: {
 
 const TELEMETRY_VISIBLE_COUNT = 8;
 
+const SUB_POSTURE_LABELS: Record<string, { label: string; color: string }> = {
+  none: { label: "Neutral", color: "#8b949e" },
+  analytic: { label: "Analytic", color: "#58a6ff" },
+  creative: { label: "Creative", color: "#a371f7" },
+  sensitive: { label: "Sensitive", color: "#f778ba" },
+  defensive: { label: "Defensive", color: "#f85149" },
+  supportive: { label: "Supportive", color: "#3fb950" },
+};
+
+const OVERLAY_LABELS: Record<string, { label: string; color: string; icon: string }> = {
+  none: { label: "None", color: "#8b949e", icon: "—" },
+  focus: { label: "Focus", color: "#58a6ff", icon: "◎" },
+  calm: { label: "Calm", color: "#3fb950", icon: "◌" },
+  alert: { label: "Alert", color: "#f85149", icon: "⚠" },
+  recovery: { label: "Recovery", color: "#d29922", icon: "↻" },
+  transition: { label: "Transition", color: "#a371f7", icon: "⇄" },
+};
+
+const SUB_POSTURE_OPTIONS = ["none", "analytic", "creative", "sensitive", "defensive", "supportive"] as const;
+const OVERLAY_OPTIONS = ["none", "focus", "calm", "alert", "recovery", "transition"] as const;
+const TASK_OPTIONS = ["idle", "analysis", "creative", "review", "sensitive"] as const;
+const ENV_OPTIONS = ["normal", "crisis", "handoff", "recovery"] as const;
+
 export function ExpressiveHud({
   scene, grammar, frameId, persistence, telemetry, analytics, adaptation,
   autonomy, intent, strategy, metaStrategy, metaGov, fabricDashboard,
   fabricClearAll, halo, crown, kernelRollback, governorDisplay, timeline,
   affect, governorPreset, postureNudge, onToggleGovernor, onSetPreset, onNudgePosture,
+  expressiveState,
 }: Props) {
   const [hudCollapsed, setHudCollapsed] = useState(true);
   const [telemetryOpen, setTelemetryOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [adaptationOpen, setAdaptationOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [expressiveOpen, setExpressiveOpen] = useState(false);
+  const [cueOpen, setCueOpen] = useState(false);
 
   if (!EXPRESSIVE_HUD_ENABLED) return null;
 
@@ -200,6 +229,16 @@ export function ExpressiveHud({
         <div className="xhud-collapsed-summary">
           <span className={`xhud-mini-tag xhud-posture--${scene.posture}`}>{scene.posture}</span>
           <span className="xhud-mini-tag">{scene.sceneName}</span>
+          {expressiveState && expressiveState.subPosture !== "none" && (
+            <span className="xhud-mini-tag" style={{ color: SUB_POSTURE_LABELS[expressiveState.subPosture]?.color, borderColor: SUB_POSTURE_LABELS[expressiveState.subPosture]?.color + "40" }}>
+              {SUB_POSTURE_LABELS[expressiveState.subPosture]?.label}
+            </span>
+          )}
+          {expressiveState && expressiveState.overlay !== "none" && (
+            <span className="xhud-mini-tag" style={{ color: OVERLAY_LABELS[expressiveState.overlay]?.color }}>
+              {OVERLAY_LABELS[expressiveState.overlay]?.icon}
+            </span>
+          )}
           <span className="xhud-collapsed-health" style={{ color: healthColor(overallLevel) }}>{pct(overallHealth)}</span>
         </div>
       )}
@@ -283,6 +322,102 @@ export function ExpressiveHud({
         <HealthBar value={analytics.sceneStability} label="Stability" description="How stable the current scene is — higher is calmer" />
         <HealthBar value={analytics.momentumVolatility} label="Volatility" description="How erratic momentum changes are — lower is better" inverted />
       </div>
+
+      {/* ── 4b. Expressive Physiology ──────────────────────────────── */}
+      <SectionHeader title="Expressive Physiology" subtitle="Sub-posture, overlay, micro-posture, and context"
+        open={expressiveOpen} onToggle={() => setExpressiveOpen(v => !v)} />
+
+      {expressiveOpen && expressiveState && (
+        <div className="xhud-expressive">
+          <div className="xhud-state-grid">
+            <div className="xhud-state-cell">
+              <span className="xhud-state-label">Sub-Posture</span>
+              <span className="xhud-state-value" style={{ color: SUB_POSTURE_LABELS[expressiveState.subPosture]?.color }}>
+                {SUB_POSTURE_LABELS[expressiveState.subPosture]?.label ?? expressiveState.subPosture}
+              </span>
+            </div>
+            <div className="xhud-state-cell">
+              <span className="xhud-state-label">Overlay</span>
+              <span className="xhud-state-value" style={{ color: OVERLAY_LABELS[expressiveState.overlay]?.color }}>
+                {OVERLAY_LABELS[expressiveState.overlay]?.icon}{" "}
+                {OVERLAY_LABELS[expressiveState.overlay]?.label ?? expressiveState.overlay}
+                {expressiveState.overlayTicksRemaining > 0 && (
+                  <span className="xhud-mini-tag xhud-mini-tag--muted" style={{ marginLeft: 4 }}>
+                    {expressiveState.overlayTicksRemaining}t
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="xhud-state-cell">
+              <span className="xhud-state-label">Context</span>
+              <span className="xhud-state-value">{expressiveState.contextual.reason}</span>
+            </div>
+          </div>
+
+          <div className="xhud-vitals" style={{ marginTop: 8 }}>
+            <HealthBar value={expressiveState.microPosture.responsiveness} label="μ Responsiveness" description="Micro-posture responsiveness — alignment-driven" />
+            <HealthBar value={1 - expressiveState.microPosture.caution} label="μ Ease" description="Inverse of micro-caution — higher means less caution" />
+            <HealthBar value={expressiveState.microPosture.expressiveness} label="μ Expressiveness" description="Micro-posture expressiveness — confidence-driven" />
+          </div>
+
+          <SectionHeader title="Operator Cue" subtitle="Send a posture hint to Daedalus"
+            open={cueOpen} onToggle={() => setCueOpen(v => !v)} />
+
+          {cueOpen && (
+            <div className="xhud-cue-controls">
+              <div className="xhud-control-group">
+                <span className="xhud-control-label">Sub-Posture Override</span>
+                <div className="xhud-control-options">
+                  {SUB_POSTURE_OPTIONS.map(sp => (
+                    <button key={sp} className="xhud-btn xhud-btn--option"
+                      style={{ borderColor: SUB_POSTURE_LABELS[sp]?.color + "60", color: SUB_POSTURE_LABELS[sp]?.color }}
+                      onClick={() => { sendOperatorCue({ subPostureBias: sp as SubPostureType }).catch(() => {}); }}>
+                      {SUB_POSTURE_LABELS[sp]?.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="xhud-control-group">
+                <span className="xhud-control-label">Overlay Override</span>
+                <div className="xhud-control-options">
+                  {OVERLAY_OPTIONS.map(ov => (
+                    <button key={ov} className="xhud-btn xhud-btn--option"
+                      style={{ borderColor: OVERLAY_LABELS[ov]?.color + "60", color: OVERLAY_LABELS[ov]?.color }}
+                      onClick={() => { sendOperatorCue({ overlayBias: ov as ExpressiveOverlayType }).catch(() => {}); }}>
+                      {OVERLAY_LABELS[ov]?.icon} {OVERLAY_LABELS[ov]?.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="xhud-control-group">
+                <span className="xhud-control-label">Task Context</span>
+                <div className="xhud-control-options">
+                  {TASK_OPTIONS.map(t => (
+                    <button key={t} className="xhud-btn xhud-btn--option" onClick={() => { setDaedalusContext({ taskType: t }).catch(() => {}); }}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="xhud-control-group">
+                <span className="xhud-control-label">Environment</span>
+                <div className="xhud-control-options">
+                  {ENV_OPTIONS.map(e => (
+                    <button key={e} className="xhud-btn xhud-btn--option" onClick={() => { setDaedalusContext({ environment: e }).catch(() => {}); }}>
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button className="xhud-btn xhud-btn--danger-full" onClick={() => { clearOperatorCue().catch(() => {}); }}>Clear Cue</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {expressiveOpen && !expressiveState && (
+        <div className="xhud-empty">No expressive data available yet</div>
+      )}
 
       {/* ── 5. Timeline ───────────────────────────────────────────── */}
       <div className="xhud-timeline">

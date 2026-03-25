@@ -65,7 +65,7 @@ export class GovernanceService {
     this.votes.push(vote);
 
     getDaedalusEventBus().publish({
-      type: "GOVERNANCE_OVERRIDE_APPLIED",
+      type: "BEING_VOTE_CAST",
       timestamp: nowIso(),
       summary: `Being "${vote.being.label}" voted ${vote.vote} (weight ${vote.weight})`,
       beings: [vote],

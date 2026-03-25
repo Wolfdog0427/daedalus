@@ -14,14 +14,16 @@
 import { selectStrategy, getLastStrategyName, getLastEscalation, resetDispatcher } from "./dispatcher";
 import { kernelTelemetry } from "./telemetry";
 import { applySelfCorrectionIfNeeded, computeRecentAlignmentTrend } from "./selfCorrection";
-import { selectPosture } from "./posture";
+import { selectPosture, selectSubPosture, computeMicroPosture } from "./posture";
 import { detectAlignmentDrift } from "./driftDetector";
 import { interpretIntent, type IntentInput } from "./intent";
-import { getSafeModeState } from "./safeMode";
+import { getSafeModeState, enterSafeModeFromRegulation, exitSafeModeFromRegulation } from "./safeMode";
 import { evaluateProposals } from "./autoApproval";
 import { runRegulation, applyRegulationToPosture } from "./regulationLoop";
 import { processRollbacks } from "./rollbackRegistry";
 import { getOperatorTrustSnapshot, recordTrustDriftSample } from "./operatorIdentity";
+import { selectOverlay, tickOverlay, getPreviousPosture, setPreviousPosture, setOverlay, getOverlayState, resetOverlayState } from "./overlays";
+import { computeContextualModulation, getContext, resetContextEngine } from "./contextEngine";
 import type {
   AlignmentContext,
   KernelRuntimeConfig,
@@ -33,8 +35,28 @@ import type {
   RegulationConfig,
   RollbackEvent,
   OperatorTrustCockpitSnapshot,
+  OperatorCue,
+  KernelExpressiveState,
 } from "./types";
-import { DEFAULT_KERNEL_CONFIG } from "./types";
+import { DEFAULT_KERNEL_CONFIG, SubPosture, ExpressiveOverlay } from "./types";
+
+let activeOperatorCue: OperatorCue | null = null;
+let lastSafeModeActive = false;
+
+export function setOperatorCue(cue: OperatorCue | null): void {
+  activeOperatorCue = cue;
+}
+
+export function getOperatorCue(): OperatorCue | null {
+  return activeOperatorCue;
+}
+
+export function resetExpressiveState(): void {
+  activeOperatorCue = null;
+  lastSafeModeActive = false;
+  resetOverlayState();
+  resetContextEngine();
+}
 
 export function tickKernel(
   context: AlignmentContext,
@@ -74,6 +96,20 @@ export function tickKernel(
     regulationCfg,
   );
 
+  // Wire regulation governance signals into safe mode / autonomy state.
+  // Regulation provides a second opinion on safe mode entry/exit alongside
+  // the dispatcher's `updateSafeModeFromAlignment` — whichever fires first
+  // wins, and hysteresis in safeMode.ts prevents oscillation.
+  if (regulation.shouldEnterSafeMode) {
+    enterSafeModeFromRegulation(`regulation_catastrophic (alignment ${strategy.alignment}%)`);
+  }
+  if (regulation.shouldExitSafeMode) {
+    exitSafeModeFromRegulation();
+  }
+
+  // Re-read safe mode after regulation may have changed it
+  const safeModeAfterRegulation = getSafeModeState();
+
   const posture = applyRegulationToPosture(basePosture, regulation);
 
   let intent: IntentInterpretation | null = null;
@@ -85,7 +121,7 @@ export function tickKernel(
 
   let approvals: ApprovalDecision[] = [];
   if (changeProposals && changeProposals.length > 0) {
-    approvals = evaluateProposals(changeProposals, strategy, safeMode, alignmentConfig);
+    approvals = evaluateProposals(changeProposals, strategy, safeModeAfterRegulation, alignmentConfig);
   }
 
   const rollbacks = processRollbacks(strategy.alignment);
@@ -93,6 +129,77 @@ export function tickKernel(
   recordTrustDriftSample(history.length);
 
   const operatorTrust = getOperatorTrustSnapshot();
+
+  // ── Expressive physiology pipeline ─────────────────────────────────
+  // Decay overlay from previous tick FIRST to avoid off-by-one lifetime
+  tickOverlay();
+
+  const prevPosture = getPreviousPosture();
+  const postureChanged = prevPosture !== null &&
+    (Math.abs(prevPosture.responsiveness - posture.responsiveness) > 0.05 ||
+     Math.abs(prevPosture.caution - posture.caution) > 0.05);
+
+  const ctx = getContext();
+
+  let subPosture = selectSubPosture(
+    strategy.alignment, drift, operatorTrust.trustScore,
+    {
+      operatorTrustScore: operatorTrust.trustScore,
+      cognitiveLoad: strategy.confidence < 60 ? 0.8 : 0.3,
+      creativeTask: ctx.taskType === "creative",
+      sensitiveOperator: operatorTrust.comfortPosture === "careful",
+    },
+  );
+
+  const contextualMod = computeContextualModulation(ctx);
+  if (contextualMod.subPostureBoost !== SubPosture.NONE && subPosture === SubPosture.NONE) {
+    subPosture = contextualMod.subPostureBoost;
+  }
+
+  const overlay = selectOverlay(
+    {
+      safeMode: safeModeAfterRegulation,
+      previousSafeModeActive: lastSafeModeActive && !safeModeAfterRegulation.active,
+      postureChanged,
+      highFocusTask: ctx.taskType === "analysis" || ctx.taskType === "review",
+      lowStress: strategy.alignment >= 85 && escalation.level === "none",
+    },
+    posture,
+  );
+
+  let finalOverlay = overlay;
+  // Crisis environment override takes priority over automatic CALM/FOCUS
+  if (contextualMod.overlayBoost !== ExpressiveOverlay.NONE &&
+      (overlay === ExpressiveOverlay.NONE || ctx.environment === "crisis")) {
+    finalOverlay = contextualMod.overlayBoost;
+  }
+
+  if (activeOperatorCue) {
+    if (activeOperatorCue.subPostureBias != null) subPosture = activeOperatorCue.subPostureBias;
+    if (activeOperatorCue.overlayBias != null) finalOverlay = activeOperatorCue.overlayBias;
+    if (activeOperatorCue.postureBias === "cautious" && subPosture === SubPosture.NONE) {
+      subPosture = SubPosture.DEFENSIVE;
+    }
+  }
+
+  // Sync internal overlay state so ticksRemaining tracks the actual overlay
+  if (finalOverlay !== getOverlayState().current) {
+    setOverlay(finalOverlay);
+  }
+
+  const microPosture = computeMicroPosture(strategy.alignment, strategy.confidence, drift);
+
+  lastSafeModeActive = safeModeAfterRegulation.active;
+  setPreviousPosture(posture);
+
+  const overlaySnap = getOverlayState();
+  const expressive: KernelExpressiveState = {
+    subPosture,
+    overlay: finalOverlay,
+    overlayTicksRemaining: overlaySnap.ticksRemaining,
+    microPosture,
+    contextual: contextualMod,
+  };
 
   return {
     strategy,
@@ -102,12 +209,13 @@ export function tickKernel(
     trend: correction.trend,
     selfCorrected: correction.corrected,
     escalation,
-    safeMode,
+    safeMode: safeModeAfterRegulation,
     intent,
     approvals,
     regulation,
     rollbacks,
     operatorTrust,
+    expressive,
   };
 }
 
@@ -116,7 +224,10 @@ export { evaluateStrategy, computeAlignmentBreakdown, explainStrategy } from "./
 export { kernelTelemetry } from "./telemetry";
 export { gateStrategyByAlignment, resetGateBand } from "./strategyGate";
 export { applySelfCorrectionIfNeeded, computeRecentAlignmentTrend, setOperatorConfigBaseline } from "./selfCorrection";
-export { selectPosture } from "./posture";
+export { selectPosture, selectSubPosture, computeMicroPosture } from "./posture";
+export type { SubPostureContext } from "./posture";
+export { selectOverlay, tickOverlay, setOverlay, forceOverlay, getOverlayState, resetOverlayState } from "./overlays";
+export { computeContextualModulation, setContext, getContext, resetContextEngine } from "./contextEngine";
 export { detectAlignmentDrift } from "./driftDetector";
 export { computeAlignmentEscalation, resetEscalation } from "./escalation";
 export { interpretIntent, resetIntentState } from "./intent";
@@ -125,6 +236,8 @@ export {
   getSafeModeState,
   updateSafeModeFromAlignment,
   applySafeModeToPosture,
+  enterSafeModeFromRegulation,
+  exitSafeModeFromRegulation,
   resetSafeMode,
 } from "./safeMode";
 export {
@@ -262,9 +375,20 @@ export type {
   ConstitutionalFreezeState,
   ContinuitySeal,
   OperatorTrustCockpitSnapshot,
+  MicroPosture,
+  OperatorCue,
+  ContextState,
+  TaskType,
+  EnvironmentType,
+  ContextualModulation,
+  KernelExpressiveState,
+  ExpressiveState,
 } from "./types";
 
+export { SubPosture, ExpressiveOverlay } from "./types";
+
 export type { IntentInput, IntentMetrics } from "./intent";
+export type { OverlayContext } from "./overlays";
 export type { IdentitySnapshot } from "./identity";
 
 export { DEFAULT_KERNEL_CONFIG, DEFAULT_KERNEL_POSTURE, DEFAULT_ALIGNMENT_CONFIG, DEFAULT_APPROVAL_GATE_CONFIG, DEFAULT_REGULATION_CONFIG, DEFAULT_ROLLBACK_CONFIG, DEFAULT_OPERATOR_TRUST_CONFIG, DEFAULT_POSTURE_CONFIG, INITIAL_OPERATOR_TRUST_STATE, HIGH_RISK_ACTIONS, DEFAULT_ALIGNMENT_POLICY } from "./types";

@@ -14,6 +14,23 @@ export interface ChatMessage {
   context?: Record<string, unknown>;
 }
 
+export type SubPosture = 'none' | 'analytic' | 'creative' | 'sensitive' | 'defensive' | 'supportive';
+export type ExpressiveOverlayType = 'none' | 'focus' | 'calm' | 'alert' | 'recovery' | 'transition';
+
+export interface MicroPosture {
+  responsiveness: number;
+  caution: number;
+  expressiveness: number;
+}
+
+export interface ExpressiveState {
+  subPosture: SubPosture;
+  overlay: ExpressiveOverlayType;
+  overlayTicksRemaining: number;
+  microPosture: MicroPosture;
+  contextual: { subPostureBoost: SubPosture; overlayBoost: ExpressiveOverlayType; reason: string };
+}
+
 export interface SystemStatus {
   strategy: string;
   alignment: number;
@@ -29,6 +46,7 @@ export interface SystemStatus {
   freezeFrozen: boolean;
   governancePosture: string;
   lastUpdated: string;
+  expressive: ExpressiveState | null;
 }
 
 function getBaseUrl(): string {
@@ -116,6 +134,7 @@ export async function fetchSystemStatus(): Promise<SystemStatus> {
     freezeFrozen: trust?.freeze?.frozen ?? false,
     governancePosture: governance?.posture ?? 'OPEN',
     lastUpdated: new Date().toISOString(),
+    expressive: strategy?.expressive ?? null,
   };
 }
 

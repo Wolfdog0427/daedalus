@@ -478,8 +478,8 @@ class StrategyService {
 
     if (this.stableStreak >= 30 && !pendingIds.has("capability_expansion") && cooldown("capability_expansion", 100) && queueHasRoom()) {
       mark("capability_expansion");
-      const currentAutoApprovalThreshold = 95;
-      const proposedAutoApprovalThreshold = 93;
+      const currentAutoApprovalThreshold = getApprovalGateConfig().alignmentThreshold;
+      const proposedAutoApprovalThreshold = Math.max(90, currentAutoApprovalThreshold - 2);
       this.createDaedalusProposal({
         kind: "capability_expansion",
         title: "Lower auto-approval alignment threshold slightly",

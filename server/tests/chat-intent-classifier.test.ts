@@ -130,14 +130,15 @@ describe("Follow-up and context tracking", () => {
     expect(follow.intent).toBe("followup");
   });
 
-  it("stores lastIntent after a real query", () => {
-    classifyIntent("what is the current strategy?", ctx);
-    expect(ctx.lastIntent).toBe("strategy");
+  it("returns correct intent for a real query (lastIntent set by ChatService)", () => {
+    const result = classifyIntent("what is the current strategy?", ctx);
+    expect(result.intent).toBe("strategy");
+    // classifyIntent no longer sets lastIntent — ChatService.processMessage does
+    // to prevent follow-up routing from seeing overwritten state
   });
 
   it("does not overwrite lastIntent on uncertain", () => {
-    classifyIntent("status", ctx);
-    expect(ctx.lastIntent).toBe("status");
+    ctx.lastIntent = "status";
     classifyIntent("xyzzy gibberish", ctx);
     expect(ctx.lastIntent).toBe("status");
   });
@@ -285,16 +286,20 @@ describe("Fallback / uncertainty", () => {
 
 describe("Context reinforcement", () => {
   it("prior intent boosts scoring on ambiguous input", () => {
-    classifyIntent("show me the node fleet", ctx);
-    expect(ctx.lastIntent).toBe("nodes");
+    const first = classifyIntent("show me the node fleet", ctx);
+    expect(first.intent).toBe("nodes");
+    // Simulate ChatService setting lastIntent after routing
+    ctx.lastIntent = first.intent;
 
     const result = classifyIntent("fleet", ctx);
     expect(result.intent).toBe("nodes");
   });
 
   it("ask status then 'tell me more' → followup detected, previous lastIntent was status", () => {
-    classifyIntent("give me a status report", ctx);
-    expect(ctx.lastIntent).toBe("status");
+    const first = classifyIntent("give me a status report", ctx);
+    expect(first.intent).toBe("status");
+    // Simulate ChatService setting lastIntent after routing
+    ctx.lastIntent = first.intent;
 
     const prevIntent = ctx.lastIntent;
     const result = classifyIntent("tell me more", ctx);
@@ -312,11 +317,11 @@ describe("Per-session context isolation", () => {
     const ctxA = createContext();
     const ctxB = createContext();
 
-    classifyIntent("show me the strategy", ctxA);
-    classifyIntent("node status", ctxB);
+    const resultA = classifyIntent("show me the strategy", ctxA);
+    const resultB = classifyIntent("node status", ctxB);
 
-    expect(ctxA.lastIntent).toBe("strategy");
-    expect(ctxB.lastIntent).toBe("nodes");
+    expect(resultA.intent).toBe("strategy");
+    expect(resultB.intent).toBe("nodes");
   });
 
   it("uncertain in one session does not affect another", () => {
@@ -324,11 +329,11 @@ describe("Per-session context isolation", () => {
     const ctxB = createContext();
 
     classifyIntent("xyzzy", ctxA);
-    classifyIntent("status", ctxB);
+    const resultB = classifyIntent("status", ctxB);
 
     expect(ctxA.consecutiveUncertain).toBe(1);
     expect(ctxB.consecutiveUncertain).toBe(0);
-    expect(ctxB.lastIntent).toBe("status");
+    expect(resultB.intent).toBe("status");
   });
 });
 

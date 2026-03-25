@@ -67,6 +67,10 @@ export function createMirrorRouter() {
           return;
         }
         const registry = getNodeMirrorRegistry();
+        if (!registry.getMirror(payload.nodeId)) {
+          res.status(404).json({ error: `Node "${payload.nodeId}" not found` });
+          return;
+        }
         const deltas = registry.handleCapSync(payload);
         res.json({ nodeId: payload.nodeId, deltaCount: deltas.length, deltas });
       } catch (err: any) {
@@ -86,6 +90,10 @@ export function createMirrorRouter() {
           return;
         }
         const registry = getNodeMirrorRegistry();
+        if (!registry.getMirror(payload.nodeId)) {
+          res.status(404).json({ error: `Node "${payload.nodeId}" not found` });
+          return;
+        }
         const deltas = registry.handleExpressiveSync(payload);
         res.json({ nodeId: payload.nodeId, deltaCount: deltas.length, deltas });
       } catch (err: any) {
@@ -105,6 +113,10 @@ export function createMirrorRouter() {
           return;
         }
         const registry = getNodeMirrorRegistry();
+        if (!registry.getMirror(payload.nodeId)) {
+          res.status(404).json({ error: `Node "${payload.nodeId}" not found` });
+          return;
+        }
         registry.handleProfileSync(payload);
         res.json({ nodeId: payload.nodeId, synced: true });
       } catch (err: any) {

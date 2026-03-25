@@ -13,8 +13,8 @@
  * Safe mode overlay is applied separately downstream.
  */
 
-import type { StrategyEvaluation, KernelPosture } from "./types";
-import { DEFAULT_KERNEL_POSTURE as DEFAULTS } from "./types";
+import type { StrategyEvaluation, KernelPosture, MicroPosture, AlignmentDriftResult } from "./types";
+import { DEFAULT_KERNEL_POSTURE as DEFAULTS, SubPosture } from "./types";
 import { applySafeModeToPosture } from "./safeMode";
 
 const ANCHOR_HIGH = 92;
@@ -56,4 +56,43 @@ export function selectPosture(
   };
 
   return applySafeModeToPosture(posture);
+}
+
+// ── Sub-Posture Selection ───────────────────────────────────────────
+
+export interface SubPostureContext {
+  operatorTrustScore: number;
+  cognitiveLoad: number;
+  creativeTask: boolean;
+  sensitiveOperator: boolean;
+}
+
+export function selectSubPosture(
+  alignment: number,
+  drift: AlignmentDriftResult,
+  operatorTrust: number,
+  context: SubPostureContext = { operatorTrustScore: 0, cognitiveLoad: 0, creativeTask: false, sensitiveOperator: false },
+): SubPosture {
+  if (alignment < 50) return SubPosture.DEFENSIVE;
+  if (drift.drifting && Math.abs(drift.delta) > 10) return SubPosture.DEFENSIVE;
+  if (context.sensitiveOperator) return SubPosture.SENSITIVE;
+  if (context.creativeTask) return SubPosture.CREATIVE;
+  if (context.cognitiveLoad > 0.7) return SubPosture.ANALYTIC;
+  if (operatorTrust >= 85) return SubPosture.SUPPORTIVE;
+  return SubPosture.NONE;
+}
+
+// ── Micro-Posture (continuous modulation) ────────────────────────────
+
+export function computeMicroPosture(
+  alignment: number,
+  confidence: number,
+  drift: AlignmentDriftResult,
+): MicroPosture {
+  const driftDampen = drift.drifting ? 0.15 : 0;
+  return {
+    responsiveness: clamp01(alignment / 100),
+    caution: clamp01(1 - alignment / 100 + driftDampen),
+    expressiveness: clamp01(confidence / 100 - driftDampen),
+  };
 }

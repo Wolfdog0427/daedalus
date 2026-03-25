@@ -38,7 +38,7 @@ export class IncidentService {
     this.incidents.push(incident);
 
     getDaedalusEventBus().publish({
-      type: "GOVERNANCE_OVERRIDE_APPLIED",
+      type: "INCIDENT_OPENED",
       timestamp: nowIso(),
       summary: `Incident opened: ${incident.title} [${incident.severity}]`,
     });

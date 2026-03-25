@@ -6,6 +6,7 @@ import { StatusCard } from '../components/StatusCard';
 import { TrustMeter } from '../components/TrustMeter';
 import { PostureSelector } from '../components/PostureSelector';
 import { QuickActions } from '../components/QuickActions';
+import { ExpressiveCard } from '../components/ExpressiveCard';
 import { colors, spacing } from '../theme';
 
 interface HomeScreenProps {
@@ -58,6 +59,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateChat, onNaviga
           calibrated={systemStatus.trustPosture === 'trusted_canonical'}
           operatorName={systemStatus.operatorName}
         />
+      )}
+
+      {systemStatus?.expressive && (
+        <ExpressiveCard expressive={systemStatus.expressive} />
       )}
 
       <QuickActions

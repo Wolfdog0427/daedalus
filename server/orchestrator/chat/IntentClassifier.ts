@@ -120,8 +120,9 @@ export function classifyIntent(input: string, ctx: ChatContext): IntentResult {
   }
 
   ctx.consecutiveUncertain = 0;
-  ctx.lastIntent = bestIntent;
-  ctx.lastTopic = normalized;
+  // Do NOT overwrite ctx.lastIntent here — ChatService.processMessage
+  // updates it after routing, so follow-up/clarification intents can
+  // still read the *previous* turn's intent for chaining.
 
   return { intent: bestIntent, confidence, topic: normalized };
 }

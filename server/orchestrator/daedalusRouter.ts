@@ -18,6 +18,7 @@ import {
 } from "../../shared/daedalus/contracts";
 import { validateBeingConstitution } from "../../shared/daedalus/beingConstitution";
 import { computeBehavioralField } from "../../shared/daedalus/behavioralGrammar";
+import { setOperatorCue, getOperatorCue, setContext, getContext } from "../../kernel/src";
 
 export const daedalusRouter = express.Router();
 export const getStrategyService = () => strategyService;
@@ -108,7 +109,7 @@ daedalusRouter.get("/strategy", (_req: Request, res: Response) => {
     const evaluation = strategyService.getCachedEvaluation();
     const tick = strategyService.getLastTickResult();
     if (!evaluation) {
-      res.json({ name: "pending", confidence: 0, alignment: 0, posture: null, drift: null, selfCorrected: false, trend: null, escalation: null, safeMode: null });
+      res.json({ name: "pending", confidence: 0, alignment: 0, alignmentBreakdown: { sovereignty: 0, identity: 0, governance: 0, stability: 0 }, posture: null, drift: null, selfCorrected: false, trend: null, escalation: null, safeMode: null, expressive: null });
       return;
     }
     res.json({
@@ -119,11 +120,84 @@ daedalusRouter.get("/strategy", (_req: Request, res: Response) => {
       trend: tick?.trend ?? null,
       escalation: tick?.escalation ?? null,
       safeMode: tick?.safeMode ?? null,
+      expressive: tick?.expressive ?? null,
     });
   } catch (err: any) {
     console.error("[daedalus] /strategy error:", err?.message);
     res.status(500).json({ error: err?.message ?? "Failed to evaluate strategy" });
   }
+});
+
+/**
+ * POST /daedalus/operator/cue
+ * Allows the operator to send an explicit expressive cue (posture bias,
+ * sub-posture override, overlay override). Respects constitutional limits.
+ */
+daedalusRouter.post("/operator/cue", (req: Request, res: Response) => {
+  try {
+    const { cue } = req.body ?? {};
+    if (!cue || typeof cue !== "object") {
+      res.status(400).json({ error: "Missing or invalid cue object" });
+      return;
+    }
+    setOperatorCue(cue);
+    getDaedalusEventBus().publish({
+      type: "OPERATOR_CUE_UPDATED",
+      timestamp: new Date().toISOString(),
+      summary: `Operator cue set: postureBias=${cue.postureBias ?? "none"}, subPostureBias=${cue.subPostureBias ?? "none"}, overlayBias=${cue.overlayBias ?? "none"}`,
+    });
+    res.json({ ok: true, activeCue: getOperatorCue() });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to set operator cue" });
+  }
+});
+
+daedalusRouter.delete("/operator/cue", (_req: Request, res: Response) => {
+  setOperatorCue(null);
+  getDaedalusEventBus().publish({
+    type: "OPERATOR_CUE_UPDATED",
+    timestamp: new Date().toISOString(),
+    summary: "Operator cue cleared",
+  });
+  res.json({ ok: true, activeCue: null });
+});
+
+daedalusRouter.get("/operator/cue", (_req: Request, res: Response) => {
+  res.json({ activeCue: getOperatorCue() });
+});
+
+/**
+ * POST /daedalus/context
+ * Sets the current task/environment context for expressive modulation.
+ */
+const VALID_TASK_TYPES = ["analysis", "creative", "review", "sensitive", "idle"];
+const VALID_ENVIRONMENTS = ["normal", "crisis", "handoff", "recovery"];
+
+daedalusRouter.post("/context", (req: Request, res: Response) => {
+  try {
+    const body = req.body ?? {};
+    if (body.taskType && !VALID_TASK_TYPES.includes(body.taskType)) {
+      res.status(400).json({ error: `Invalid taskType. Must be one of: ${VALID_TASK_TYPES.join(", ")}` });
+      return;
+    }
+    if (body.environment && !VALID_ENVIRONMENTS.includes(body.environment)) {
+      res.status(400).json({ error: `Invalid environment. Must be one of: ${VALID_ENVIRONMENTS.join(", ")}` });
+      return;
+    }
+    const updated = setContext(body);
+    getDaedalusEventBus().publish({
+      type: "CONTEXT_UPDATED",
+      timestamp: new Date().toISOString(),
+      summary: `Context updated: taskType=${updated.taskType}, environment=${updated.environment}`,
+    });
+    res.json({ ok: true, context: updated });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to set context" });
+  }
+});
+
+daedalusRouter.get("/context", (_req: Request, res: Response) => {
+  res.json(getContext());
 });
 
 /**
@@ -161,6 +235,7 @@ daedalusRouter.get("/alignment-config", (_req: Request, res: Response) => {
  */
 daedalusRouter.post("/alignment-config", (req: Request, res: Response) => {
   try {
+    if (!requireUnfrozen(res)) return;
     const gate = strategyService.gateHighRiskAction("alignment_config_change");
     if (!gate.allowed) {
       res.status(403).json({ error: "High-risk action denied", reasons: gate.reasons });
@@ -228,6 +303,7 @@ daedalusRouter.get("/proposals/history", (_req: Request, res: Response) => {
  */
 daedalusRouter.post("/proposals/:id/approve", (req: Request, res: Response) => {
   try {
+    if (!requireUnfrozen(res)) return;
     const result = strategyService.approveDaedalusProposal(req.params.id);
     if (!result) {
       res.status(404).json({ error: "Proposal not found or already resolved" });
@@ -265,6 +341,7 @@ daedalusRouter.post("/proposals/:id/deny", (req: Request, res: Response) => {
  */
 daedalusRouter.post("/propose-change", (req: Request, res: Response) => {
   try {
+    if (!requireUnfrozen(res)) return;
     const body = req.body ?? {};
     if (!body.kind || !body.description) {
       res.status(400).json({ error: "Missing required fields: kind, description" });

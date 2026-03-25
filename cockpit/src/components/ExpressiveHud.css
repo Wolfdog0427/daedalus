@@ -873,6 +873,21 @@
   color: #8b949e;
 }
 
+/* ── Expressive Physiology ────────────────────────────────────── */
+
+.xhud-expressive {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.xhud-cue-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
 /* ── Responsive ───────────────────────────────────────────────── */
 
 @media (max-width: 520px) {

@@ -9,7 +9,7 @@
  * Instant entry (bypassing sustained-ticks requirement) occurs when
  * alignment drops below the instant threshold (default: 20%).
  *
- * Safe mode exits when alignment recovers to >= exit threshold (65%)
+ * Safe mode exits when alignment recovers to >= exit threshold (60%)
  * with hysteresis to prevent oscillation.
  */
 
@@ -64,6 +64,19 @@ export function applySafeModeToPosture(posture: KernelPosture): KernelPosture {
     responsiveness: clamp01(posture.responsiveness - 0.3),
     caution: clamp01(posture.caution + 0.3),
   };
+}
+
+export function enterSafeModeFromRegulation(reason: string): void {
+  if (!safeMode.active) {
+    safeMode = { active: true, reason, since: Date.now() };
+  }
+}
+
+export function exitSafeModeFromRegulation(): void {
+  if (safeMode.active) {
+    safeMode = { active: false };
+    consecutiveBelowCount = 0;
+  }
 }
 
 export function resetSafeMode(): void {

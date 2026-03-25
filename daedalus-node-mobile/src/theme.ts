@@ -30,6 +30,8 @@ export const colors = {
   purple: '#8B5CF6',
   purpleDim: 'rgba(139, 92, 246, 0.12)',
 
+  dim: '#6C7299',
+
   buttonBg: '#1C2140',
   buttonBgActive: '#252B52',
 } as const;

@@ -7,7 +7,9 @@
  *    accelerating drift.
  *
  * This is a pure function layer — it does NOT mutate global state. The kernel
- * integrates the returned decision into posture, safe mode, and escalation.
+ * integrates the returned decision into posture and governance signals
+ * (shouldEnterSafeMode, shouldExitSafeMode, shouldPauseAutonomy, shouldResumeAutonomy)
+ * via tickKernel wiring to safeMode.ts enter/exit functions.
  *
  * Drift metrics (magnitude, slope, acceleration) are computed from alignment
  * history, giving the regulation loop a second-order view of system dynamics.
