@@ -5,11 +5,8 @@
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
       "backgroundColor": "#05060A"
     },
     "assetBundlePatterns": [
@@ -18,9 +15,12 @@
     "android": {
       "package": "com.daedalus.node.mobile",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#05060A"
       }
+    },
+    "ios": {
+      "bundleIdentifier": "com.daedalus.node.mobile",
+      "supportsTablet": false
     },
     "extra": {
       "orchestratorUrl": "http://10.0.2.2:3001"

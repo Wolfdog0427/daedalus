@@ -1,25 +1,69 @@
 import React from 'react';
-import { SafeAreaView, View, Text, StyleSheet, StatusBar } from 'react-native';
+import { SafeAreaView, View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { DaedalusProvider } from './src/daedalus/DaedalusProvider';
-import { DaedalusPanel } from './src/daedalus/node/DaedalusPanel';
-import { DaedalusDebugStrip } from './src/daedalus/node/DaedalusDebugStrip';
 import { useDaedalus } from './src/daedalus/useDaedalus';
+import { ConnectionBar } from './src/components/ConnectionBar';
+import { HomeScreen } from './src/screens/HomeScreen';
+import { ChatScreen } from './src/screens/ChatScreen';
+import { NodeScreen } from './src/screens/NodeScreen';
+import { colors, spacing, fonts } from './src/theme';
 
-const Home: React.FC = () => {
-  const { posture, identity, continuity, notify } = useDaedalus();
+type Tab = 'home' | 'chat' | 'node';
+
+interface TabDef {
+  id: Tab;
+  label: string;
+  icon: string;
+}
+
+const TABS: TabDef[] = [
+  { id: 'home', label: 'Home', icon: '\u25C9' },
+  { id: 'chat', label: 'Chat', icon: '\u2731' },
+  { id: 'node', label: 'Node', icon: '\u2666' },
+];
+
+const TabBar: React.FC<{ active: Tab; onSelect: (t: Tab) => void }> = ({ active, onSelect }) => (
+  <View style={styles.tabBar}>
+    {TABS.map(tab => {
+      const isActive = active === tab.id;
+      return (
+        <TouchableOpacity
+          key={tab.id}
+          style={styles.tab}
+          onPress={() => onSelect(tab.id)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.tabIcon, isActive && styles.tabIconActive]}>{tab.icon}</Text>
+          <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
+          {isActive && <View style={styles.tabIndicator} />}
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+);
+
+const AppContent: React.FC = () => {
+  const [tab, setTab] = React.useState<Tab>('home');
+  const { posture, identity, continuity, notify, connection } = useDaedalus();
 
   React.useEffect(() => {
     posture.setProfile('default.comfort');
     identity.setAnchor('operator', 'Wolfdog');
-    continuity.markEvent('app.home.mounted', { at: Date.now() });
-    notify.info('Daedalus node mobile online', { surface: 'home' });
-  }, [posture, identity, continuity, notify]);
+    continuity.markEvent('app.launched', { at: Date.now() });
+    notify.info('Daedalus node mobile online', { surface: 'app' });
+  }, []);
 
   return (
-    <View style={styles.content}>
-      <Text style={styles.title}>Daedalus Node — Mobile</Text>
-      <DaedalusPanel />
-      <DaedalusDebugStrip />
+    <View style={styles.flex}>
+      <ConnectionBar status={connection} />
+
+      <View style={styles.flex}>
+        {tab === 'home' && <HomeScreen onNavigateChat={() => setTab('chat')} />}
+        {tab === 'chat' && <ChatScreen />}
+        {tab === 'node' && <NodeScreen />}
+      </View>
+
+      <TabBar active={tab} onSelect={setTab} />
     </View>
   );
 };
@@ -28,8 +72,8 @@ export default function App() {
   return (
     <DaedalusProvider>
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" />
-        <Home />
+        <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
+        <AppContent />
       </SafeAreaView>
     </DaedalusProvider>
   );
@@ -38,17 +82,47 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#05060A',
+    backgroundColor: colors.bg,
   },
-  content: {
+  flex: {
     flex: 1,
-    paddingTop: 32,
-    paddingHorizontal: 16,
   },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 16,
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingBottom: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: spacing.xs + 2,
+    position: 'relative',
+  },
+  tabIcon: {
+    fontSize: 18,
+    color: colors.textFaint,
+  },
+  tabIconActive: {
+    color: colors.accent,
+  },
+  tabLabel: {
+    fontSize: fonts.micro,
+    color: colors.textFaint,
+    fontWeight: '500',
+  },
+  tabLabelActive: {
+    color: colors.accent,
+  },
+  tabIndicator: {
+    position: 'absolute',
+    top: 0,
+    width: 20,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.accent,
   },
 });

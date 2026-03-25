@@ -6,6 +6,7 @@
 /* ── Background gradient ──────────────────────────────────── */
 
 .daedalus-orchestrator-panel {
+  position: relative;
   background: var(--surface-background, linear-gradient(180deg, #0a0a0a 0%, #000 100%));
   transition: background 600ms ease;
 }

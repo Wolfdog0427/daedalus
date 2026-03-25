@@ -55,6 +55,7 @@ const ALL_EVENT_TYPES: string[] = [
   "MIRROR_NODE_CAP_SYNCED",
   "MIRROR_NODE_EXPRESSIVE_SYNCED",
   "MIRROR_NODE_PROFILE_SYNCED",
+  "OPERATOR_CHAT_MESSAGE",
 ];
 
 export function DaedalusEventsProvider({ children }: { children: React.ReactNode }) {

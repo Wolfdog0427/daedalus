@@ -16,11 +16,15 @@ const TYPE_COLORS: Record<string, string> = {
 export function EventHistoryPanel() {
   const [events, setEvents] = useState<any[]>([]);
   const [filter, setFilter] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
       setEvents(await fetchEventHistory(200, filter || undefined));
-    } catch { /* ignore */ }
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load events");
+    }
   }, [filter]);
 
   useEffect(() => {
@@ -50,6 +54,8 @@ export function EventHistoryPanel() {
         </select>
         <span style={{ color: "#888", fontSize: 12 }}>{events.length} events</span>
       </div>
+
+      {error && <p style={{ color: "#f85149", fontSize: 12, margin: "4px 0 8px" }}>{error}</p>}
 
       <div style={{ maxHeight: 300, overflowY: "auto" }}>
         {events.length === 0 && <p style={{ color: "#666", fontStyle: "italic" }}>No events yet</p>}

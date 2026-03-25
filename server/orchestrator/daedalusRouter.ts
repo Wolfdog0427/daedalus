@@ -7,6 +7,7 @@ import { createMirrorRouter } from "./mirror/MirrorRoutes";
 import { incidentService } from "./governance/IncidentService";
 import { actionLog } from "./governance/ActionLog";
 import { strategyService } from "./strategy/StrategyService";
+import { processMessage, getChatHistory, clearChatHistory, getWelcomeMessage } from "./chat/ChatService";
 import {
   BeingPresenceDetail,
   CapabilityTrace,
@@ -553,27 +554,32 @@ daedalusRouter.get("/nodes", (_req: Request, res: Response) => {
 daedalusRouter.get(
   "/capabilities/trace",
   (req: Request, res: Response<CapabilityTrace | { error: string }>) => {
-    const { nodeId, capabilityName } = req.query as {
-      nodeId?: string;
-      capabilityName?: string;
-    };
+    try {
+      const { nodeId, capabilityName } = req.query as {
+        nodeId?: string;
+        capabilityName?: string;
+      };
 
-    if (!nodeId || !capabilityName) {
-      res.status(400).json({
-        error: "Missing required query params: nodeId, capabilityName",
-      });
-      return;
+      if (!nodeId || !capabilityName) {
+        res.status(400).json({
+          error: "Missing required query params: nodeId, capabilityName",
+        });
+        return;
+      }
+
+      const trace = daedalusStore.getCapabilityTrace(nodeId, capabilityName);
+      if (!trace) {
+        res.status(404).json({
+          error: `No trace available for capability "${capabilityName}" on node "${nodeId}".`,
+        });
+        return;
+      }
+
+      res.json(trace);
+    } catch (err: any) {
+      console.error("[daedalus] /capabilities/trace error:", err?.message);
+      res.status(500).json({ error: err?.message ?? "Failed to fetch capability trace" });
     }
-
-    const trace = daedalusStore.getCapabilityTrace(nodeId, capabilityName);
-    if (!trace) {
-      res.status(404).json({
-        error: `No trace available for capability "${capabilityName}" on node "${nodeId}".`,
-      });
-      return;
-    }
-
-    res.json(trace);
   },
 );
 
@@ -584,21 +590,26 @@ daedalusRouter.get(
 daedalusRouter.post(
   "/negotiations/preview",
   (req: Request, res: Response<NegotiationPreview | { error: string }>) => {
-    const input = req.body as NegotiationInput;
-    if (!input || !input.targetNodeId || !input.capabilityName || !input.requestedBy) {
-      res.status(400).json({ error: "Invalid negotiation input payload." });
-      return;
-    }
+    try {
+      const input = req.body as NegotiationInput;
+      if (!input || !input.targetNodeId || !input.capabilityName || !input.requestedBy) {
+        res.status(400).json({ error: "Invalid negotiation input payload." });
+        return;
+      }
 
-    const preview = daedalusStore.previewNegotiation(input);
-    if (!preview) {
-      res.status(404).json({
-        error: `Node "${input.targetNodeId}" not found for negotiation preview.`,
-      });
-      return;
-    }
+      const preview = daedalusStore.previewNegotiation(input);
+      if (!preview) {
+        res.status(404).json({
+          error: `Node "${input.targetNodeId}" not found for negotiation preview.`,
+        });
+        return;
+      }
 
-    res.json(preview);
+      res.json(preview);
+    } catch (err: any) {
+      console.error("[daedalus] /negotiations/preview error:", err?.message);
+      res.status(500).json({ error: err?.message ?? "Failed to preview negotiation" });
+    }
   },
 );
 
@@ -609,21 +620,26 @@ daedalusRouter.post(
 daedalusRouter.post(
   "/negotiations/apply",
   (req: Request, res: Response<NegotiationApplyResult | { error: string }>) => {
-    const input = req.body as NegotiationInput;
-    if (!input || !input.targetNodeId || !input.capabilityName || !input.requestedBy) {
-      res.status(400).json({ error: "Invalid negotiation input payload." });
-      return;
-    }
+    try {
+      const input = req.body as NegotiationInput;
+      if (!input || !input.targetNodeId || !input.capabilityName || !input.requestedBy) {
+        res.status(400).json({ error: "Invalid negotiation input payload." });
+        return;
+      }
 
-    const result = daedalusStore.applyNegotiation(input);
-    if (!result) {
-      res.status(404).json({
-        error: `Node "${input.targetNodeId}" not found for negotiation apply.`,
-      });
-      return;
-    }
+      const result = daedalusStore.applyNegotiation(input);
+      if (!result) {
+        res.status(404).json({
+          error: `Node "${input.targetNodeId}" not found for negotiation apply.`,
+        });
+        return;
+      }
 
-    res.json(result);
+      res.json(result);
+    } catch (err: any) {
+      console.error("[daedalus] /negotiations/apply error:", err?.message);
+      res.status(500).json({ error: err?.message ?? "Failed to apply negotiation" });
+    }
   },
 );
 
@@ -633,8 +649,13 @@ daedalusRouter.post(
  */
 daedalusRouter.get(
   "/beings/presence",
-  (_req: Request, res: Response<BeingPresenceDetail[]>) => {
-    res.json(daedalusStore.getBeingPresences());
+  (_req: Request, res: Response<BeingPresenceDetail[] | { error: string }>) => {
+    try {
+      res.json(daedalusStore.getBeingPresences());
+    } catch (err: any) {
+      console.error("[daedalus] /beings/presence error:", err?.message);
+      res.status(500).json({ error: err?.message ?? "Failed to fetch beings" });
+    }
   },
 );
 
@@ -645,12 +666,17 @@ daedalusRouter.get(
 daedalusRouter.get(
   "/beings/:id/presence",
   (req: Request, res: Response<BeingPresenceDetail | { error: string }>) => {
-    const presence = daedalusStore.getBeingPresence(req.params.id);
-    if (!presence) {
-      res.status(404).json({ error: `Being "${req.params.id}" not found.` });
-      return;
+    try {
+      const presence = daedalusStore.getBeingPresence(req.params.id);
+      if (!presence) {
+        res.status(404).json({ error: `Being "${req.params.id}" not found.` });
+        return;
+      }
+      res.json(presence);
+    } catch (err: any) {
+      console.error("[daedalus] /beings/:id/presence error:", err?.message);
+      res.status(500).json({ error: err?.message ?? "Failed to fetch being" });
     }
-    res.json(presence);
   },
 );
 
@@ -678,89 +704,180 @@ daedalusRouter.put(
 // ── Event History ─────────────────────────────────────────────────────
 
 daedalusRouter.get("/events/history", (req: Request, res: Response) => {
-  const limit = parseInt(req.query.limit as string, 10) || 100;
-  const type = req.query.type as string | undefined;
-  const bus = getDaedalusEventBus();
-  if (type) {
-    res.json(bus.getHistoryByType(type as any, limit));
-  } else {
-    res.json(bus.getHistory(limit));
+  try {
+    const limit = parseInt(req.query.limit as string, 10) || 100;
+    const type = req.query.type as string | undefined;
+    const bus = getDaedalusEventBus();
+    if (type) {
+      res.json(bus.getHistoryByType(type as any, limit));
+    } else {
+      res.json(bus.getHistory(limit));
+    }
+  } catch (err: any) {
+    console.error("[daedalus] /events/history error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch event history" });
   }
 });
 
 // ── Incidents ─────────────────────────────────────────────────────────
 
 daedalusRouter.get("/incidents", (_req: Request, res: Response) => {
-  const status = _req.query.status as string | undefined;
-  res.json(incidentService.listIncidents(status ? { status: status as any } : undefined));
+  try {
+    const status = _req.query.status as string | undefined;
+    res.json(incidentService.listIncidents(status ? { status: status as any } : undefined));
+  } catch (err: any) {
+    console.error("[daedalus] /incidents GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to list incidents" });
+  }
 });
 
 daedalusRouter.get("/incidents/:id", (req: Request, res: Response) => {
-  const incident = incidentService.getIncident(req.params.id);
-  if (!incident) {
-    res.status(404).json({ error: "Incident not found" });
-    return;
+  try {
+    const incident = incidentService.getIncident(req.params.id);
+    if (!incident) {
+      res.status(404).json({ error: "Incident not found" });
+      return;
+    }
+    res.json(incident);
+  } catch (err: any) {
+    console.error("[daedalus] /incidents/:id GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to get incident" });
   }
-  res.json(incident);
 });
 
 daedalusRouter.post("/incidents", (req: Request, res: Response) => {
-  const { title, notes, severity } = req.body;
-  if (!title || !severity) {
-    res.status(400).json({ error: "Missing required fields: title, severity" });
-    return;
+  try {
+    const { title, notes, severity } = req.body;
+    if (!title || !severity) {
+      res.status(400).json({ error: "Missing required fields: title, severity" });
+      return;
+    }
+    const validSeverities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+    if (!validSeverities.includes(severity)) {
+      res.status(400).json({ error: "Invalid severity" });
+      return;
+    }
+    const incident = incidentService.openIncident({ title, notes, severity });
+    actionLog.record("OPEN_INCIDENT", { id: incident.id, title, severity });
+    res.status(201).json(incident);
+  } catch (err: any) {
+    console.error("[daedalus] /incidents POST error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to open incident" });
   }
-  const validSeverities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
-  if (!validSeverities.includes(severity)) {
-    res.status(400).json({ error: "Invalid severity" });
-    return;
-  }
-  const incident = incidentService.openIncident({ title, notes, severity });
-  actionLog.record("OPEN_INCIDENT", { id: incident.id, title, severity });
-  res.status(201).json(incident);
 });
 
 daedalusRouter.patch("/incidents/:id", (req: Request, res: Response) => {
-  const updated = incidentService.updateIncident(req.params.id, req.body);
-  if (!updated) {
-    res.status(404).json({ error: "Incident not found" });
-    return;
+  try {
+    const updated = incidentService.updateIncident(req.params.id, req.body);
+    if (!updated) {
+      res.status(404).json({ error: "Incident not found" });
+      return;
+    }
+    actionLog.record("UPDATE_INCIDENT", { id: updated.id, ...req.body }, false);
+    res.json(updated);
+  } catch (err: any) {
+    console.error("[daedalus] /incidents/:id PATCH error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to update incident" });
   }
-  actionLog.record("UPDATE_INCIDENT", { id: updated.id, ...req.body }, false);
-  res.json(updated);
 });
 
 daedalusRouter.post("/incidents/:id/resolve", (req: Request, res: Response) => {
-  const resolved = incidentService.resolveIncident(req.params.id);
-  if (!resolved) {
-    res.status(404).json({ error: "Incident not found" });
-    return;
+  try {
+    const resolved = incidentService.resolveIncident(req.params.id);
+    if (!resolved) {
+      res.status(404).json({ error: "Incident not found" });
+      return;
+    }
+    res.json(resolved);
+  } catch (err: any) {
+    console.error("[daedalus] /incidents/:id/resolve error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to resolve incident" });
   }
-  res.json(resolved);
 });
 
 daedalusRouter.delete("/incidents/resolved", (_req: Request, res: Response) => {
-  const cleared = incidentService.clearResolved();
-  res.json({ cleared });
+  try {
+    const cleared = incidentService.clearResolved();
+    res.json({ cleared });
+  } catch (err: any) {
+    console.error("[daedalus] /incidents/resolved DELETE error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to clear resolved incidents" });
+  }
 });
 
 // ── Action Log & Undo ─────────────────────────────────────────────────
 
 daedalusRouter.get("/actions", (req: Request, res: Response) => {
-  const limit = parseInt(req.query.limit as string, 10) || 50;
-  res.json(actionLog.list(limit));
+  try {
+    const limit = parseInt(req.query.limit as string, 10) || 50;
+    res.json(actionLog.list(limit));
+  } catch (err: any) {
+    console.error("[daedalus] /actions GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to list actions" });
+  }
 });
 
 daedalusRouter.post("/actions/:id/undo", (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) {
-    res.status(400).json({ error: "Invalid action ID" });
-    return;
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid action ID" });
+      return;
+    }
+    const result = actionLog.undo(id);
+    if (!result.success) {
+      res.status(400).json({ error: result.reason });
+      return;
+    }
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("[daedalus] /actions/:id/undo error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to undo action" });
   }
-  const result = actionLog.undo(id);
-  if (!result.success) {
-    res.status(400).json({ error: result.reason });
-    return;
+});
+
+// ── Chat ──────────────────────────────────────────────────────────────
+
+daedalusRouter.post("/chat", (req: Request, res: Response) => {
+  try {
+    const { content } = req.body;
+    if (!content || typeof content !== "string" || !content.trim()) {
+      res.status(400).json({ error: "Message content is required" });
+      return;
+    }
+    const result = processMessage(content.trim());
+    res.json(result);
+  } catch (err: any) {
+    console.error("[daedalus] /chat POST error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to process chat message" });
   }
-  res.json({ success: true });
+});
+
+daedalusRouter.get("/chat/history", (req: Request, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string, 10) || 100;
+    res.json(getChatHistory(limit));
+  } catch (err: any) {
+    console.error("[daedalus] /chat/history GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch chat history" });
+  }
+});
+
+daedalusRouter.delete("/chat/history", (_req: Request, res: Response) => {
+  try {
+    clearChatHistory();
+    res.json({ cleared: true });
+  } catch (err: any) {
+    console.error("[daedalus] /chat/history DELETE error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to clear chat history" });
+  }
+});
+
+daedalusRouter.get("/chat/welcome", (_req: Request, res: Response) => {
+  try {
+    res.json(getWelcomeMessage());
+  } catch (err: any) {
+    console.error("[daedalus] /chat/welcome GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to get welcome message" });
+  }
 });

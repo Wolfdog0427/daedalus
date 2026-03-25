@@ -730,3 +730,42 @@ export async function undoAction(actionId: number): Promise<{ success: boolean }
   });
   return handleJson<{ success: boolean }>(res);
 }
+
+// ── Chat ──────────────────────────────────────────────────────────────
+
+export type ChatRole = "operator" | "daedalus" | "system";
+
+export interface ChatMessage {
+  id: string;
+  role: ChatRole;
+  content: string;
+  timestamp: string;
+  context?: Record<string, unknown>;
+}
+
+export async function sendChatMessage(content: string): Promise<{ userMessage: ChatMessage; daedalusMessage: ChatMessage }> {
+  const res = await fetch(`${basePath}/chat`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ content }),
+  });
+  return handleJson<{ userMessage: ChatMessage; daedalusMessage: ChatMessage }>(res);
+}
+
+export async function fetchChatHistory(limit = 100): Promise<ChatMessage[]> {
+  const res = await fetch(`${basePath}/chat/history?limit=${limit}`, { headers: authHeaders() });
+  return handleJson<ChatMessage[]>(res);
+}
+
+export async function clearChat(): Promise<void> {
+  const res = await fetch(`${basePath}/chat/history`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  await handleVoid(res);
+}
+
+export async function fetchChatWelcome(): Promise<ChatMessage> {
+  const res = await fetch(`${basePath}/chat/welcome`, { headers: authHeaders() });
+  return handleJson<ChatMessage>(res);
+}

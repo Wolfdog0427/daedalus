@@ -126,3 +126,248 @@
 .hr__badge--allowed { background: rgba(76, 175, 80, 0.12); color: #4caf50; }
 .hr__badge--denied { background: rgba(248, 81, 73, 0.12); color: #f85149; }
 .hr__reasons { color: #8b949e; font-size: 0.62rem; margin-left: auto; }
+
+/* ── Control Row ──────────────────────────────────────── */
+.operator-trust-panel__control-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.operator-trust-panel__ctrl-btn {
+  flex: 1;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.operator-trust-panel__ctrl-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.operator-trust-panel__ctrl-btn--freeze {
+  background: rgba(210, 153, 34, 0.08);
+  border-color: rgba(210, 153, 34, 0.25);
+  color: #d29922;
+}
+
+.operator-trust-panel__ctrl-btn--freeze:hover:not(:disabled) {
+  background: rgba(210, 153, 34, 0.15);
+  border-color: rgba(210, 153, 34, 0.4);
+}
+
+.operator-trust-panel__ctrl-btn--unbind {
+  background: rgba(248, 81, 73, 0.06);
+  border-color: rgba(248, 81, 73, 0.2);
+  color: #f85149;
+}
+
+.operator-trust-panel__ctrl-btn--unbind:hover:not(:disabled) {
+  background: rgba(248, 81, 73, 0.12);
+  border-color: rgba(248, 81, 73, 0.35);
+}
+
+/* ── Binding Ritual ───────────────────────────────────── */
+.bind-ritual {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bind-ritual__prompt {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  background: rgba(88, 166, 255, 0.04);
+  border: 1px solid rgba(88, 166, 255, 0.12);
+  border-radius: 10px;
+}
+
+.bind-ritual__icon {
+  font-size: 24px;
+  color: #58a6ff;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.bind-ritual__prompt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: #c3c7e0;
+}
+
+.bind-ritual__prompt-text strong {
+  color: var(--text, #e6edf3);
+}
+
+.bind-ritual__step-title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text, #e6edf3);
+}
+
+.bind-ritual__step-desc {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #8b949e;
+  line-height: 1.5;
+}
+
+.bind-ritual__step-desc strong {
+  color: #58a6ff;
+}
+
+.bind-ritual__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bind-ritual__label {
+  font-size: 0.68rem;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bind-ritual__input {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  background: #161b22;
+  color: var(--text, #e6edf3);
+  font-size: 0.84rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bind-ritual__input:focus {
+  border-color: rgba(88, 166, 255, 0.4);
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.08);
+}
+
+.bind-ritual__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.bind-ritual__btn {
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.bind-ritual__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bind-ritual__btn--primary {
+  background: rgba(88, 166, 255, 0.12);
+  border-color: rgba(88, 166, 255, 0.3);
+  color: #58a6ff;
+}
+
+.bind-ritual__btn--primary:hover:not(:disabled) {
+  background: rgba(88, 166, 255, 0.2);
+  border-color: rgba(88, 166, 255, 0.5);
+}
+
+.bind-ritual__btn--secondary {
+  background: transparent;
+  border-color: #30363d;
+  color: #8b949e;
+}
+
+.bind-ritual__btn--secondary:hover {
+  background: rgba(48, 54, 61, 0.3);
+  border-color: #484f58;
+}
+
+.bind-ritual__confirm-box {
+  background: rgba(48, 54, 61, 0.15);
+  border: 1px solid rgba(48, 54, 61, 0.4);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bind-ritual__confirm-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.bind-ritual__confirm-row span {
+  color: #8b949e;
+}
+
+.bind-ritual__confirm-row strong {
+  color: var(--text, #e6edf3);
+}
+
+.bind-ritual__error {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #f85149;
+}
+
+.bind-ritual__progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  justify-content: center;
+  color: #8b949e;
+  font-size: 0.82rem;
+}
+
+.bind-ritual__spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(88, 166, 255, 0.2);
+  border-top-color: #58a6ff;
+  animation: bind-spin 0.8s linear infinite;
+}
+
+@keyframes bind-spin {
+  to { transform: rotate(360deg); }
+}
+
+.bind-ritual__success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(76, 175, 80, 0.08);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: #4caf50;
+}
+
+.bind-ritual__success-icon {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.bind-ritual__success strong {
+  color: var(--text, #e6edf3);
+}

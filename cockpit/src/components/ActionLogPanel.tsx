@@ -16,11 +16,15 @@ const KIND_LABELS: Record<string, string> = {
 export function ActionLogPanel() {
   const [actions, setActions] = useState<ActionEntry[]>([]);
   const [undoing, setUndoing] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
       setActions(await fetchActions(50));
-    } catch { /* ignore */ }
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load actions");
+    }
   }, []);
 
   useEffect(() => {
@@ -33,14 +37,19 @@ export function ActionLogPanel() {
     setUndoing(id);
     try {
       await undoAction(id);
+      setError(null);
       await refresh();
-    } catch { /* ignore */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to undo action");
+    }
     setUndoing(null);
   };
 
   return (
     <div style={{ border: "1px solid #333", borderRadius: 8, padding: 16, margin: "8px 0", background: "#1a1a2e" }}>
       <h3 style={{ margin: "0 0 12px", color: "#e0e0e0" }}>Action Log</h3>
+
+      {error && <p style={{ color: "#f85149", fontSize: 12, margin: "0 0 8px" }}>{error}</p>}
 
       <div style={{ maxHeight: 250, overflowY: "auto" }}>
         {actions.length === 0 && <p style={{ color: "#666", fontStyle: "italic" }}>No actions recorded yet</p>}

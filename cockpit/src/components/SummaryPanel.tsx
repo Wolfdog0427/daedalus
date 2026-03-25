@@ -10,11 +10,15 @@ const URGENCY_STYLES: Record<string, { bg: string; border: string; label: string
 
 export function SummaryPanel() {
   const [summary, setSummary] = useState<CockpitSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
       setSummary(await fetchCockpitSummary());
-    } catch { /* ignore */ }
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load summary");
+    }
   }, []);
 
   useEffect(() => {
@@ -22,6 +26,15 @@ export function SummaryPanel() {
     const iv = setInterval(refresh, 3000);
     return () => clearInterval(iv);
   }, [refresh]);
+
+  if (error) {
+    return (
+      <div style={{ border: "2px solid #f85149", borderRadius: 8, padding: 16, margin: "8px 0", background: "#2d1b1b" }}>
+        <h3 style={{ margin: "0 0 8px", color: "#e0e0e0" }}>System Status</h3>
+        <p style={{ color: "#f85149", fontSize: 13, margin: 0 }}>{error}</p>
+      </div>
+    );
+  }
 
   if (!summary) return null;
 

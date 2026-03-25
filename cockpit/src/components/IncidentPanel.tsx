@@ -21,11 +21,15 @@ export function IncidentPanel() {
   const [severity, setSeverity] = useState("MEDIUM");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
       setIncidents(await fetchIncidents());
-    } catch { /* ignore */ }
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load incidents");
+    }
   }, []);
 
   useEffect(() => {
@@ -41,16 +45,22 @@ export function IncidentPanel() {
       await openIncident({ title: title.trim(), notes: notes.trim() || undefined, severity });
       setTitle("");
       setNotes("");
+      setError(null);
       await refresh();
-    } catch { /* ignore */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to open incident");
+    }
     setLoading(false);
   };
 
   const handleResolve = async (id: string) => {
     try {
       await resolveIncident(id);
+      setError(null);
       await refresh();
-    } catch { /* ignore */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resolve incident");
+    }
   };
 
   const open = incidents.filter((i) => i.status !== "resolved");
@@ -59,6 +69,8 @@ export function IncidentPanel() {
   return (
     <div style={{ border: "1px solid #333", borderRadius: 8, padding: 16, margin: "8px 0", background: "#1a1a2e" }}>
       <h3 style={{ margin: "0 0 12px", color: "#e0e0e0" }}>Incidents</h3>
+
+      {error && <p style={{ color: "#f85149", fontSize: 12, margin: "0 0 8px" }}>{error}</p>}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         <input

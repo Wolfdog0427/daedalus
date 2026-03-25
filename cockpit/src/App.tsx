@@ -12,31 +12,35 @@ import { ApprovalGatePanel } from './components/ApprovalGatePanel';
 import { RegulationPanel } from './components/RegulationPanel';
 import { ChangeRegistryPanel } from './components/ChangeRegistryPanel';
 import { OperatorTrustPanel } from './components/OperatorTrustPanel';
+import { DaedalusChatPanel } from './components/DaedalusChatPanel';
 
 export function App() {
   return (
-    <Layout>
-      <SummaryPanel />
-      <DaedalusOrchestratorPanel />
-      <div className="grid-row-2col">
-        <StrategyPanel />
-        <IncidentPanel />
-      </div>
-      <CockpitNodeListPanel />
-      <OperatorTrustPanel />
-      <div className="grid-row-2col">
-        <AlignmentControls />
-        <ConstitutionPanel />
-      </div>
-      <div className="grid-row-2col">
-        <RegulationPanel />
-        <ApprovalGatePanel />
-      </div>
-      <ChangeRegistryPanel />
-      <div className="grid-row-2col">
-        <EventHistoryPanel />
-        <ActionLogPanel />
-      </div>
-    </Layout>
+    <>
+      <Layout>
+        <SummaryPanel />
+        <DaedalusOrchestratorPanel />
+        <div className="grid-row-2col">
+          <StrategyPanel />
+          <IncidentPanel />
+        </div>
+        <CockpitNodeListPanel />
+        <OperatorTrustPanel />
+        <div className="grid-row-2col">
+          <AlignmentControls />
+          <ConstitutionPanel />
+        </div>
+        <div className="grid-row-2col">
+          <RegulationPanel />
+          <ApprovalGatePanel />
+        </div>
+        <ChangeRegistryPanel />
+        <div className="grid-row-2col">
+          <EventHistoryPanel />
+          <ActionLogPanel />
+        </div>
+      </Layout>
+      <DaedalusChatPanel />
+    </>
   );
 }
