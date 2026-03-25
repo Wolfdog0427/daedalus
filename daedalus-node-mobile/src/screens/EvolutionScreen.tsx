@@ -135,17 +135,58 @@ function DaedalusProposalCard({ proposal, onApprove, onDeny }: { proposal: Daeda
         </View>
         <Text style={s.dpAge}>{ageStr}</Text>
       </View>
+      {/* Recommendation banner */}
+      {(() => {
+        const pass = (proposal.alignment >= 85 ? 1 : 0) + (proposal.confidence >= 80 ? 1 : 0) + (proposal.impact === 'low' ? 1 : 0) + (!proposal.touchesInvariants ? 1 : 0) + (proposal.reversible ? 1 : 0);
+        const level = (pass >= 4 && !proposal.touchesInvariants && proposal.reversible) ? 'safe' : (proposal.touchesInvariants || !proposal.reversible || proposal.impact === 'high') ? 'caution' : 'review';
+        const label = level === 'safe' ? 'Low Risk' : level === 'caution' ? 'Review Carefully' : 'Moderate Risk';
+        const color = level === 'safe' ? colors.green : level === 'caution' ? colors.red : colors.yellow;
+        return (
+          <View style={[s.dpRec, { borderColor: color + '33', backgroundColor: color + '0A' }]}>
+            <Text style={[s.dpRecLabel, { color }]}>{label}</Text>
+            <Text style={[s.dpRecDetail, { color }]}>{pass}/5 axes pass</Text>
+          </View>
+        );
+      })()}
+
       <Text style={s.dpDesc}>{proposal.description}</Text>
       <Text style={s.dpRationale}>{proposal.rationale}</Text>
+
+      {/* Alignment & Confidence */}
       <View style={s.dpMetrics}>
-        <Text style={[s.dpMetric, { color: alColor }]}>A: {proposal.alignment}%</Text>
-        <Text style={[s.dpMetric, { color: coColor }]}>C: {proposal.confidence}%</Text>
+        <Text style={[s.dpMetric, { color: alColor }]}>Alignment: {proposal.alignment}%</Text>
+        <Text style={[s.dpMetric, { color: coColor }]}>Confidence: {proposal.confidence}%</Text>
         <View style={[s.impactBadge, proposal.impact === 'low' ? s.impactLow : proposal.impact === 'medium' ? s.impactMedium : s.impactHigh]}>
           <Text style={[s.impactText, proposal.impact === 'low' ? s.impactTextLow : proposal.impact === 'medium' ? s.impactTextMed : s.impactTextHigh]}>
             {proposal.impact.toUpperCase()}
           </Text>
         </View>
       </View>
+
+      {/* Safety axes */}
+      <View style={s.dpAxes}>
+        <Text style={[s.dpAxisBadge, { color: proposal.touchesInvariants ? colors.red : colors.green }]}>
+          {proposal.touchesInvariants ? '⚠ Invariants' : '✓ Invariants'}
+        </Text>
+        <Text style={[s.dpAxisBadge, { color: proposal.reversible ? colors.green : colors.red }]}>
+          {proposal.reversible ? '✓ Reversible' : '⚠ Irreversible'}
+        </Text>
+      </View>
+
+      {/* Payload: what will change */}
+      {Object.keys(proposal.payload ?? {}).length > 0 && (
+        <View style={s.dpPayload}>
+          <Text style={s.dpPayloadTitle}>Proposed changes</Text>
+          {Object.entries(proposal.payload).map(([k, v]) => (
+            <View key={k} style={s.dpPayloadRow}>
+              <Text style={s.dpPayloadKey}>{k.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}</Text>
+              <Text style={s.dpPayloadArrow}>→</Text>
+              <Text style={s.dpPayloadVal}>{typeof v === 'number' ? (Number.isInteger(v) ? String(v) : (v as number).toFixed(3)) : String(v)}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       <View style={s.dpActions}>
         <TouchableOpacity style={s.dpApprove} onPress={() => onApprove(proposal.id)} activeOpacity={0.7}>
           <Text style={s.dpApproveText}>Approve</Text>
@@ -455,6 +496,17 @@ const s = StyleSheet.create({
   dpRationale: { fontSize: fonts.small, color: colors.textMuted, lineHeight: 18, paddingLeft: spacing.sm, borderLeftWidth: 2, borderLeftColor: 'rgba(88,166,255,0.2)' },
   dpMetrics: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   dpMetric: { fontSize: fonts.body, fontWeight: '700' },
+  dpRec: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.sm, borderWidth: 1 },
+  dpRecLabel: { fontSize: fonts.micro, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 } as any,
+  dpRecDetail: { fontSize: fonts.caption, opacity: 0.85 },
+  dpAxes: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
+  dpAxisBadge: { fontSize: fonts.caption, fontWeight: '600' },
+  dpPayload: { backgroundColor: 'rgba(0,0,0,0.2)', borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.sm },
+  dpPayloadTitle: { fontSize: fonts.micro, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 4 } as any,
+  dpPayloadRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dpPayloadKey: { fontSize: fonts.caption, color: colors.textSecondary, fontWeight: '500' },
+  dpPayloadArrow: { fontSize: fonts.caption, color: colors.accent },
+  dpPayloadVal: { fontSize: fonts.caption, color: colors.accent, fontWeight: '700' },
   dpActions: { flexDirection: 'row', gap: spacing.sm },
   dpApprove: { flex: 1, paddingVertical: 10, borderRadius: radius.md, backgroundColor: 'rgba(63,185,80,0.1)', borderWidth: 1, borderColor: 'rgba(63,185,80,0.3)', alignItems: 'center' },
   dpApproveText: { color: colors.green, fontWeight: '600', fontSize: fonts.body },

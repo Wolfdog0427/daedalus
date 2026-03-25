@@ -348,6 +348,8 @@ export interface DaedalusProposal {
   createdAt: number;
   status: "pending" | "approved" | "denied" | "expired" | "auto_approved";
   resolvedAt?: number;
+  effectBaseline?: number;
+  effectAfter?: number;
 }
 
 export interface ProposalHistoryEntry {

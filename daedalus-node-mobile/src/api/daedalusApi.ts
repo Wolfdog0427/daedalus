@@ -178,8 +178,12 @@ export interface DaedalusProposal {
   touchesInvariants: boolean;
   reversible: boolean;
   autoApprovable: boolean;
+  payload: Record<string, unknown>;
   createdAt: number;
   status: 'pending' | 'approved' | 'denied' | 'expired' | 'auto_approved';
+  resolvedAt?: number;
+  effectBaseline?: number;
+  effectAfter?: number;
 }
 
 export interface ProposalHistoryEntry {

@@ -91,6 +91,41 @@ function AxesBadge({ label, ok }: { label: string; ok: boolean }) {
   );
 }
 
+/* ── Helpers ────────────────────────────────────────────────────── */
+
+function formatPayloadKey(key: string): string {
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/_/g, " ")
+    .replace(/^\w/, c => c.toUpperCase())
+    .trim();
+}
+
+function formatPayloadValue(val: unknown): string {
+  if (typeof val === "number") return Number.isInteger(val) ? String(val) : val.toFixed(3);
+  if (typeof val === "boolean") return val ? "Yes" : "No";
+  return String(val);
+}
+
+type RecommendationLevel = "safe" | "review" | "caution";
+
+function computeRecommendation(p: DaedalusProposal): { level: RecommendationLevel; label: string; detail: string } {
+  const passCount =
+    (p.alignment >= 85 ? 1 : 0) +
+    (p.confidence >= 80 ? 1 : 0) +
+    (p.impact === "low" ? 1 : 0) +
+    (!p.touchesInvariants ? 1 : 0) +
+    (p.reversible ? 1 : 0);
+
+  if (passCount >= 4 && !p.touchesInvariants && p.reversible) {
+    return { level: "safe", label: "Low Risk", detail: `${passCount}/5 axes pass — safe to approve` };
+  }
+  if (p.touchesInvariants || !p.reversible || p.impact === "high") {
+    return { level: "caution", label: "Review Carefully", detail: `${passCount}/5 axes pass — ${p.touchesInvariants ? "touches invariants" : !p.reversible ? "irreversible" : "high impact"}` };
+  }
+  return { level: "review", label: "Moderate Risk", detail: `${passCount}/5 axes pass — some concerns` };
+}
+
 /* ── Daedalus Proposal Card ─────────────────────────────────────── */
 
 function DaedalusProposalCard({
@@ -104,9 +139,17 @@ function DaedalusProposalCard({
 }) {
   const age = Math.round((Date.now() - proposal.createdAt) / 1000);
   const ageStr = age < 60 ? `${age}s ago` : `${Math.round(age / 60)}m ago`;
+  const rec = computeRecommendation(proposal);
+  const payloadEntries = Object.entries(proposal.payload ?? {});
 
   return (
-    <div className="evo-daedalus-card">
+    <div className={`evo-daedalus-card ${rec.level === "caution" ? "evo-daedalus-card--caution" : ""}`}>
+      {/* Recommendation banner */}
+      <div className={`evo-rec evo-rec--${rec.level}`}>
+        <span className="evo-rec__label">{rec.label}</span>
+        <span className="evo-rec__detail">{rec.detail}</span>
+      </div>
+
       <div className="evo-daedalus-card__header">
         <div className="evo-daedalus-card__left">
           <span className="evo-daedalus-card__icon">◈</span>
@@ -122,17 +165,53 @@ function DaedalusProposalCard({
       <p className="evo-daedalus-card__desc">{proposal.description}</p>
       <p className="evo-daedalus-card__rationale">{proposal.rationale}</p>
 
-      <div className="evo-daedalus-card__metrics">
-        <AlignmentBar value={proposal.alignment} label="Alignment" />
-        <AlignmentBar value={proposal.confidence} label="Confidence" />
+      {/* Decision data grid */}
+      <div className="evo-daedalus-card__grid">
+        <div className="evo-daedalus-card__metrics">
+          <AlignmentBar value={proposal.alignment} label="Alignment" />
+          <AlignmentBar value={proposal.confidence} label="Confidence" />
+        </div>
+
+        {proposal.effectBaseline != null && (
+          <div className="evo-baseline">
+            <span className="evo-baseline__label">Baseline when proposed:</span>
+            <span className="evo-baseline__val">{proposal.effectBaseline}%</span>
+          </div>
+        )}
       </div>
 
+      {/* What will change */}
+      {payloadEntries.length > 0 && (
+        <div className="evo-payload">
+          <span className="evo-payload__title">Proposed changes</span>
+          <div className="evo-payload__list">
+            {payloadEntries.map(([key, val]) => (
+              <div className="evo-payload__item" key={key}>
+                <span className="evo-payload__key">{formatPayloadKey(key)}</span>
+                <span className="evo-payload__arrow">→</span>
+                <span className="evo-payload__val">{formatPayloadValue(val)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Safety axes */}
       <div className="evo-daedalus-card__axes">
+        <span className={`evo-axis ${proposal.alignment >= 85 ? "evo-axis--ok" : "evo-axis--warn"}`}>
+          {proposal.alignment >= 85 ? "✓" : "⚠"} Alignment {proposal.alignment >= 85 ? "≥85" : "<85"}
+        </span>
+        <span className={`evo-axis ${proposal.confidence >= 80 ? "evo-axis--ok" : "evo-axis--warn"}`}>
+          {proposal.confidence >= 80 ? "✓" : "⚠"} Confidence {proposal.confidence >= 80 ? "≥80" : "<80"}
+        </span>
         <span className={`evo-axis ${proposal.touchesInvariants ? "evo-axis--warn" : "evo-axis--ok"}`}>
           {proposal.touchesInvariants ? "⚠ Touches Invariants" : "✓ Invariants Safe"}
         </span>
         <span className={`evo-axis ${proposal.reversible ? "evo-axis--ok" : "evo-axis--warn"}`}>
           {proposal.reversible ? "✓ Reversible" : "⚠ Irreversible"}
+        </span>
+        <span className={`evo-axis ${proposal.impact === "low" ? "evo-axis--ok" : proposal.impact === "medium" ? "evo-axis--neutral" : "evo-axis--warn"}`}>
+          {proposal.impact === "low" ? "✓" : proposal.impact === "medium" ? "~" : "⚠"} Impact: {proposal.impact}
         </span>
         {proposal.autoApprovable && (
           <span className="evo-axis evo-axis--auto">Auto-approvable</span>
@@ -191,6 +270,8 @@ function HistoryRow({ entry }: { entry: ProposalHistoryEntry }) {
         ? "evo-hist--denied"
         : "evo-hist--expired";
 
+  const statusLabel = entry.status === "auto_approved" ? "auto" : entry.status;
+
   const deltaColor =
     entry.effectDelta == null
       ? "#6c7299"
@@ -203,14 +284,24 @@ function HistoryRow({ entry }: { entry: ProposalHistoryEntry }) {
   return (
     <div className={`evo-hist-row ${statusClass}`}>
       <div className="evo-hist-row__top">
-        <span className="evo-hist-row__title">{entry.title}</span>
-        <span className="evo-hist-row__status">{entry.status.replace("_", " ")}</span>
+        <div className="evo-hist-row__title-row">
+          <span className="evo-hist-row__title">{entry.title}</span>
+          <KindBadge kind={entry.kind} />
+        </div>
+        <span className="evo-hist-row__status">{statusLabel}</span>
       </div>
       <div className="evo-hist-row__meta">
         <ImpactBadge impact={entry.impact} />
         <span className="evo-hist-row__time">{time}</span>
         <span className="evo-hist-row__score">A:{entry.alignment}%</span>
+        <span className="evo-hist-row__score">C:{entry.confidence}%</span>
       </div>
+      {(entry.effectBaseline != null || entry.effectAfter != null) && (
+        <div className="evo-hist-row__baseline">
+          {entry.effectBaseline != null && <span>Before: {entry.effectBaseline}%</span>}
+          {entry.effectAfter != null && <span>After: {entry.effectAfter}%</span>}
+        </div>
+      )}
       {entry.effectDelta != null && (
         <div className="evo-hist-row__effect">
           <span className="evo-hist-row__effect-label">Effect</span>
