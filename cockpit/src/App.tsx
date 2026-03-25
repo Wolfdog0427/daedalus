@@ -20,8 +20,8 @@ export function App() {
     <>
       <Layout>
         <SummaryPanel />
-        <EvolutionPanel />
         <DaedalusOrchestratorPanel />
+        <EvolutionPanel />
         <div className="grid-row-2col">
           <StrategyPanel />
           <IncidentPanel />
