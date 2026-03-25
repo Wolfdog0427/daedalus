@@ -332,6 +332,14 @@ export async function updateApprovalGateConfig(patch: Partial<ApprovalGateConfig
 
 // ── Daedalus-Initiated Proposals ─────────────────────────────────
 
+export interface ProposalParameterChange {
+  parameter: string;
+  displayName: string;
+  currentValue: unknown;
+  proposedValue: unknown;
+  unit?: string;
+}
+
 export interface DaedalusProposal {
   id: string;
   kind: string;
@@ -345,6 +353,9 @@ export interface DaedalusProposal {
   reversible: boolean;
   autoApprovable: boolean;
   payload: Record<string, unknown>;
+  parameterChanges: ProposalParameterChange[];
+  operatorImpact: string;
+  boundaries: string[];
   createdAt: number;
   status: "pending" | "approved" | "denied" | "expired" | "auto_approved";
   resolvedAt?: number;
@@ -494,6 +505,7 @@ export interface RollbackRegistrySnapshot {
   recentRollbacks: RollbackEvent[];
   acceptedCount: number;
   rolledBackCount: number;
+  evictedCount: number;
 }
 
 export async function fetchRollbackRegistry(): Promise<RollbackRegistrySnapshot> {

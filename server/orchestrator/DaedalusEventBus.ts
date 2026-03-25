@@ -1,8 +1,6 @@
 import type { PostureState, BeingVote, BeingPresenceDetail } from "../../shared/daedalus/contracts";
 
 export type DaedalusEventType =
-  | "NODE_GLOW_UPDATED"
-  | "NODE_RISK_UPDATED"
   | "NEGOTIATION_COMPLETED"
   | "POSTURE_CHANGED"
   | "GOVERNANCE_OVERRIDE_APPLIED"
@@ -36,6 +34,7 @@ export type DaedalusEventType =
   | "OPERATOR_CHAT_MESSAGE"
   | "DAEDALUS_PROPOSAL_CREATED"
   | "DAEDALUS_PROPOSAL_APPROVED"
+  | "DAEDALUS_PROPOSAL_APPLIED"
   | "DAEDALUS_PROPOSAL_DENIED";
 
 export interface DaedalusEventPayload {

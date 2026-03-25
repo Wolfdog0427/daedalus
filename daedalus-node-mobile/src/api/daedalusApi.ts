@@ -70,11 +70,13 @@ async function del<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+let mobileSessionId = `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
 export async function sendChatMessage(content: string): Promise<{
   userMessage: ChatMessage;
   daedalusMessage: ChatMessage;
 }> {
-  return post('/chat', { content });
+  return post('/chat', { message: content, sessionId: mobileSessionId });
 }
 
 export async function fetchChatHistory(limit = 100): Promise<ChatMessage[]> {
@@ -94,13 +96,13 @@ export async function fetchSystemStatus(): Promise<SystemStatus> {
     get<any>('/strategy').catch(() => null),
     get<any>('/operator/trust').catch(() => null),
     get<any>('/governance/posture').catch(() => null),
-    get<any>('/mirror/nodes').catch(() => null),
+    get<any>('/nodes').catch(() => null),
   ]);
 
   const nodeList: any[] = Array.isArray(nodes) ? nodes : [];
 
   return {
-    strategy: strategy?.strategy ?? 'unknown',
+    strategy: strategy?.name ?? 'unknown',
     alignment: strategy?.alignment ?? 0,
     confidence: strategy?.confidence ?? 0,
     operatorBound: !!trust?.boundOperatorId,
@@ -115,6 +117,28 @@ export async function fetchSystemStatus(): Promise<SystemStatus> {
     governancePosture: governance?.posture ?? 'OPEN',
     lastUpdated: new Date().toISOString(),
   };
+}
+
+export async function ensureOperatorBound(operatorId: string, displayName: string): Promise<void> {
+  try {
+    const trust = await get<any>('/operator/trust').catch(() => null);
+    if (trust?.boundOperatorId) return;
+    await post('/operator/bind', {
+      id: operatorId,
+      displayName,
+      values: {
+        operatorSovereignty: true,
+        noSilentRepoShifts: true,
+        explicitNotification: true,
+        constitutionalGovernance: true,
+        longHorizonStability: true,
+      },
+      continuityAnchors: [],
+      risk: { allowExperimentalNodes: true, allowAutoApproval: true, preferSafetyOverConvenience: true },
+    });
+  } catch {
+    // Non-fatal: operator binding is best-effort on startup
+  }
 }
 
 export type ChangeProposalKind =
@@ -166,6 +190,14 @@ export interface RollbackRegistrySnapshot {
   rolledBackCount: number;
 }
 
+export interface ProposalParameterChange {
+  parameter: string;
+  displayName: string;
+  currentValue: unknown;
+  proposedValue: unknown;
+  unit?: string;
+}
+
 export interface DaedalusProposal {
   id: string;
   kind: string;
@@ -179,6 +211,9 @@ export interface DaedalusProposal {
   reversible: boolean;
   autoApprovable: boolean;
   payload: Record<string, unknown>;
+  parameterChanges: ProposalParameterChange[];
+  operatorImpact: string;
+  boundaries: string[];
   createdAt: number;
   status: 'pending' | 'approved' | 'denied' | 'expired' | 'auto_approved';
   resolvedAt?: number;

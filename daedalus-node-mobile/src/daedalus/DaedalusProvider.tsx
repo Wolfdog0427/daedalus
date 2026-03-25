@@ -9,6 +9,7 @@ import {
   fetchChatWelcome,
   sendChatMessage,
   clearChatHistory as apiClearChat,
+  ensureOperatorBound,
   type SystemStatus,
   type ChatMessage,
 } from '../api/daedalusApi';
@@ -64,6 +65,7 @@ export const DaedalusProvider: React.FC<React.PropsWithChildren> = ({ children }
 
     heartbeatLoop();
     statusLoop();
+    ensureOperatorBound(IDENTITY.operator ?? 'operator', IDENTITY.operator ?? 'Operator').catch(() => {});
 
     return () => { alive = false; };
   }, []);

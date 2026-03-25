@@ -27,6 +27,7 @@ let activeChanges: AppliedChangeRecord[] = [];
 let recentRollbacks: RollbackEvent[] = [];
 let acceptedCount = 0;
 let rolledBackCount = 0;
+let evictedCount = 0;
 let currentTickCounter = 0;
 
 let rollbackConfig: RollbackConfig = { ...DEFAULT_ROLLBACK_CONFIG };
@@ -48,8 +49,8 @@ export function registerChange(
   if (activeChanges.length >= rollbackConfig.maxActiveChanges) {
     const oldest = activeChanges.shift();
     if (oldest) {
-      oldest.status = "accepted";
-      acceptedCount++;
+      oldest.status = "evicted";
+      evictedCount++;
       rollbackCallbacks.delete(oldest.id);
     }
   }
@@ -152,6 +153,7 @@ export function getRollbackRegistrySnapshot(): RollbackRegistrySnapshot {
     recentRollbacks: [...recentRollbacks],
     acceptedCount,
     rolledBackCount,
+    evictedCount,
   };
 }
 
@@ -187,6 +189,7 @@ export function resetRollbackRegistry(): void {
   recentRollbacks = [];
   acceptedCount = 0;
   rolledBackCount = 0;
+  evictedCount = 0;
   currentTickCounter = 0;
   rollbackConfig = { ...DEFAULT_ROLLBACK_CONFIG } as RollbackConfig;
   rollbackCallbacks = new Map();

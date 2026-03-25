@@ -16,6 +16,7 @@ import {
   interpretIntent,
   resetIntentState,
   computeAlignmentEscalation,
+  resetEscalation,
   computeIdentityContinuity,
   resetIdentityState,
   getLastIdentitySnapshot,
@@ -159,6 +160,7 @@ describe("Intent Interpreter Feedback Loop", () => {
     resetDispatcher();
     kernelTelemetry.clear();
     resetSafeMode();
+    resetEscalation();
     resetIdentityState();
     const result = tickKernel(mkContext(), { ...DEFAULT_KERNEL_CONFIG }, baseInput);
     expect(result.intent).not.toBeNull();
@@ -170,6 +172,7 @@ describe("Intent Interpreter Feedback Loop", () => {
     resetDispatcher();
     kernelTelemetry.clear();
     resetSafeMode();
+    resetEscalation();
     resetIdentityState();
     const result = tickKernel(mkContext());
     expect(result.intent).toBeNull();
@@ -179,6 +182,10 @@ describe("Intent Interpreter Feedback Loop", () => {
 // ── Block 2: Alignment-Aware Escalation Rules ───────────────────────
 
 describe("Alignment-Aware Escalation Rules", () => {
+  beforeEach(() => {
+    resetEscalation();
+  });
+
   test("none when alignment >= 70", () => {
     const result = computeAlignmentEscalation(mkEvaluation(85));
     expect(result.level).toBe("none");
@@ -223,6 +230,7 @@ describe("Alignment-Aware Escalation Rules", () => {
     resetDispatcher();
     kernelTelemetry.clear();
     resetSafeMode();
+    resetEscalation();
     resetIdentityState();
 
     const result = tickKernel(mkContext({
@@ -283,6 +291,7 @@ describe("Configurable Alignment Floor", () => {
     resetDispatcher();
     kernelTelemetry.clear();
     resetSafeMode();
+    resetEscalation();
     resetIdentityState();
 
     const config: KernelRuntimeConfig = {
@@ -301,6 +310,7 @@ describe("Alignment Event Stream", () => {
     resetDispatcher();
     kernelTelemetry.clear();
     resetSafeMode();
+    resetEscalation();
     resetIdentityState();
   });
 
@@ -432,6 +442,7 @@ describe("Identity Continuity Checks", () => {
     resetDispatcher();
     kernelTelemetry.clear();
     resetSafeMode();
+    resetEscalation();
 
     const result = tickKernel(mkContext());
     expect(result.strategy.alignmentBreakdown.identity).toBeDefined();
@@ -588,6 +599,7 @@ describe("Telemetry Snapshot Shape (all blocks)", () => {
     resetDispatcher();
     kernelTelemetry.clear();
     resetSafeMode();
+    resetEscalation();
     resetIdentityState();
   });
 

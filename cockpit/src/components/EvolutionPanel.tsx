@@ -8,6 +8,7 @@ import {
   submitChangeProposal,
   fetchRollbackRegistry,
   type DaedalusProposal,
+  type ProposalParameterChange,
   type ProposalHistoryEntry,
   type ApprovalGateResponse,
   type ApprovalDecision,
@@ -126,6 +127,22 @@ function computeRecommendation(p: DaedalusProposal): { level: RecommendationLeve
   return { level: "review", label: "Moderate Risk", detail: `${passCount}/5 axes pass — some concerns` };
 }
 
+/* ── Parameter Change Row ───────────────────────────────────────── */
+
+function ParameterChangeRow({ change }: { change: ProposalParameterChange }) {
+  return (
+    <div className="evo-param-change">
+      <div className="evo-param-change__name">{change.displayName}</div>
+      <div className="evo-param-change__values">
+        <span className="evo-param-change__current">{formatPayloadValue(change.currentValue)}</span>
+        <span className="evo-param-change__arrow">→</span>
+        <span className="evo-param-change__proposed">{formatPayloadValue(change.proposedValue)}</span>
+      </div>
+      {change.unit && <div className="evo-param-change__unit">{change.unit}</div>}
+    </div>
+  );
+}
+
 /* ── Daedalus Proposal Card ─────────────────────────────────────── */
 
 function DaedalusProposalCard({
@@ -140,6 +157,9 @@ function DaedalusProposalCard({
   const age = Math.round((Date.now() - proposal.createdAt) / 1000);
   const ageStr = age < 60 ? `${age}s ago` : `${Math.round(age / 60)}m ago`;
   const rec = computeRecommendation(proposal);
+  const paramChanges = proposal.parameterChanges ?? [];
+  const boundaries = proposal.boundaries ?? [];
+  const operatorImpact = proposal.operatorImpact ?? "";
   const payloadEntries = Object.entries(proposal.payload ?? {});
 
   return (
@@ -165,23 +185,20 @@ function DaedalusProposalCard({
       <p className="evo-daedalus-card__desc">{proposal.description}</p>
       <p className="evo-daedalus-card__rationale">{proposal.rationale}</p>
 
-      {/* Decision data grid */}
-      <div className="evo-daedalus-card__grid">
-        <div className="evo-daedalus-card__metrics">
-          <AlignmentBar value={proposal.alignment} label="Alignment" />
-          <AlignmentBar value={proposal.confidence} label="Confidence" />
-        </div>
-
-        {proposal.effectBaseline != null && (
-          <div className="evo-baseline">
-            <span className="evo-baseline__label">Baseline when proposed:</span>
-            <span className="evo-baseline__val">{proposal.effectBaseline}%</span>
+      {/* Exact parameter changes with before/after */}
+      {paramChanges.length > 0 && (
+        <div className="evo-changes-section">
+          <div className="evo-changes-section__header">
+            <span className="evo-changes-section__icon">⚙</span>
+            <span className="evo-changes-section__title">Exact Changes (Current → Proposed)</span>
           </div>
-        )}
-      </div>
+          <div className="evo-changes-section__list">
+            {paramChanges.map(c => <ParameterChangeRow key={c.parameter} change={c} />)}
+          </div>
+        </div>
+      )}
 
-      {/* What will change */}
-      {payloadEntries.length > 0 && (
+      {paramChanges.length === 0 && payloadEntries.length > 0 && (
         <div className="evo-payload">
           <span className="evo-payload__title">Proposed changes</span>
           <div className="evo-payload__list">
@@ -195,6 +212,44 @@ function DaedalusProposalCard({
           </div>
         </div>
       )}
+
+      {/* What this means for you */}
+      {operatorImpact && (
+        <div className="evo-operator-impact">
+          <div className="evo-operator-impact__header">
+            <span className="evo-operator-impact__icon">👤</span>
+            <span className="evo-operator-impact__title">What This Changes For You</span>
+          </div>
+          <p className="evo-operator-impact__text">{operatorImpact}</p>
+        </div>
+      )}
+
+      {/* What this does NOT change */}
+      {boundaries.length > 0 && (
+        <div className="evo-boundaries">
+          <div className="evo-boundaries__header">
+            <span className="evo-boundaries__icon">🔒</span>
+            <span className="evo-boundaries__title">What This Does NOT Change</span>
+          </div>
+          <ul className="evo-boundaries__list">
+            {boundaries.map((b, i) => <li key={i} className="evo-boundaries__item">{b}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* Decision metrics */}
+      <div className="evo-daedalus-card__grid">
+        <div className="evo-daedalus-card__metrics">
+          <AlignmentBar value={proposal.alignment} label="Alignment" />
+          <AlignmentBar value={proposal.confidence} label="Confidence" />
+        </div>
+        {proposal.effectBaseline != null && (
+          <div className="evo-baseline">
+            <span className="evo-baseline__label">Baseline when proposed:</span>
+            <span className="evo-baseline__val">{proposal.effectBaseline}%</span>
+          </div>
+        )}
+      </div>
 
       {/* Safety axes */}
       <div className="evo-daedalus-card__axes">

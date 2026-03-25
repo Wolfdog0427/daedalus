@@ -1,8 +1,14 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
-import { daedalusRouter } from "./daedalusRouter";
+import { daedalusRouter, getStrategyService } from "./daedalusRouter";
 import { requireAuth } from "./middleware/auth";
 import { rateLimit } from "./middleware/rateLimit";
+import { getNodeMirrorRegistry } from "./mirror/NodeMirror";
+import { governanceService } from "./governance/GovernanceService";
+
+const TICK_INTERVAL_MS = parseInt(process.env.DAEDALUS_TICK_MS ?? "5000", 10);
+
+let tickTimer: ReturnType<typeof setInterval> | null = null;
 
 export const createOrchestratorApp = () => {
   const app = express();
@@ -32,6 +38,18 @@ export const createOrchestratorApp = () => {
       message: process.env.NODE_ENV === "production" ? undefined : err.message,
     });
   });
+
+  if (!tickTimer) {
+    tickTimer = setInterval(() => {
+      try {
+        getStrategyService().evaluate();
+        getNodeMirrorRegistry().sweepStaleHeartbeats?.();
+        governanceService.sweepExpired?.();
+      } catch (e: any) {
+        console.error("[daedalus] Background tick error:", e?.message);
+      }
+    }, TICK_INTERVAL_MS);
+  }
 
   return app;
 };

@@ -114,6 +114,46 @@ export interface KernelTelemetrySnapshot {
   operatorTrust: OperatorTrustCockpitSnapshot;
 }
 
+// ── Unified Alignment Policy ──────────────────────────────────────────
+// Single source of truth for all alignment thresholds across the kernel.
+// Every module reads from this instead of defining its own literals.
+
+export interface AlignmentPolicy {
+  gatePassThreshold: number;
+  gateCautiousThreshold: number;
+  gateHysteresisUp: number;
+  gateHysteresisDown: number;
+  escalationCriticalThreshold: number;
+  escalationHighThreshold: number;
+  escalationMediumThreshold: number;
+  safeModeEnterThreshold: number;
+  safeModeExitThreshold: number;
+  safeModeInstantThreshold: number;
+  safeModeEnterSustainedTicks: number;
+  driftWindow: number;
+  driftThreshold: number;
+  selfCorrectionWindow: number;
+  selfCorrectionFloorDefault: number;
+}
+
+export const DEFAULT_ALIGNMENT_POLICY: Readonly<AlignmentPolicy> = Object.freeze({
+  gatePassThreshold: 80,
+  gateCautiousThreshold: 60,
+  gateHysteresisUp: 2,
+  gateHysteresisDown: 2,
+  escalationCriticalThreshold: 50,
+  escalationHighThreshold: 60,
+  escalationMediumThreshold: 70,
+  safeModeEnterThreshold: 50,
+  safeModeExitThreshold: 60,
+  safeModeInstantThreshold: 20,
+  safeModeEnterSustainedTicks: 3,
+  driftWindow: 40,
+  driftThreshold: 7,
+  selfCorrectionWindow: 20,
+  selfCorrectionFloorDefault: 75,
+});
+
 // ── Kernel Runtime Config ─────────────────────────────────────────────
 
 export interface KernelRuntimeConfig {
@@ -291,7 +331,7 @@ export interface AppliedChangeRecord {
   surfaces: ChangeSurface[];
   impact: ChangeImpact;
   rollbackPayload: Record<string, unknown>;
-  status: "active" | "accepted" | "rolled_back";
+  status: "active" | "accepted" | "rolled_back" | "evicted";
 }
 
 export type ChangeOutcomeReason = "improved" | "neutral" | "degraded" | "window_not_reached";
@@ -315,6 +355,7 @@ export interface RollbackRegistrySnapshot {
   recentRollbacks: RollbackEvent[];
   acceptedCount: number;
   rolledBackCount: number;
+  evictedCount: number;
 }
 
 export interface RollbackConfig {
@@ -325,7 +366,7 @@ export interface RollbackConfig {
 }
 
 export const DEFAULT_ROLLBACK_CONFIG: Readonly<RollbackConfig> = Object.freeze({
-  degradationThreshold: 7,
+  degradationThreshold: 5,
   defaultEvaluationWindow: 100,
   maxActiveChanges: 20,
   maxRollbackHistory: 50,
@@ -354,7 +395,7 @@ export interface RegulationConfig {
 export const DEFAULT_REGULATION_CONFIG: Readonly<RegulationConfig> = Object.freeze({
   targetAlignment: 92,
   floorAlignment: 70,
-  microGain: 0.08,
+  microGain: 0.12,
   macroGain: 0.5,
   macroDamping: 0.7,
   macroDriftThreshold: 18,
@@ -452,7 +493,7 @@ export interface OperatorTrustConfig {
 export const DEFAULT_OPERATOR_TRUST_CONFIG: Readonly<OperatorTrustConfig> = Object.freeze({
   riseRate: 1.0,
   fallRate: 5.0,
-  calibrationThreshold: 75,
+  calibrationThreshold: 70,
   highRiskTrustThreshold: 85,
   weights: Object.freeze({
     credentials: 3,

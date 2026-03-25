@@ -117,12 +117,21 @@ const PROPOSAL_KIND_META: Record<string, { label: string; color: string }> = {
   self_assessment: { label: 'Self-Check', color: '#bc8cff' },
 };
 
+function fmtVal(v: unknown): string {
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : (v as number).toFixed(3);
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  return String(v);
+}
+
 function DaedalusProposalCard({ proposal, onApprove, onDeny }: { proposal: DaedalusProposal; onApprove: (id: string) => void; onDeny: (id: string) => void }) {
   const ageS = Math.round((Date.now() - proposal.createdAt) / 1000);
   const ageStr = ageS < 60 ? `${ageS}s ago` : `${Math.round(ageS / 60)}m ago`;
   const alColor = proposal.alignment >= 85 ? colors.green : proposal.alignment >= 70 ? colors.yellow : colors.red;
   const coColor = proposal.confidence >= 80 ? colors.green : proposal.confidence >= 60 ? colors.yellow : colors.red;
   const kindMeta = PROPOSAL_KIND_META[proposal.kind] ?? { label: proposal.kind, color: colors.accent };
+  const paramChanges = proposal.parameterChanges ?? [];
+  const boundaries = proposal.boundaries ?? [];
+  const operatorImpact = proposal.operatorImpact ?? '';
 
   return (
     <View style={s.dpCard}>
@@ -135,7 +144,6 @@ function DaedalusProposalCard({ proposal, onApprove, onDeny }: { proposal: Daeda
         </View>
         <Text style={s.dpAge}>{ageStr}</Text>
       </View>
-      {/* Recommendation banner */}
       {(() => {
         const pass = (proposal.alignment >= 85 ? 1 : 0) + (proposal.confidence >= 80 ? 1 : 0) + (proposal.impact === 'low' ? 1 : 0) + (!proposal.touchesInvariants ? 1 : 0) + (proposal.reversible ? 1 : 0);
         const level = (pass >= 4 && !proposal.touchesInvariants && proposal.reversible) ? 'safe' : (proposal.touchesInvariants || !proposal.reversible || proposal.impact === 'high') ? 'caution' : 'review';
@@ -152,7 +160,43 @@ function DaedalusProposalCard({ proposal, onApprove, onDeny }: { proposal: Daeda
       <Text style={s.dpDesc}>{proposal.description}</Text>
       <Text style={s.dpRationale}>{proposal.rationale}</Text>
 
-      {/* Alignment & Confidence */}
+      {/* Exact parameter changes */}
+      {paramChanges.length > 0 && (
+        <View style={[s.dpPayload, { borderColor: colors.accent + '22', backgroundColor: colors.accent + '06' }]}>
+          <Text style={[s.dpPayloadTitle, { color: colors.accent }]}>⚙ Exact Changes (Current → Proposed)</Text>
+          {paramChanges.map(c => (
+            <View key={c.parameter} style={s.dpParamRow}>
+              <Text style={s.dpParamName}>{c.displayName}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={s.dpParamCurrent}>{fmtVal(c.currentValue)}</Text>
+                <Text style={[s.dpPayloadArrow, { color: colors.accent }]}>→</Text>
+                <Text style={[s.dpParamProposed, { color: colors.accent }]}>{fmtVal(c.proposedValue)}</Text>
+              </View>
+              {c.unit ? <Text style={s.dpParamUnit}>{c.unit}</Text> : null}
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Operator impact */}
+      {operatorImpact ? (
+        <View style={[s.dpPayload, { borderColor: colors.green + '22', backgroundColor: colors.green + '06' }]}>
+          <Text style={[s.dpPayloadTitle, { color: colors.green }]}>👤 What This Changes For You</Text>
+          <Text style={s.dpOperatorText}>{operatorImpact}</Text>
+        </View>
+      ) : null}
+
+      {/* Boundaries */}
+      {boundaries.length > 0 && (
+        <View style={[s.dpPayload, { borderColor: colors.dim + '22', backgroundColor: colors.dim + '06' }]}>
+          <Text style={[s.dpPayloadTitle, { color: colors.dim }]}>🔒 What This Does NOT Change</Text>
+          {boundaries.map((b, i) => (
+            <Text key={i} style={s.dpBoundaryItem}>✓ {b}</Text>
+          ))}
+        </View>
+      )}
+
+      {/* Metrics */}
       <View style={s.dpMetrics}>
         <Text style={[s.dpMetric, { color: alColor }]}>Alignment: {proposal.alignment}%</Text>
         <Text style={[s.dpMetric, { color: coColor }]}>Confidence: {proposal.confidence}%</Text>
@@ -163,7 +207,6 @@ function DaedalusProposalCard({ proposal, onApprove, onDeny }: { proposal: Daeda
         </View>
       </View>
 
-      {/* Safety axes */}
       <View style={s.dpAxes}>
         <Text style={[s.dpAxisBadge, { color: proposal.touchesInvariants ? colors.red : colors.green }]}>
           {proposal.touchesInvariants ? '⚠ Invariants' : '✓ Invariants'}
@@ -172,20 +215,6 @@ function DaedalusProposalCard({ proposal, onApprove, onDeny }: { proposal: Daeda
           {proposal.reversible ? '✓ Reversible' : '⚠ Irreversible'}
         </Text>
       </View>
-
-      {/* Payload: what will change */}
-      {Object.keys(proposal.payload ?? {}).length > 0 && (
-        <View style={s.dpPayload}>
-          <Text style={s.dpPayloadTitle}>Proposed changes</Text>
-          {Object.entries(proposal.payload).map(([k, v]) => (
-            <View key={k} style={s.dpPayloadRow}>
-              <Text style={s.dpPayloadKey}>{k.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ')}</Text>
-              <Text style={s.dpPayloadArrow}>→</Text>
-              <Text style={s.dpPayloadVal}>{typeof v === 'number' ? (Number.isInteger(v) ? String(v) : (v as number).toFixed(3)) : String(v)}</Text>
-            </View>
-          ))}
-        </View>
-      )}
 
       <View style={s.dpActions}>
         <TouchableOpacity style={s.dpApprove} onPress={() => onApprove(proposal.id)} activeOpacity={0.7}>
@@ -507,6 +536,13 @@ const s = StyleSheet.create({
   dpPayloadKey: { fontSize: fonts.caption, color: colors.textSecondary, fontWeight: '500' },
   dpPayloadArrow: { fontSize: fonts.caption, color: colors.accent },
   dpPayloadVal: { fontSize: fonts.caption, color: colors.accent, fontWeight: '700' },
+  dpParamRow: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.2)', marginBottom: 4, borderLeftWidth: 3, borderLeftColor: 'rgba(88,166,255,0.4)' },
+  dpParamName: { fontSize: fonts.caption, fontWeight: '600', color: colors.text, marginBottom: 2 },
+  dpParamCurrent: { fontSize: fonts.caption, color: colors.dim, textDecorationLine: 'line-through' as const, fontWeight: '500' },
+  dpParamProposed: { fontSize: fonts.caption, fontWeight: '700' },
+  dpParamUnit: { fontSize: 10, color: colors.dim, fontStyle: 'italic' as const, marginTop: 1 },
+  dpOperatorText: { fontSize: fonts.caption, lineHeight: 18, color: colors.text },
+  dpBoundaryItem: { fontSize: fonts.caption, color: colors.dim, lineHeight: 17, paddingLeft: 4 },
   dpActions: { flexDirection: 'row', gap: spacing.sm },
   dpApprove: { flex: 1, paddingVertical: 10, borderRadius: radius.md, backgroundColor: 'rgba(63,185,80,0.1)', borderWidth: 1, borderColor: 'rgba(63,185,80,0.3)', alignItems: 'center' },
   dpApproveText: { color: colors.green, fontWeight: '600', fontSize: fonts.body },

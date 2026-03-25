@@ -44,8 +44,12 @@ export function tickKernel(
   alignmentConfig?: AlignmentConfig,
   regulationCfg?: RegulationConfig,
 ): KernelTickResult {
+  // Single history read per tick — reused by all downstream consumers
   const history = kernelTelemetry.getAlignmentHistory();
 
+  // Self-correction adjusts config for NEXT tick (returned via result.config).
+  // Strategy evaluation does not consume KernelRuntimeConfig directly, so
+  // the one-tick delay is intentional and documented here.
   const correction = applySelfCorrectionIfNeeded(config, history);
   const adjustedConfig = correction.config;
 
@@ -53,7 +57,7 @@ export function tickKernel(
 
   const basePosture = selectPosture(strategy);
 
-  const drift = detectAlignmentDrift(kernelTelemetry.getAlignmentHistory());
+  const drift = detectAlignmentDrift(history);
 
   const escalation = getLastEscalation();
 
@@ -86,7 +90,7 @@ export function tickKernel(
 
   const rollbacks = processRollbacks(strategy.alignment);
 
-  recordTrustDriftSample(kernelTelemetry.getAlignmentHistory().length);
+  recordTrustDriftSample(history.length);
 
   const operatorTrust = getOperatorTrustSnapshot();
 
@@ -110,11 +114,11 @@ export function tickKernel(
 export { selectStrategy, getLastStrategyName, getLastEscalation, resetDispatcher };
 export { evaluateStrategy, computeAlignmentBreakdown, explainStrategy } from "./strategy";
 export { kernelTelemetry } from "./telemetry";
-export { gateStrategyByAlignment } from "./strategyGate";
-export { applySelfCorrectionIfNeeded, computeRecentAlignmentTrend } from "./selfCorrection";
+export { gateStrategyByAlignment, resetGateBand } from "./strategyGate";
+export { applySelfCorrectionIfNeeded, computeRecentAlignmentTrend, setOperatorConfigBaseline } from "./selfCorrection";
 export { selectPosture } from "./posture";
 export { detectAlignmentDrift } from "./driftDetector";
-export { computeAlignmentEscalation } from "./escalation";
+export { computeAlignmentEscalation, resetEscalation } from "./escalation";
 export { interpretIntent, resetIntentState } from "./intent";
 export { computeIdentityContinuity, resetIdentityState, getLastIdentitySnapshot } from "./identity";
 export {
@@ -194,6 +198,7 @@ export {
 } from "./regulationLoop";
 
 export type {
+  AlignmentPolicy,
   KernelConfig,
   BeingDescriptor,
   StrategyTelemetryEntry,
@@ -262,4 +267,4 @@ export type {
 export type { IntentInput, IntentMetrics } from "./intent";
 export type { IdentitySnapshot } from "./identity";
 
-export { DEFAULT_KERNEL_CONFIG, DEFAULT_KERNEL_POSTURE, DEFAULT_ALIGNMENT_CONFIG, DEFAULT_APPROVAL_GATE_CONFIG, DEFAULT_REGULATION_CONFIG, DEFAULT_ROLLBACK_CONFIG, DEFAULT_OPERATOR_TRUST_CONFIG, DEFAULT_POSTURE_CONFIG, INITIAL_OPERATOR_TRUST_STATE, HIGH_RISK_ACTIONS } from "./types";
+export { DEFAULT_KERNEL_CONFIG, DEFAULT_KERNEL_POSTURE, DEFAULT_ALIGNMENT_CONFIG, DEFAULT_APPROVAL_GATE_CONFIG, DEFAULT_REGULATION_CONFIG, DEFAULT_ROLLBACK_CONFIG, DEFAULT_OPERATOR_TRUST_CONFIG, DEFAULT_POSTURE_CONFIG, INITIAL_OPERATOR_TRUST_STATE, HIGH_RISK_ACTIONS, DEFAULT_ALIGNMENT_POLICY } from "./types";

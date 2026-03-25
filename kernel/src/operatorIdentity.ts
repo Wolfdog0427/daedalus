@@ -166,7 +166,28 @@ export function updateOperatorTrust(
   ) / totalWeight;
   trustState.trustScore = clamp(Math.round(raw), 0, 100);
 
+  // Calibration pathway 1: explicit confirmation ritual
   if (explicitlyConfirmedCanonical && trustState.trustScore >= calibrationThreshold) {
+    trustState.calibrated = true;
+  }
+
+  // Calibration pathway 2: automatic periodic re-calibration.
+  // When trust has been sustained above threshold with valid credentials
+  // and non-suspicious device for long enough, auto-calibrate.
+  // This prevents calibration from being permanently unreachable after binding.
+  const AUTO_CALIBRATION_TICK_INTERVAL = 50;
+  const canAutoCalibrate =
+    !trustState.calibrated &&
+    trustState.trustScore >= calibrationThreshold &&
+    signals.credentialsValid &&
+    signals.deviceKnown &&
+    !signals.deviceSuspicious &&
+    signals.behaviorMatchScore >= 60 &&
+    signals.continuityMatchScore >= 60 &&
+    tick > 0 &&
+    tick % AUTO_CALIBRATION_TICK_INTERVAL === 0;
+
+  if (canAutoCalibrate) {
     trustState.calibrated = true;
   }
 

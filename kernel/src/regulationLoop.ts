@@ -137,11 +137,16 @@ export function regulateAlignment(
     shouldPauseAutonomy = true;
   }
 
-  if (safeMode.active && alignment >= floorAlignment && driftMetrics.slope < 0) {
+  // Exit safe mode when alignment is above floor AND either slope is improving
+  // or alignment is comfortably above the exit threshold (prevents stuck-in-safe-mode
+  // when magnitude is constant but above floor).
+  const comfortablyAboveFloor = alignment >= floorAlignment + 5;
+  if (safeMode.active && alignment >= floorAlignment && (driftMetrics.slope < 0 || comfortablyAboveFloor)) {
     shouldExitSafeMode = true;
   }
 
-  if (autonomyPaused && alignment >= floorAlignment && driftMetrics.acceleration <= 0) {
+  // Resume autonomy with the same comfort-above-floor fallback
+  if (autonomyPaused && alignment >= floorAlignment && (driftMetrics.acceleration <= 0 || comfortablyAboveFloor)) {
     shouldResumeAutonomy = true;
   }
 
@@ -198,14 +203,14 @@ export function applyRegulationToPosture(
 
   if (regulation.telemetry.appliedMicro) {
     const microFactor = regulation.microAdjustment / 100;
-    responsiveness = clamp01(responsiveness + microFactor);
-    caution = clamp01(caution - microFactor);
+    responsiveness = clamp01(responsiveness - microFactor);
+    caution = clamp01(caution + microFactor);
   }
 
   if (regulation.telemetry.appliedMacro) {
     const macroFactor = regulation.macroAdjustment / 100;
-    responsiveness = clamp01(responsiveness + macroFactor * 0.5);
-    caution = clamp01(caution - macroFactor * 0.5);
+    responsiveness = clamp01(responsiveness - macroFactor * 0.5);
+    caution = clamp01(caution + macroFactor * 0.5);
   }
 
   return { responsiveness, caution };

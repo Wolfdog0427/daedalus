@@ -9,10 +9,11 @@ describe("DaedalusEventBus", () => {
     const unsubscribe = bus.subscribe((event) => received.push(event));
 
     const event: DaedalusEventPayload = {
-      type: "NODE_GLOW_UPDATED",
+      type: "STRATEGY_CHANGED",
       timestamp: "2024-01-01T00:00:00Z",
-      nodeId: "node-1",
-      glow: "high",
+      summary: "Strategy changed",
+      strategy: "default",
+      alignment: 92,
     };
     bus.publish(event);
 
@@ -28,20 +29,18 @@ describe("DaedalusEventBus", () => {
     const unsubscribe = bus.subscribe((event) => received.push(event));
 
     bus.publish({
-      type: "NODE_GLOW_UPDATED",
+      type: "STRATEGY_CHANGED",
       timestamp: "2024-01-01T00:00:00Z",
-      nodeId: "n1",
-      glow: "low",
+      summary: "Strategy changed",
     });
     expect(received).toHaveLength(1);
 
     unsubscribe();
 
     bus.publish({
-      type: "NODE_RISK_UPDATED",
+      type: "ALIGNMENT_ESCALATION",
       timestamp: "2024-01-01T00:00:01Z",
-      nodeId: "n1",
-      risk: "high",
+      summary: "Escalation",
     });
     expect(received).toHaveLength(1);
   });
@@ -54,10 +53,9 @@ describe("DaedalusEventBus", () => {
 
     expect(() =>
       bus.publish({
-        type: "NODE_RISK_UPDATED",
+        type: "SAFE_MODE_ACTIVE",
         timestamp: "2024-01-01T00:00:00Z",
-        nodeId: "node-1",
-        risk: "medium",
+        summary: "Safe mode active",
       }),
     ).not.toThrow();
   });

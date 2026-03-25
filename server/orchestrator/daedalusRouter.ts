@@ -20,6 +20,16 @@ import { validateBeingConstitution } from "../../shared/daedalus/beingConstituti
 import { computeBehavioralField } from "../../shared/daedalus/behavioralGrammar";
 
 export const daedalusRouter = express.Router();
+export const getStrategyService = () => strategyService;
+
+function requireUnfrozen(res: Response): boolean {
+  const freeze = strategyService.getConstitutionalFreezeState();
+  if (freeze.frozen) {
+    res.status(403).json({ error: "Constitutional freeze active", reason: freeze.reason });
+    return false;
+  }
+  return true;
+}
 
 daedalusRouter.use(createGovernanceRouter());
 daedalusRouter.use(createCockpitRouter());
@@ -95,8 +105,12 @@ daedalusRouter.get("/constitution", (_req: Request, res: Response) => {
  */
 daedalusRouter.get("/strategy", (_req: Request, res: Response) => {
   try {
-    const evaluation = strategyService.evaluate();
+    const evaluation = strategyService.getCachedEvaluation();
     const tick = strategyService.getLastTickResult();
+    if (!evaluation) {
+      res.json({ name: "pending", confidence: 0, alignment: 0, posture: null, drift: null, selfCorrected: false, trend: null, escalation: null, safeMode: null });
+      return;
+    }
     res.json({
       ...evaluation,
       posture: tick?.posture ?? null,
@@ -147,6 +161,12 @@ daedalusRouter.get("/alignment-config", (_req: Request, res: Response) => {
  */
 daedalusRouter.post("/alignment-config", (req: Request, res: Response) => {
   try {
+    const gate = strategyService.gateHighRiskAction("alignment_config_change");
+    if (!gate.allowed) {
+      res.status(403).json({ error: "High-risk action denied", reasons: gate.reasons });
+      return;
+    }
+
     const proposal = {
       id: `ac-${Date.now()}`,
       kind: "alignment_config" as const,
@@ -158,13 +178,18 @@ daedalusRouter.post("/alignment-config", (req: Request, res: Response) => {
 
     const decision = strategyService.submitChangeProposal(proposal);
 
+    if (!decision.autoApprove) {
+      res.json({ applied: false, approval: decision, message: "Change requires explicit approval — submitted for review." });
+      return;
+    }
+
     const updated = strategyService.updateAlignmentConfig(req.body ?? {});
     getDaedalusEventBus().publish({
       type: "ALIGNMENT_CONFIG_CHANGED",
       timestamp: new Date().toISOString(),
       summary: "Alignment configuration updated by operator",
     });
-    res.json({ ...updated, approval: decision });
+    res.json({ ...updated, applied: true, approval: decision });
   } catch (err: any) {
     console.error("[daedalus] /alignment-config POST error:", err?.message);
     res.status(500).json({ error: err?.message ?? "Failed to update alignment config" });
@@ -283,6 +308,7 @@ daedalusRouter.get("/approval-gate", (_req: Request, res: Response) => {
  */
 daedalusRouter.post("/approval-gate/config", (req: Request, res: Response) => {
   try {
+    if (!requireUnfrozen(res)) return;
     const updated = strategyService.updateApprovalGateConfig(req.body ?? {});
     res.json(updated);
   } catch (err: any) {
@@ -313,6 +339,7 @@ daedalusRouter.get("/regulation", (_req: Request, res: Response) => {
  */
 daedalusRouter.post("/regulation/config", (req: Request, res: Response) => {
   try {
+    if (!requireUnfrozen(res)) return;
     const updated = strategyService.updateRegulationConfig(req.body ?? {});
     getDaedalusEventBus().publish({
       type: "ALIGNMENT_CONFIG_CHANGED",
@@ -404,6 +431,7 @@ daedalusRouter.get("/rollback-registry/config", (_req: Request, res: Response) =
  */
 daedalusRouter.post("/rollback-registry/config", (req: Request, res: Response) => {
   try {
+    if (!requireUnfrozen(res)) return;
     const updated = strategyService.updateRollbackConfig(req.body ?? {});
     res.json(updated);
   } catch (err: any) {

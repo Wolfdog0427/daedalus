@@ -833,3 +833,170 @@
   background: rgba(248, 81, 73, 0.06);
   border: 1px solid rgba(248, 81, 73, 0.12);
 }
+
+/* ── Parameter Changes (Current → Proposed) ──────────────────── */
+
+.evo-changes-section {
+  border: 1px solid rgba(88, 166, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(88, 166, 255, 0.03);
+  padding: 10px 14px;
+  margin-top: 10px;
+}
+
+.evo-changes-section__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.evo-changes-section__icon {
+  font-size: 0.85rem;
+}
+
+.evo-changes-section__title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #58a6ff;
+}
+
+.evo-changes-section__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.evo-param-change {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border-left: 3px solid rgba(88, 166, 255, 0.4);
+}
+
+.evo-param-change__name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #c3c7e0;
+}
+
+.evo-param-change__values {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.evo-param-change__current {
+  color: #8b949e;
+  font-weight: 500;
+  text-decoration: line-through;
+  text-decoration-color: rgba(139, 148, 158, 0.4);
+}
+
+.evo-param-change__arrow {
+  color: #58a6ff;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.evo-param-change__proposed {
+  color: #58a6ff;
+  font-weight: 700;
+}
+
+.evo-param-change__unit {
+  font-size: 0.72rem;
+  color: #6c7299;
+  font-style: italic;
+}
+
+/* ── Operator Impact ─────────────────────────────────────────── */
+
+.evo-operator-impact {
+  border: 1px solid rgba(63, 185, 80, 0.15);
+  border-radius: 8px;
+  background: rgba(63, 185, 80, 0.03);
+  padding: 10px 14px;
+  margin-top: 10px;
+}
+
+.evo-operator-impact__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.evo-operator-impact__icon {
+  font-size: 0.85rem;
+}
+
+.evo-operator-impact__title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #3fb950;
+}
+
+.evo-operator-impact__text {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: #c3c7e0;
+  margin: 0;
+}
+
+/* ── Boundaries (What does NOT change) ───────────────────────── */
+
+.evo-boundaries {
+  border: 1px solid rgba(139, 148, 158, 0.12);
+  border-radius: 8px;
+  background: rgba(139, 148, 158, 0.03);
+  padding: 10px 14px;
+  margin-top: 10px;
+}
+
+.evo-boundaries__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.evo-boundaries__icon {
+  font-size: 0.85rem;
+}
+
+.evo-boundaries__title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #8b949e;
+}
+
+.evo-boundaries__list {
+  margin: 0;
+  padding: 0 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.evo-boundaries__item {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #6c7299;
+}
+
+.evo-boundaries__item::marker {
+  color: #3fb950;
+  content: "✓ ";
+}

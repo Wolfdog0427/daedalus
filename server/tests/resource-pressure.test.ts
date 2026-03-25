@@ -108,10 +108,9 @@ describe("MAX EVENT RATE", () => {
 
     for (let i = 0; i < 10000; i++) {
       bus.publish({
-        type: "NODE_GLOW_UPDATED",
+        type: "MIRROR_NODE_HEARTBEAT",
         timestamp: new Date().toISOString(),
         nodeId: `n-${i}`,
-        glow: "high",
       });
     }
     expect(counter).toBe(10000);

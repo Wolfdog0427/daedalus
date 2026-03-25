@@ -1,34 +1,80 @@
 /**
  * Alignment-Aware Escalation Rules
  *
- * Computes an escalation level based on the current strategy
- * evaluation's alignment score:
+ * Computes an escalation level based on alignment score and confidence.
+ * Thresholds are drawn from the unified AlignmentPolicy.
  *
  *   alignment < 50  → critical (autonomy should pause)
  *   alignment < 60  → high    (operator attention required)
  *   alignment < 70  → medium  (elevated monitoring)
  *   alignment ≥ 70  → none    (operating normally)
  *
- * The dispatcher uses this to override strategy when critical,
- * replacing it with `autonomy_paused_alignment_critical`.
+ * Low confidence (< 50) at any level bumps escalation up by one tier
+ * to reflect the reduced certainty in the alignment reading.
  */
 
-import type { StrategyEvaluation, EscalationResult } from "./types";
+import type { StrategyEvaluation, EscalationResult, EscalationLevel } from "./types";
+import { DEFAULT_ALIGNMENT_POLICY } from "./types";
+
+const CRITICAL = DEFAULT_ALIGNMENT_POLICY.escalationCriticalThreshold;
+const HIGH = DEFAULT_ALIGNMENT_POLICY.escalationHighThreshold;
+const MEDIUM = DEFAULT_ALIGNMENT_POLICY.escalationMediumThreshold;
+const CONFIDENCE_BUMP_THRESHOLD = 50;
+const HYSTERESIS = 3;
+
+let currentLevel: EscalationLevel = "none";
+
+const LEVEL_ORDER: EscalationLevel[] = ["none", "medium", "high", "critical"];
+
+function levelIndex(l: EscalationLevel): number {
+  return LEVEL_ORDER.indexOf(l);
+}
 
 export function computeAlignmentEscalation(evaluation: StrategyEvaluation): EscalationResult {
-  const { alignment } = evaluation;
+  const { alignment, confidence } = evaluation;
+  const lowConfidence = confidence < CONFIDENCE_BUMP_THRESHOLD;
 
-  if (alignment < 50) {
-    return { level: "critical", reason: `alignment_below_50 (${alignment}%)` };
+  let rawLevel: EscalationLevel;
+  let reason: string | undefined;
+
+  if (alignment < CRITICAL) {
+    rawLevel = "critical";
+    reason = `alignment_below_${CRITICAL} (${alignment}%)`;
+  } else if (alignment < HIGH) {
+    rawLevel = lowConfidence ? "critical" : "high";
+    reason = lowConfidence
+      ? `alignment_below_${HIGH} (${alignment}%) + low confidence (${confidence}%)`
+      : `alignment_below_${HIGH} (${alignment}%)`;
+  } else if (alignment < MEDIUM) {
+    rawLevel = lowConfidence ? "high" : "medium";
+    reason = lowConfidence
+      ? `alignment_below_${MEDIUM} (${alignment}%) + low confidence (${confidence}%)`
+      : `alignment_below_${MEDIUM} (${alignment}%)`;
+  } else if (lowConfidence) {
+    rawLevel = "medium";
+    reason = `alignment OK (${alignment}%) but low confidence (${confidence}%)`;
+  } else {
+    rawLevel = "none";
   }
 
-  if (alignment < 60) {
-    return { level: "high", reason: `alignment_below_60 (${alignment}%)` };
+  const rawIdx = levelIndex(rawLevel);
+  const curIdx = levelIndex(currentLevel);
+
+  if (rawIdx > curIdx) {
+    currentLevel = rawLevel;
+  } else if (rawIdx < curIdx) {
+    const exitThreshold = rawLevel === "none" ? MEDIUM + HYSTERESIS
+      : rawLevel === "medium" ? HIGH + HYSTERESIS
+      : rawLevel === "high" ? CRITICAL + HYSTERESIS
+      : 0;
+    if (alignment >= exitThreshold || rawIdx <= curIdx - 2) {
+      currentLevel = rawLevel;
+    }
   }
 
-  if (alignment < 70) {
-    return { level: "medium", reason: `alignment_below_70 (${alignment}%)` };
-  }
+  return { level: currentLevel, reason };
+}
 
-  return { level: "none" };
+export function resetEscalation(): void {
+  currentLevel = "none";
 }
