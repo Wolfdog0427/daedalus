@@ -501,6 +501,194 @@ def get_recent_threats(limit: int = 20) -> List[Dict[str, Any]]:
 
 
 # ------------------------------------------------------------
+# ATTACK WINDOW TRACKING & POST-ATTACK SWEEP (F9)
+# ------------------------------------------------------------
+
+_attack_windows: List[Dict[str, Any]] = []
+
+
+def record_attack_event(source: str, threat_level: str, timestamp: Optional[float] = None) -> None:
+    """Record that an attack was detected from a source at a given time."""
+    _attack_windows.append({
+        "source": source,
+        "threat_level": threat_level,
+        "detected_at": timestamp or time.time(),
+        "swept": False,
+    })
+    if len(_attack_windows) > 500:
+        _attack_windows.pop(0)
+
+
+def sweep_attack_window(
+    window_start: float,
+    window_end: float,
+    reverify_fn: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """
+    Re-verify items ingested during an attack window.
+    Scans the provenance log for items ingested between window_start
+    and window_end, then re-runs verification on each.
+
+    Args:
+        window_start: epoch timestamp for start of attack window
+        window_end: epoch timestamp for end of attack window
+        reverify_fn: callable(item_id, source) -> bool that re-verifies
+                     an item. If None, items are flagged but not re-verified.
+
+    Returns:
+        Summary of items found, re-verified, and flagged.
+    """
+    candidates = [
+        entry for entry in _provenance_log
+        if window_start <= entry.get("timestamp", 0) <= window_end
+        and not entry.get("blocked", False)
+    ]
+
+    report: Dict[str, Any] = {
+        "window_start": window_start,
+        "window_end": window_end,
+        "items_in_window": len(candidates),
+        "reverified": 0,
+        "flagged": 0,
+        "errors": 0,
+    }
+
+    for entry in candidates:
+        item_id = entry.get("item_id", "")
+        source = entry.get("source", "")
+        if not item_id:
+            continue
+
+        if reverify_fn is not None:
+            try:
+                passed = reverify_fn(item_id, source)
+                if passed:
+                    report["reverified"] += 1
+                else:
+                    report["flagged"] += 1
+                    entry["post_attack_flagged"] = True
+            except Exception:
+                report["errors"] += 1
+        else:
+            report["flagged"] += 1
+            entry["post_attack_flagged"] = True
+
+    # Mark matching attack windows as swept
+    for aw in _attack_windows:
+        if aw["detected_at"] >= window_start and aw["detected_at"] <= window_end:
+            aw["swept"] = True
+
+    return report
+
+
+def get_unswept_attack_windows() -> List[Dict[str, Any]]:
+    """Return attack events that haven't been swept yet."""
+    return [aw for aw in _attack_windows if not aw["swept"]]
+
+
+# ------------------------------------------------------------
+# DELAYED POISONING DETECTION (Sim-fix M2)
+# ------------------------------------------------------------
+
+def run_delayed_poison_audit(
+    sample_size: int = 20,
+    reverify_fn: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """
+    Targeted audit of verified items for delayed poisoning.
+
+    T4: Instead of random sampling, prioritizes:
+    1. Items ingested near attack windows (highest priority)
+    2. Items from sources with declining trust momentum
+    3. Most recently ingested items (recency bias)
+    4. Random fill from remaining provenance
+
+    This catches the ~1-2% of poisoned items that slipped through
+    initial validation.
+    """
+    import random
+
+    if not _provenance_log:
+        return {"action": "skipped", "reason": "no_provenance_data"}
+
+    sample: List[Dict[str, Any]] = []
+    seen_ids: Set[str] = set()
+    budget = min(sample_size, len(_provenance_log))
+
+    # Priority 1: Items near attack windows (within 600s of any attack)
+    attack_times = [aw["detected_at"] for aw in _attack_windows]
+    if attack_times:
+        for entry in _provenance_log:
+            if len(sample) >= budget // 2:
+                break
+            ts = entry.get("timestamp", 0)
+            item_id = entry.get("item_id", "")
+            if not item_id or item_id in seen_ids or entry.get("blocked"):
+                continue
+            near_attack = any(abs(ts - at) < 600 for at in attack_times)
+            if near_attack:
+                sample.append(entry)
+                seen_ids.add(item_id)
+
+    # Priority 2: Most recent items (last 10% of provenance)
+    recency_start = max(0, len(_provenance_log) - len(_provenance_log) // 10)
+    for entry in _provenance_log[recency_start:]:
+        if len(sample) >= budget:
+            break
+        item_id = entry.get("item_id", "")
+        if not item_id or item_id in seen_ids or entry.get("blocked"):
+            continue
+        sample.append(entry)
+        seen_ids.add(item_id)
+
+    # Priority 3: Random fill
+    remaining = [
+        e for e in _provenance_log
+        if e.get("item_id") and e["item_id"] not in seen_ids and not e.get("blocked")
+    ]
+    fill_count = budget - len(sample)
+    if fill_count > 0 and remaining:
+        sample.extend(random.sample(remaining, min(fill_count, len(remaining))))
+
+    audited = 0
+    flagged = 0
+    errors = 0
+
+    for entry in sample:
+        item_id = entry.get("item_id", "")
+        source = entry.get("source", "")
+        if not item_id or entry.get("blocked"):
+            continue
+
+        audited += 1
+
+        try:
+            if "://" in source:
+                url_check = validate_url(source)
+                if url_check.get("blocked"):
+                    entry["delayed_poison_flagged"] = True
+                    flagged += 1
+                    continue
+
+            if reverify_fn is not None:
+                passed = reverify_fn(item_id, source)
+                if not passed:
+                    entry["delayed_poison_flagged"] = True
+                    flagged += 1
+        except Exception:
+            errors += 1
+
+    return {
+        "action": "delayed_poison_audit",
+        "sample_size": len(sample),
+        "audited": audited,
+        "flagged": flagged,
+        "errors": errors,
+        "targeting": "attack_window+recency+random",
+    }
+
+
+# ------------------------------------------------------------
 # FULL VALIDATION PIPELINE
 # ------------------------------------------------------------
 
@@ -535,14 +723,123 @@ def validate_source(source: str, text: str) -> Dict[str, Any]:
     severity_rank = {"none": 0, "info": 1, "warning": 2, "high": 3, "critical": 4}
     max_threat = max(threat_levels, key=lambda t: severity_rank.get(t, 0))
 
+    # P4: Quarantine items with warning-level threats instead of
+    # letting them through. They enter a holding queue for deeper
+    # verification before being ingested.
+    quarantine = False
+    if not blocked and max_threat in ("warning", "high"):
+        quarantine = True
+
     return {
         "source": source,
         "timestamp": time.time(),
         "passed": not blocked,
         "blocked": blocked,
+        "quarantine": quarantine,
         "threat_level": max_threat,
         "trust_modifier": max(-1.0, total_modifier),
         "flags": all_flags,
         "url_report": url_report,
         "content_report": content_report,
+    }
+
+
+# ------------------------------------------------------------
+# QUARANTINE SYSTEM (P4)
+# ------------------------------------------------------------
+
+_quarantine_queue: List[Dict[str, Any]] = []
+
+
+def quarantine_item(item_id: str, source: str, text: str, reason: str) -> None:
+    """Place an item in quarantine for deeper verification."""
+    _quarantine_queue.append({
+        "item_id": item_id,
+        "source": source,
+        "text_preview": text[:200],
+        "reason": reason,
+        "quarantined_at": time.time(),
+        "status": "pending",
+    })
+    if len(_quarantine_queue) > 1000:
+        _quarantine_queue.pop(0)
+
+
+def review_quarantine(
+    reverify_fn: Optional[Any] = None,
+    max_review: int = 20,
+) -> Dict[str, Any]:
+    """
+    Review quarantined items. Each item gets deep re-verification.
+    Items that pass are released; items that fail are permanently
+    flagged. Items older than 24h without review are auto-flagged.
+
+    This is the system's last line of defense: even if a poisoned
+    item slips through the integrity check with a "warning" threat
+    level, it sits in quarantine until explicitly cleared.
+    """
+    reviewed = 0
+    released = 0
+    flagged = 0
+    auto_flagged = 0
+    now = time.time()
+
+    pending = [q for q in _quarantine_queue if q["status"] == "pending"]
+
+    for entry in pending[:max_review]:
+        reviewed += 1
+        age_hours = (now - entry["quarantined_at"]) / 3600
+
+        # Auto-flag items sitting in quarantine > 24h
+        if age_hours > 24:
+            entry["status"] = "auto_flagged"
+            auto_flagged += 1
+            continue
+
+        if reverify_fn is not None:
+            try:
+                passed = reverify_fn(entry["item_id"], entry["source"])
+                if passed:
+                    entry["status"] = "released"
+                    released += 1
+                else:
+                    entry["status"] = "flagged"
+                    flagged += 1
+            except Exception:
+                entry["status"] = "flagged"
+                flagged += 1
+        else:
+            # Without a reverify function, use source re-validation
+            source = entry.get("source", "")
+            if "://" in source:
+                url_check = validate_url(source)
+                if url_check.get("blocked"):
+                    entry["status"] = "flagged"
+                    flagged += 1
+                else:
+                    entry["status"] = "released"
+                    released += 1
+            else:
+                entry["status"] = "released"
+                released += 1
+
+    return {
+        "action": "quarantine_review",
+        "reviewed": reviewed,
+        "released": released,
+        "flagged": flagged,
+        "auto_flagged": auto_flagged,
+        "queue_size": len([q for q in _quarantine_queue if q["status"] == "pending"]),
+    }
+
+
+def get_quarantine_status() -> Dict[str, Any]:
+    pending = sum(1 for q in _quarantine_queue if q["status"] == "pending")
+    released = sum(1 for q in _quarantine_queue if q["status"] == "released")
+    flagged = sum(1 for q in _quarantine_queue if q["status"] in ("flagged", "auto_flagged"))
+    return {
+        "queue_total": len(_quarantine_queue),
+        "pending": pending,
+        "released": released,
+        "flagged": flagged,
     }

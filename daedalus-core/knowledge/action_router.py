@@ -35,6 +35,7 @@ try:
     from knowledge.integration_layer import (
         do_curiosity_cycle,
         do_approve_knowledge_goal,
+        do_execute_knowledge_goal,
         do_knowledge_acquisition,
         do_quality_gate,
         do_scoped_evolution,
@@ -45,6 +46,19 @@ try:
         do_meta_cycle,
         do_provider_discovery,
         do_flow_tuning,
+        do_active_consolidation,
+        do_delayed_poison_audit,
+        do_entropy_budget_report,
+        do_epoch_status,
+        do_start_epoch,
+        do_end_epoch,
+        do_renewal_cycle,
+        do_drift_court,
+        do_graph_compaction,
+        do_canonical_template_summary,
+        do_renewal_status,
+        do_drift_court_summary,
+        do_apply_canonization,
     )
     _INTEGRATION_AVAILABLE = True
 except ImportError:
@@ -183,6 +197,15 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
             return f"[ACQUISITION]\n{json.dumps(result, indent=2, default=str)}"
         return "[ACQUIRE] Integration layer not available."
 
+    if norm.startswith("execute goal") or norm.startswith("run goal"):
+        goal_id = _extract_after_colon(cmd) or cmd.split()[-1] if len(cmd.split()) > 2 else ""
+        if not goal_id:
+            return "[EXECUTE GOAL] No goal ID provided. Usage: execute goal: <goal_id>"
+        if _INTEGRATION_AVAILABLE:
+            result = do_execute_knowledge_goal(goal_id)
+            return f"[GOAL EXECUTION]\n{json.dumps(result, indent=2, default=str)}"
+        return "[EXECUTE GOAL] Integration layer not available."
+
     if norm.startswith("quality gate"):
         goal_id = _extract_after_colon(cmd) or cmd.split()[-1] if len(cmd.split()) > 2 else ""
         if not goal_id:
@@ -255,6 +278,196 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
             except ImportError:
                 pass
         return "[FLOW] Flow tuner not available."
+
+    # ------------------------------------------------------------
+    # CIRCUIT BREAKER / LONG-TERM TRENDS / REGRESSION STATUS
+    # ------------------------------------------------------------
+    if norm.startswith("circuit breaker") or norm.startswith("breaker status"):
+        try:
+            from knowledge.adaptive_pacer import get_circuit_breaker, get_long_term_trends
+            cb = get_circuit_breaker().status()
+            lt = get_long_term_trends()
+            combined = {"circuit_breaker": cb, "long_term_trends": lt}
+            return f"[CIRCUIT BREAKER]\n{json.dumps(combined, indent=2, default=str)}"
+        except ImportError:
+            return "[CIRCUIT BREAKER] Adaptive pacer not available."
+
+    if norm.startswith("regression status"):
+        try:
+            from knowledge.meta_reasoner import get_regression_detector, get_stability_tracker, get_severity_context
+            result = {
+                "regression": get_regression_detector().status(),
+                "stability": get_stability_tracker().status(),
+                "severity": get_severity_context().status(),
+            }
+            return f"[REGRESSION STATUS]\n{json.dumps(result, indent=2, default=str)}"
+        except ImportError:
+            return "[REGRESSION] Meta-reasoner not available."
+
+    if norm.startswith("set severity"):
+        level = _extract_after_colon(cmd) or cmd.split()[-1] if len(cmd.split()) > 2 else ""
+        if not level:
+            return "[SEVERITY] No level provided. Usage: set severity: <nominal|elevated|stressed|severe|catastrophic>"
+        try:
+            from knowledge.meta_reasoner import get_severity_context
+            ctx = get_severity_context()
+            ctx.set_level(level.strip())
+            return f"[SEVERITY] Severity set to: {ctx.current_level}"
+        except ImportError:
+            return "[SEVERITY] Meta-reasoner not available."
+
+    if norm.startswith("trust momentum") or norm.startswith("trust stats"):
+        try:
+            from knowledge.trust_scoring import get_trust_momentum_summary
+            result = get_trust_momentum_summary()
+            return f"[TRUST MOMENTUM]\n{json.dumps(result, indent=2, default=str)}"
+        except ImportError:
+            return "[TRUST] Trust momentum not available."
+
+    # ------------------------------------------------------------
+    # ACTIVE CONSOLIDATION (C1) / POISON AUDIT (M2) / COORDINATOR (C2)
+    # ------------------------------------------------------------
+    if norm.startswith("consolidat") or norm.startswith("active consolidat"):
+        if _INTEGRATION_AVAILABLE:
+            result = do_active_consolidation()
+            return f"[ACTIVE CONSOLIDATION]\n{json.dumps(result, indent=2, default=str)}"
+        return "[CONSOLIDATION] Not available."
+
+    if norm.startswith("poison audit") or norm.startswith("delayed poison"):
+        if _INTEGRATION_AVAILABLE:
+            result = do_delayed_poison_audit()
+            return f"[POISON AUDIT]\n{json.dumps(result, indent=2, default=str)}"
+        return "[POISON AUDIT] Not available."
+
+    if norm.startswith("quarantine review") or norm.startswith("review quarantine"):
+        if _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_quarantine_review
+                result = do_quarantine_review()
+                return f"[QUARANTINE REVIEW]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
+        return "[QUARANTINE] Not available."
+
+    if norm.startswith("quarantine status") or norm.startswith("quarantine"):
+        try:
+            from knowledge.source_integrity import get_quarantine_status
+            result = get_quarantine_status()
+            return f"[QUARANTINE STATUS]\n{json.dumps(result, indent=2, default=str)}"
+        except ImportError:
+            return "[QUARANTINE] Not available."
+
+    if norm.startswith("confidence") or norm.startswith("epistemic"):
+        try:
+            from knowledge.trust_scoring import compute_calibrated_trust, compute_epistemic_confidence
+            from knowledge.retrieval import _iter_items
+            import random as _rnd
+            sample = []
+            for item in _iter_items():
+                sample.append(item)
+                if len(sample) >= 10:
+                    break
+            results = []
+            for item in sample:
+                ec = compute_epistemic_confidence(item)
+                ct = compute_calibrated_trust(item)
+                results.append({
+                    "id": item.get("id", "?"),
+                    "trust": round(ct, 3),
+                    "confidence": ec["confidence"],
+                    "corroboration": ec["corroboration"],
+                })
+            return f"[EPISTEMIC CONFIDENCE]\n{json.dumps(results, indent=2, default=str)}"
+        except ImportError:
+            return "[CONFIDENCE] Trust scoring not available."
+
+    if norm.startswith("defensive status") or norm.startswith("coordinator status"):
+        try:
+            from knowledge.meta_reasoner import get_defensive_coordinator, get_regression_detector, get_stability_tracker, get_severity_context
+            result = {
+                "coordinator": get_defensive_coordinator().status(),
+                "regression": get_regression_detector().status(),
+                "stability": get_stability_tracker().status(),
+                "severity": get_severity_context().status(),
+            }
+            return f"[DEFENSIVE STATUS]\n{json.dumps(result, indent=2, default=str)}"
+        except ImportError:
+            return "[DEFENSIVE] Meta-reasoner not available."
+
+    # ------------------------------------------------------------
+    # ANTI-ENTROPY LAYER
+    # ------------------------------------------------------------
+    if norm.startswith("entropy budget") or norm.startswith("entropy report") or norm == "entropy":
+        if _INTEGRATION_AVAILABLE:
+            result = do_entropy_budget_report()
+            return f"[ENTROPY BUDGET]\n{json.dumps(result, indent=2, default=str)}"
+        return "[ENTROPY] Anti-entropy layer not available."
+
+    if norm.startswith("epoch status") or norm.startswith("current epoch"):
+        if _INTEGRATION_AVAILABLE:
+            result = do_epoch_status()
+            return f"[EPOCH STATUS]\n{json.dumps(result, indent=2, default=str)}"
+        return "[EPOCH] Epoch engine not available."
+
+    if norm.startswith("start epoch"):
+        hours_str = _extract_after_colon(cmd)
+        hours = float(hours_str) if hours_str else 48.0
+        if _INTEGRATION_AVAILABLE:
+            result = do_start_epoch(duration_hours=hours)
+            return f"[EPOCH STARTED]\n{json.dumps(result, indent=2, default=str)}"
+        return "[EPOCH] Epoch engine not available."
+
+    if norm.startswith("end epoch"):
+        if _INTEGRATION_AVAILABLE:
+            result = do_end_epoch()
+            return f"[EPOCH ENDED]\n{json.dumps(result, indent=2, default=str)}"
+        return "[EPOCH] Epoch engine not available."
+
+    if norm.startswith("run renewal") or norm.startswith("renewal cycle"):
+        dry = "dry" in norm
+        if _INTEGRATION_AVAILABLE:
+            result = do_renewal_cycle(dry_run=dry)
+            return f"[RENEWAL]\n{json.dumps(result, indent=2, default=str)}"
+        return "[RENEWAL] Renewal layer not available."
+
+    if norm.startswith("renewal status") or norm.startswith("renewal health"):
+        if _INTEGRATION_AVAILABLE:
+            result = do_renewal_status()
+            return f"[RENEWAL STATUS]\n{json.dumps(result, indent=2, default=str)}"
+        return "[RENEWAL] Renewal layer not available."
+
+    if norm.startswith("drift court") or norm.startswith("run drift court"):
+        if _INTEGRATION_AVAILABLE:
+            result = do_drift_court()
+            return f"[DRIFT COURT]\n{json.dumps(result, indent=2, default=str)}"
+        return "[DRIFT COURT] Drift court not available."
+
+    if norm.startswith("court summary") or norm.startswith("drift summary"):
+        if _INTEGRATION_AVAILABLE:
+            result = do_drift_court_summary()
+            return f"[COURT SUMMARY]\n{json.dumps(result, indent=2, default=str)}"
+        return "[DRIFT COURT] Drift court not available."
+
+    if norm.startswith("graph compact") or norm.startswith("compact graph") or norm.startswith("run compaction"):
+        if _INTEGRATION_AVAILABLE:
+            result = do_graph_compaction()
+            return f"[GRAPH COMPACTION]\n{json.dumps(result, indent=2, default=str)}"
+        return "[COMPACTION] Graph compactor not available."
+
+    if norm.startswith("canonical template") or norm.startswith("template status"):
+        if _INTEGRATION_AVAILABLE:
+            result = do_canonical_template_summary()
+            return f"[CANONICAL TEMPLATE]\n{json.dumps(result, indent=2, default=str)}"
+        return "[TEMPLATE] Canonical template not available."
+
+    if norm.startswith("canonize") or norm.startswith("apply canonization"):
+        proposal_id = _extract_after_colon(cmd) or (cmd.split()[-1] if len(cmd.split()) > 1 else "")
+        if not proposal_id:
+            return "[CANONIZE] No proposal ID. Usage: canonize: <proposal_id>"
+        if _INTEGRATION_AVAILABLE:
+            result = do_apply_canonization(proposal_id)
+            return f"[CANONIZE]\n{json.dumps(result, indent=2, default=str)}"
+        return "[CANONIZE] Not available."
 
     # ------------------------------------------------------------
     # STABILITY

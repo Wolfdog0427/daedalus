@@ -506,3 +506,122 @@ def approve_and_plan(goal_id: str) -> Dict[str, Any]:
         "status": "approved",
         "phases": goal.phases,
     }
+
+
+# ------------------------------------------------------------
+# GOAL EXECUTION (F3)
+# ------------------------------------------------------------
+
+def execute_next_phase(goal_id: str) -> Dict[str, Any]:
+    """
+    Execute the next pending phase of an approved knowledge goal.
+    Generates batch items from the phase's concept list and routes
+    them through batch_ingestion. Returns a per-phase report.
+
+    This is the missing link: approved goals now actually execute.
+    """
+    from knowledge.knowledge_goal import load_goal as _load
+
+    goal = _load(goal_id)
+    if goal is None:
+        return {"error": "goal_not_found"}
+
+    if goal.status not in ("approved", "in_progress"):
+        return {"error": f"goal_status_is_{goal.status}", "goal_id": goal_id}
+
+    # Find the first pending phase
+    phase_idx = None
+    phase_data = None
+    for i, phase in enumerate(goal.phases):
+        if isinstance(phase, dict) and phase.get("status") == "pending":
+            phase_idx = i
+            phase_data = phase
+            break
+
+    if phase_data is None:
+        goal.status = "completed"
+        save_goal(goal)
+        return {"goal_id": goal_id, "status": "completed", "reason": "all_phases_done"}
+
+    # Mark goal and phase as in-progress
+    goal.status = "in_progress"
+    phase_data["status"] = "in_progress"
+    save_goal(goal)
+
+    # Build batch items from the phase's concepts
+    concepts = phase_data.get("concepts", [])
+    if not concepts:
+        concepts = [goal.topic]
+
+    items = []
+    for concept in concepts:
+        query_text = _build_acquisition_query(concept, goal.topic, phase_data.get("name", ""))
+        items.append({
+            "text": query_text,
+            "source": f"curiosity:{goal.topic}",
+            "metadata": {"goal_id": goal_id, "phase": phase_data.get("name", "")},
+        })
+
+    # Route through batch ingestion
+    try:
+        from knowledge.batch_ingestion import ingest_batch
+        intensity = phase_data.get("verification_intensity", "standard")
+        result = ingest_batch(
+            items=items,
+            source=f"curiosity:{goal.topic}",
+            verification_intensity=intensity,
+            goal_id=goal_id,
+        )
+
+        phase_data["items_ingested"] = result.get("ingested", 0)
+        phase_data["status"] = "completed"
+        goal.total_items_ingested += result.get("ingested", 0)
+        goal.total_items_verified += result.get("ingested", 0) - result.get("deferred", 0)
+        goal.total_items_rejected += result.get("rejected", 0)
+        save_goal(goal)
+
+        return {
+            "goal_id": goal_id,
+            "phase": phase_data.get("name"),
+            "phase_index": phase_idx,
+            "ingested": result.get("ingested", 0),
+            "rejected": result.get("rejected", 0),
+            "status": "phase_completed",
+        }
+    except Exception as exc:
+        phase_data["status"] = "failed"
+        save_goal(goal)
+        return {"goal_id": goal_id, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _build_acquisition_query(concept: str, topic: str, phase_name: str) -> str:
+    """Build descriptive text for a concept within a learning goal."""
+    if llm_adapter.is_available():
+        prompt = (
+            f"Provide a comprehensive factual summary about '{concept}' "
+            f"in the context of '{topic}'. "
+            f"Focus on: {phase_name}. "
+            f"Include key definitions, relationships, and notable facts."
+        )
+        result = llm_adapter.complete(prompt, max_tokens=512)
+        if result.strip():
+            return result
+
+    return (
+        f"Knowledge item about {concept}. "
+        f"Domain: {topic}. Phase: {phase_name}. "
+        f"This concept is part of a structured learning goal."
+    )
+
+
+def get_executable_goals() -> List[KnowledgeGoal]:
+    """Return goals that are approved/in_progress with pending phases."""
+    from knowledge.knowledge_goal import list_goals
+    goals = list_goals(status="approved") + list_goals(status="in_progress")
+    executable = []
+    for goal in goals:
+        for phase in goal.phases:
+            if isinstance(phase, dict) and phase.get("status") == "pending":
+                executable.append(goal)
+                break
+    return executable

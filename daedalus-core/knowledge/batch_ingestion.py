@@ -34,10 +34,16 @@ from knowledge.retrieval import search_knowledge
 from knowledge.self_model import get_self_model
 
 try:
-    from knowledge.source_integrity import validate_source, record_provenance
+    from knowledge.source_integrity import validate_source, record_provenance, quarantine_item
     _INTEGRITY_AVAILABLE = True
 except ImportError:
     _INTEGRITY_AVAILABLE = False
+
+try:
+    from knowledge.trust_scoring import detect_contradiction
+    _CONTRADICTION_CHECK_AVAILABLE = True
+except ImportError:
+    _CONTRADICTION_CHECK_AVAILABLE = False
 
 try:
     from knowledge.flow_tuner import flow_tuner as _flow_tuner
@@ -141,6 +147,57 @@ def _light_verification(text: str) -> Dict[str, Any]:
 
 
 # ------------------------------------------------------------
+# PRE-INGESTION CONSISTENCY SCREEN (Tuning-fix T1)
+# ------------------------------------------------------------
+
+def _pre_ingestion_consistency_check(text: str, consistency: Optional[float] = None) -> Dict[str, Any]:
+    """
+    Adaptive cluster-scoped contradiction gate. Before any item enters
+    the KB, compare it against the closest existing items via search.
+
+    Adapts based on current consistency:
+    - consistency >= 0.80: check 3 neighbors (light)
+    - consistency >= 0.65: check 5 neighbors (standard)
+    - consistency <  0.65: check 8 neighbors (aggressive)
+
+    Returns {"passed": True/False, "contradictions": [...]}
+    """
+    if not _CONTRADICTION_CHECK_AVAILABLE:
+        return {"passed": True, "contradictions": []}
+
+    if consistency is not None and consistency < 0.65:
+        neighbor_limit = 10
+    elif consistency is not None and consistency < 0.75:
+        neighbor_limit = 8
+    elif consistency is not None and consistency >= 0.85:
+        neighbor_limit = 3
+    else:
+        neighbor_limit = 5
+
+    try:
+        neighbors = search_knowledge(text[:200], limit=neighbor_limit, include_superseded=False)
+    except Exception:
+        return {"passed": True, "contradictions": []}
+
+    contradictions = []
+    for n in neighbors:
+        if detect_contradiction(text, n.text):
+            contradictions.append({
+                "existing_id": n.id,
+                "existing_preview": n.text[:100],
+            })
+
+    if contradictions:
+        return {
+            "passed": False,
+            "contradictions": contradictions,
+            "reason": "contradicts_existing_knowledge",
+            "neighbor_limit": neighbor_limit,
+        }
+    return {"passed": True, "contradictions": []}
+
+
+# ------------------------------------------------------------
 # BATCH INGESTION
 # ------------------------------------------------------------
 
@@ -211,6 +268,40 @@ def ingest_batch(
             item_meta["integrity_threat_level"] = integrity.get("threat_level", "none")
             item_meta["integrity_modifier"] = integrity.get("trust_modifier", 0.0)
 
+            # P4: Quarantine items with warning/high threat instead of direct ingestion
+            if integrity.get("quarantine"):
+                quarantine_item(
+                    item_id=f"pending_{hash(text[:100])}",
+                    source=item_source,
+                    text=text,
+                    reason=f"threat_level_{integrity.get('threat_level')}",
+                )
+                report["items"].append({
+                    "text_preview": text[:80],
+                    "path": "quarantined",
+                    "status": "quarantined_for_review",
+                    "threat_level": integrity.get("threat_level"),
+                })
+                if "quarantined" not in report:
+                    report["quarantined"] = 0
+                report["quarantined"] += 1
+                continue
+
+        # T1: Adaptive pre-ingestion screen — widens search when consistency is low
+        consistency_screen = _pre_ingestion_consistency_check(
+            text,
+            consistency=report["quality_before"]["consistency"],
+        )
+        if not consistency_screen["passed"]:
+            report["items"].append({
+                "text_preview": text[:80],
+                "path": "blocked",
+                "status": "rejected_consistency_screen",
+                "contradictions": consistency_screen.get("contradictions", []),
+            })
+            report["rejected"] += 1
+            continue
+
         path = _select_verification_path(text, item_source, verification_intensity)
         item_result: Dict[str, Any] = {
             "text_preview": text[:80],
@@ -222,6 +313,7 @@ def ingest_batch(
             item_meta["verification_status"] = "provisional"
             item_id = ingest_text(text, source=item_source, metadata=item_meta)
             _update_graph_for_text(text, item_id, item_source, path="deferred")
+            _record_provenance_mandatory(item_id, item_source, "deferred")
             item_result["status"] = "ingested_provisional"
             item_result["item_id"] = item_id
             report["deferred"] += 1
@@ -233,6 +325,8 @@ def ingest_batch(
                 item_meta["verification_status"] = "light_verified"
                 item_id = ingest_text(text, source=item_source, metadata=item_meta)
                 _update_graph_for_text(text, item_id, item_source, path="light")
+                _record_provenance_mandatory(item_id, item_source, "light")
+                _record_trust_outcome(item_source, True)
                 item_result["status"] = "ingested_light"
                 item_result["item_id"] = item_id
                 report["ingested"] += 1
@@ -242,11 +336,13 @@ def ingest_batch(
                     new_id = full_result.get("new_item_id", "")
                     item_result["status"] = "ingested_escalated"
                     item_result["item_id"] = new_id
-                    _record_provenance_safe(new_id, item_source, "escalated")
+                    _record_provenance_mandatory(new_id, item_source, "escalated")
+                    _record_trust_outcome(item_source, True)
                     report["ingested"] += 1
                     report["escalated"] += 1
                 else:
                     item_result["status"] = "rejected"
+                    _record_trust_outcome(item_source, False)
                     report["rejected"] += 1
 
         else:  # full
@@ -255,10 +351,12 @@ def ingest_batch(
                 new_id = full_result.get("new_item_id", "")
                 item_result["status"] = "ingested_verified"
                 item_result["item_id"] = new_id
-                _record_provenance_safe(new_id, item_source, "full")
+                _record_provenance_mandatory(new_id, item_source, "full")
+                _record_trust_outcome(item_source, True)
                 report["ingested"] += 1
             else:
                 item_result["status"] = "rejected"
+                _record_trust_outcome(item_source, False)
                 report["rejected"] += 1
 
         report["items"].append(item_result)
@@ -279,13 +377,32 @@ def ingest_batch(
     return report
 
 
-def _record_provenance_safe(item_id: str, source: str, path: str) -> None:
-    """Record provenance for items that bypassed _update_graph_for_text."""
-    if not _INTEGRITY_AVAILABLE or not item_id:
+def _record_provenance_mandatory(item_id: str, source: str, path: str) -> None:
+    """
+    Mandatory provenance for every ingested item regardless of path.
+    Unlike the old optional caller-level recording, this is called
+    unconditionally from ingest_batch for all accepted items.
+    """
+    if not item_id:
         return
+    if _INTEGRITY_AVAILABLE:
+        try:
+            record_provenance(item_id=item_id, source=source, verification_path=path)
+        except Exception:
+            pass
+
+
+def _record_provenance_safe(item_id: str, source: str, path: str) -> None:
+    """Legacy helper: kept for backward compatibility."""
+    _record_provenance_mandatory(item_id, source, path)
+
+
+def _record_trust_outcome(source: str, success: bool) -> None:
+    """Feed trust momentum tracker from verification outcomes."""
     try:
-        record_provenance(item_id=item_id, source=source, verification_path=path)
-    except Exception:
+        from knowledge.trust_scoring import record_verification_outcome
+        record_verification_outcome(source, success)
+    except (ImportError, Exception):
         pass
 
 

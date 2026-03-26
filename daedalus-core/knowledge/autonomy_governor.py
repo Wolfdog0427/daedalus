@@ -23,6 +23,129 @@ from runtime.logging_manager import log_event
 from knowledge.proposal_action_planner import generate_actions_for_proposal
 
 
+# Actions that only read state — always allowed unless system is locked.
+_READ_ONLY_ACTIONS = frozenset({
+    "knowledge.verify",
+    "knowledge.reason",
+    "knowledge.quality_gate",
+    "meta.cycle",
+    "security.quarantine_status",
+    "entropy.budget_report",
+    "entropy.epoch_status",
+    "entropy.court_summary",
+    "entropy.template_summary",
+    "entropy.renewal_status",
+})
+
+# Actions that mutate state — require at least "normal" mode.
+_MUTATION_ACTIONS = frozenset({
+    "maintenance.storage",
+    "maintenance.consistency_scan",
+    "maintenance.consolidation",
+    "concept.evolve",
+    "concept.evolve_scoped",
+    "knowledge.curiosity_cycle",
+    "knowledge.approve_goal",
+    "knowledge.execute_goal",
+    "knowledge.acquire",
+    "providers.discover",
+    "pipeline.tune",
+    "security.poison_audit",
+    "security.quarantine_review",
+    "entropy.renewal",
+    "entropy.drift_court",
+    "entropy.epoch_start",
+    "entropy.epoch_end",
+    "entropy.graph_compaction",
+    "entropy.canonize",
+    "entropy.register_state",
+})
+
+
+def guard_action(action: str) -> Dict[str, Any]:
+    """
+    Lightweight governance check for a single action.
+
+    Reads the current governor state (autonomy mode + lock flag)
+    and returns whether the action is permitted.
+
+    Return contract:
+        allowed       – True if the action may proceed
+        mode          – current autonomy mode (strict/normal/permissive)
+        requires_approval – True when the operator must approve
+        reason        – human-readable block reason (only when blocked)
+    """
+    state = load_state()
+    mode: str = state.get("autonomy_mode", "strict")
+    locked: bool = state.get("locked", False)
+
+    if locked:
+        return {
+            "allowed": False,
+            "mode": mode,
+            "requires_approval": True,
+            "reason": "system_locked",
+        }
+
+    if action in _READ_ONLY_ACTIONS:
+        return {"allowed": True, "mode": mode, "requires_approval": False}
+
+    if mode == "permissive":
+        return {"allowed": True, "mode": mode, "requires_approval": False}
+
+    if mode == "normal":
+        if action in _MUTATION_ACTIONS:
+            return {"allowed": True, "mode": mode, "requires_approval": False}
+        return {
+            "allowed": False,
+            "mode": mode,
+            "requires_approval": True,
+            "reason": f"unknown_action:{action}",
+        }
+
+    # strict mode — mutations need approval
+    if action in _MUTATION_ACTIONS:
+        return {
+            "allowed": False,
+            "mode": mode,
+            "requires_approval": True,
+            "reason": f"strict_mode:{action}",
+        }
+
+    return {
+        "allowed": False,
+        "mode": mode,
+        "requires_approval": True,
+        "reason": f"strict_mode:unknown:{action}",
+    }
+
+
+def get_autonomy_state() -> Dict[str, Any]:
+    """Return the current governor state (mode, lock, tier, etc.)."""
+    return load_state()
+
+
+def evaluate_readiness() -> Dict[str, Any]:
+    """
+    Quick readiness assessment based on governor state.
+    Used by the maintenance scheduler to decide if system
+    is healthy enough to run autonomous maintenance tasks.
+    """
+    state = load_state()
+    mode = state.get("autonomy_mode", "strict")
+    locked = state.get("locked", False)
+    tier = state.get("current_tier", 1)
+
+    ready = not locked and mode != "strict"
+    return {
+        "ready": ready,
+        "mode": mode,
+        "locked": locked,
+        "current_tier": tier,
+        "reason": "system_locked" if locked else ("strict_mode" if mode == "strict" else "ok"),
+    }
+
+
 class AutonomyGovernor:
     """
     Autonomy Governor:

@@ -29,9 +29,56 @@ from knowledge.curiosity_engine import (
     run_curiosity_cycle,
     approve_and_plan,
     run_quality_gate,
+    execute_next_phase,
 )
 from knowledge.batch_ingestion import ingest_batch
 from knowledge.adaptive_pacer import compute_pace, record_batch_result, should_acquire_now
+
+
+# ------------------------------------------------------------
+# SEVERITY-AWARE GOVERNANCE (F8)
+# ------------------------------------------------------------
+
+_HIGH_RISK_ACTIONS = frozenset({
+    "knowledge.acquire",
+    "concept.evolve",
+    "concept.evolve_scoped",
+    "knowledge.curiosity_cycle",
+    "knowledge.approve_goal",
+    "knowledge.execute_goal",
+})
+
+
+def _severity_guard(action: str) -> Dict[str, Any]:
+    """
+    Augmented guard: consults both the autonomy governor AND the
+    severity context. During stressed/catastrophic periods, high-risk
+    mutating actions face a higher bar (they are blocked unless
+    the governor is in permissive mode).
+    """
+    base_guard = guard_action(action)
+    if not base_guard.get("allowed", False):
+        return base_guard
+
+    if action not in _HIGH_RISK_ACTIONS:
+        return base_guard
+
+    try:
+        from knowledge.meta_reasoner import get_severity_context
+        severity = get_severity_context()
+        if severity.is_stressed():
+            mode = base_guard.get("mode", "strict")
+            if mode in ("strict", "normal"):
+                return {
+                    "allowed": False,
+                    "requires_approval": True,
+                    "reason": f"severity_gate:{severity.current_level}",
+                    "mode": mode,
+                }
+    except (ImportError, Exception):
+        pass
+
+    return base_guard
 
 
 # ------------------------------------------------------------
@@ -39,9 +86,6 @@ from knowledge.adaptive_pacer import compute_pace, record_batch_result, should_a
 # ------------------------------------------------------------
 
 def _blocked(action_type: str, guard: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Standardized blocked-action response.
-    """
     return {
         "action": action_type,
         "allowed": False,
@@ -91,12 +135,14 @@ def do_consistency_scan() -> Dict[str, Any]:
 
 def do_concept_evolution() -> Dict[str, Any]:
     action = "concept.evolve"
-    guard = guard_action(action)
+    guard = _severity_guard(action)
 
     if not guard["allowed"]:
         return _blocked(action, guard)
 
-    return _safe_exec(action, evolution_cycle)
+    from knowledge.self_model import get_self_model
+    coherence = get_self_model()["confidence"]["graph_coherence"]
+    return _safe_exec(action, lambda: evolution_cycle(coherence=coherence))
 
 
 def do_claim_verification(claim: str) -> Dict[str, Any]:
@@ -139,11 +185,10 @@ def do_reasoning(claim: str) -> Dict[str, Any]:
 def do_curiosity_cycle() -> Dict[str, Any]:
     """
     Run the curiosity engine to detect gaps and propose goals.
-    Read-only gap detection is always allowed. Goal proposals are
-    governed by the tier system.
+    Severity-gated: suppressed during stressed periods.
     """
     action = "knowledge.curiosity_cycle"
-    guard = guard_action(action)
+    guard = _severity_guard(action)
 
     if not guard["allowed"]:
         return _blocked(action, guard)
@@ -154,10 +199,10 @@ def do_curiosity_cycle() -> Dict[str, Any]:
 def do_approve_knowledge_goal(goal_id: str) -> Dict[str, Any]:
     """
     Approve a proposed knowledge goal and generate its acquisition plan.
-    Requires governance approval (operator or tier-appropriate auto-approve).
+    Severity-gated.
     """
     action = "knowledge.approve_goal"
-    guard = guard_action(action)
+    guard = _severity_guard(action)
 
     if not guard["allowed"]:
         return _blocked(action, guard)
@@ -169,6 +214,24 @@ def do_approve_knowledge_goal(goal_id: str) -> Dict[str, Any]:
     )
 
 
+def do_execute_knowledge_goal(goal_id: str) -> Dict[str, Any]:
+    """
+    Execute the next pending phase of an approved knowledge goal.
+    Severity-gated: blocked during stressed periods.
+    """
+    action = "knowledge.execute_goal"
+    guard = _severity_guard(action)
+
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+
+    return _safe_exec(
+        action,
+        lambda: execute_next_phase(goal_id),
+        goal_id=goal_id,
+    )
+
+
 def do_knowledge_acquisition(
     items: List[Dict[str, Any]],
     source: str = "acquisition",
@@ -176,14 +239,28 @@ def do_knowledge_acquisition(
 ) -> Dict[str, Any]:
     """
     Execute a governed batch knowledge acquisition.
-    Uses the adaptive pacer to determine batch size and verification intensity.
-    Runs the quality gate after ingestion.
+    Severity-gated: blocked during stressed periods.
+    Coordinator-gated (C2): blocked when defensive level >= 3.
     """
     action = "knowledge.acquire"
-    guard = guard_action(action)
+    guard = _severity_guard(action)
 
     if not guard["allowed"]:
         return _blocked(action, guard)
+
+    # C2: Defensive coordinator gate
+    try:
+        from knowledge.meta_reasoner import get_defensive_coordinator
+        coord = get_defensive_coordinator()
+        if coord.should_suppress_ingestion():
+            return {
+                "action": action,
+                "allowed": True,
+                "paused": True,
+                "reason": f"defensive_coordinator_level_{coord.current_level}",
+            }
+    except (ImportError, Exception):
+        pass
 
     if not should_acquire_now():
         return {
@@ -369,13 +446,80 @@ def do_flow_tuning() -> Dict[str, Any]:
 # SCOPED EVOLUTION (Part 2 acceleration)
 # ------------------------------------------------------------
 
+def do_active_consolidation() -> Dict[str, Any]:
+    """
+    Run active consistency consolidation (C1). Governed because
+    it removes items and modifies the graph.
+    """
+    action = "maintenance.consolidation"
+    guard = guard_action(action)
+
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+
+    try:
+        from knowledge.consistency_checker import run_active_consolidation
+        from knowledge.self_model import get_self_model
+        sm = get_self_model()
+        consistency = sm["confidence"]["consistency"]
+        coherence = sm["confidence"]["graph_coherence"]
+        result = run_active_consolidation(consistency, coherence)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_delayed_poison_audit() -> Dict[str, Any]:
+    """
+    Run delayed poisoning detection (M2). Read-heavy with
+    potential flagging side effects.
+    """
+    action = "security.poison_audit"
+    guard = guard_action(action)
+
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+
+    try:
+        from knowledge.source_integrity import run_delayed_poison_audit
+        result = run_delayed_poison_audit()
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_quarantine_review() -> Dict[str, Any]:
+    """Review quarantined items (P4). Governed because it can release items."""
+    action = "security.quarantine_review"
+    guard = guard_action(action)
+
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+
+    try:
+        from knowledge.source_integrity import review_quarantine
+        result = review_quarantine(max_review=20)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_quarantine_status() -> Dict[str, Any]:
+    """Get quarantine queue status (P4). Read-only."""
+    try:
+        from knowledge.source_integrity import get_quarantine_status
+        return {"action": "security.quarantine_status", "result": get_quarantine_status()}
+    except Exception as exc:
+        return {"action": "security.quarantine_status", "error": str(exc)}
+
+
 def do_scoped_evolution(cluster_entities: List[str]) -> Dict[str, Any]:
     """
-    Run concept evolution scoped to a specific cluster rather than
-    the entire graph. Faster and safer for post-acquisition refinement.
+    Run concept evolution scoped to a specific cluster.
+    Severity-gated.
     """
     action = "concept.evolve_scoped"
-    guard = guard_action(action)
+    guard = _severity_guard(action)
 
     if not guard["allowed"]:
         return _blocked(action, guard)
@@ -384,3 +528,159 @@ def do_scoped_evolution(cluster_entities: List[str]) -> Dict[str, Any]:
         action,
         lambda: scoped_evolution_cycle(cluster_entities),
     )
+
+
+# ------------------------------------------------------------
+# ANTI-ENTROPY LAYER (governed wrappers)
+# ------------------------------------------------------------
+
+def do_entropy_budget_report() -> Dict[str, Any]:
+    """Compute and return the entropy budget report. Read-only."""
+    action = "entropy.budget_report"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.entropy.entropy_budget import compute_entropy_budget
+        return {"action": action, "allowed": True, "result": compute_entropy_budget()}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_epoch_status() -> Dict[str, Any]:
+    """Get current epoch status. Read-only."""
+    action = "entropy.epoch_status"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.entropy.epoch_engine import get_epoch_status
+        return {"action": action, "allowed": True, "result": get_epoch_status()}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_start_epoch(duration_hours: float = 48.0) -> Dict[str, Any]:
+    """Start a new operational epoch. Governed mutation."""
+    action = "entropy.epoch_start"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.entropy.epoch_engine import start_epoch
+        result = start_epoch(duration_hours=duration_hours)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_end_epoch() -> Dict[str, Any]:
+    """
+    End the current epoch (triggers graph compaction, drift court,
+    entropy budget snapshot, and renewal). Governed mutation.
+    """
+    action = "entropy.epoch_end"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.entropy.epoch_engine import end_epoch
+        result = end_epoch()
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_renewal_cycle(dry_run: bool = False) -> Dict[str, Any]:
+    """Run the renewal layer (prune expired transient state). Governed mutation."""
+    action = "entropy.renewal"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.entropy.renewal_layer import run_renewal
+        result = run_renewal(dry_run=dry_run)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_drift_court() -> Dict[str, Any]:
+    """Run a Drift Court session. Governed mutation (may create proposals)."""
+    action = "entropy.drift_court"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.entropy.drift_court import run_drift_court
+        result = run_drift_court()
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_graph_compaction() -> Dict[str, Any]:
+    """Run graph compaction (coherence fix). Governed mutation."""
+    action = "entropy.graph_compaction"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.graph_compactor import run_compaction
+        result = run_compaction()
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_canonical_template_summary() -> Dict[str, Any]:
+    """Get canonical template summary. Read-only."""
+    action = "entropy.template_summary"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.entropy.canonical_template import get_template_summary
+        return {"action": action, "allowed": True, "result": get_template_summary()}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_renewal_status() -> Dict[str, Any]:
+    """Get renewal layer status. Read-only."""
+    action = "entropy.renewal_status"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.entropy.renewal_layer import get_renewal_status
+        return {"action": action, "allowed": True, "result": get_renewal_status()}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_drift_court_summary() -> Dict[str, Any]:
+    """Get drift court history summary. Read-only."""
+    action = "entropy.court_summary"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.entropy.drift_court import get_court_summary
+        return {"action": action, "allowed": True, "result": get_court_summary()}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_apply_canonization(proposal_id: str) -> Dict[str, Any]:
+    """Apply an approved canonization proposal. Governed mutation."""
+    action = "entropy.canonize"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.entropy.drift_court import apply_approved_canonization
+        result = apply_approved_canonization(proposal_id)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}

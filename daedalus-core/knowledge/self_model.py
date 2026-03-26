@@ -91,62 +91,144 @@ SELF_MODEL: Dict[str, Any] = {
 # INTERNAL ANALYSIS HELPERS
 # ------------------------------------------------------------
 
-def _compute_knowledge_quality() -> float:
+def _compute_knowledge_quality(sample_cap: int = 2000) -> float:
     """
-    Computes average trust score across the knowledge base.
+    Computes average trust score using reservoir sampling.
+    At scale (millions of items), scanning every item per cycle
+    is prohibitive. Reservoir sampling gives a statistically
+    representative estimate in O(n) time but bounded memory,
+    and the trust-score computation only runs on the sample.
     """
-    scores = []
+    import random
+
+    reservoir: list = []
+    count = 0
+
     for item in _iter_items():
+        count += 1
+        if count <= sample_cap:
+            reservoir.append(item)
+        else:
+            j = random.randint(0, count - 1)
+            if j < sample_cap:
+                reservoir[j] = item
+
+    if not reservoir:
+        return 0.0
+
+    scores = []
+    for item in reservoir:
         try:
             scores.append(compute_trust_score(item))
         except Exception:
             continue
 
-    if not scores:
-        return 0.0
+    return sum(scores) / len(scores) if scores else 0.0
 
-    return sum(scores) / len(scores)
+
+# P3 + B5: Asymmetric coherence damper.
+# When coherence is improving (raw > EMA), use alpha 0.6 to track faster.
+# When coherence is declining (raw < EMA), use alpha 0.4 to resist harder.
+# This lets genuine structural gains (from compaction) register quickly
+# while still preventing sawtooth oscillation from transient dips.
+_COHERENCE_EMA_ALPHA_UP = 0.6
+_COHERENCE_EMA_ALPHA_DOWN = 0.4
+_coherence_ema: Optional[float] = None
 
 
 def _compute_graph_coherence() -> float:
     """
     Measures coherence based on:
-    - centrality distribution
-    - number of connected components
+    - component fragmentation ratio (entities / components)
+    - centrality density (structured entities / total entities)
+
+    P3+B5: Output is smoothed via asymmetric EMA. Improvements track
+    faster (alpha=0.6) than declines (alpha=0.4), so compaction gains
+    register quickly while random dips are damped harder.
     """
+    global _coherence_ema
+
     centrality = compute_entity_centrality()
     components = get_connected_components()
 
     if not centrality:
-        return 0.0
+        return _coherence_ema if _coherence_ema is not None else 0.0
 
-    # Fewer components = more coherence
-    comp_factor = max(0.1, 1.0 / len(components))
+    total_entities = sum(len(c) for c in components) if components else len(centrality)
+    num_components = max(1, len(components))
 
-    # Higher centrality = more structure
-    cent_factor = min(1.0, len(centrality) / 100)
+    avg_component_size = total_entities / num_components
+    comp_factor = min(1.0, avg_component_size / max(total_entities * 0.1, 1))
+    cent_factor = min(1.0, len(centrality) / max(total_entities * 0.1, 1))
 
-    return (comp_factor * 0.6) + (cent_factor * 0.4)
+    raw = (comp_factor * 0.6) + (cent_factor * 0.4)
+
+    if _coherence_ema is None:
+        _coherence_ema = raw
+    else:
+        alpha = _COHERENCE_EMA_ALPHA_UP if raw >= _coherence_ema else _COHERENCE_EMA_ALPHA_DOWN
+        _coherence_ema = alpha * raw + (1 - alpha) * _coherence_ema
+
+    return _coherence_ema
+
+
+_CONSISTENCY_EMA_ALPHA_UP = 0.6
+_CONSISTENCY_EMA_ALPHA_DOWN = 0.35
+_consistency_ema: Optional[float] = None
 
 
 def _compute_consistency_score(consistency_report: Dict[str, Any]) -> float:
     """
-    Converts consistency report into a coherence score.
-    """
-    total_issues = (
-        consistency_report["summary"]["contradiction_count"]
-        + consistency_report["summary"]["low_trust_count"]
-        + consistency_report["summary"]["duplicate_count"]
-        + consistency_report["summary"]["relation_conflict_count"]
-        + consistency_report["summary"]["relation_cycle_count"]
-        + consistency_report["summary"]["outdated_count"]
-    )
+    Converts consistency report into a scale-independent consistency
+    score using severity-weighted defect rates with asymmetric EMA damping.
 
-    # More issues = lower consistency
-    if total_issues == 0:
+    Design properties:
+    1. Scale-independent — expressed as defect *rate* (defects / items),
+       so a 7M-item KB with 70 contradictions scores the same as a
+       700-item KB with 7.
+    2. Severity-weighted — contradictions and relation conflicts count
+       10x more than duplicates or outdated items, because they
+       directly degrade user-facing answer quality.
+    3. Bounded — output is always in [0.05, 1.0] regardless of scale.
+    4. Asymmetric EMA (C2-v3) — improvements tracked faster (0.6),
+       declines resisted harder (0.35). Prevents random noise from
+       eroding hard-won consistency gains.
+    """
+    global _consistency_ema
+
+    s = consistency_report["summary"]
+    total_items = s.get("total_items", 0)
+
+    if total_items == 0:
         return 1.0
 
-    return max(0.05, 1.0 / (1 + total_issues / 10))
+    WEIGHT_CONTRADICTION = 10.0
+    WEIGHT_RELATION_CONFLICT = 8.0
+    WEIGHT_RELATION_CYCLE = 5.0
+    WEIGHT_LOW_TRUST = 2.0
+    WEIGHT_OUTDATED = 1.0
+    WEIGHT_DUPLICATE = 0.5
+
+    weighted_defects = (
+        s["contradiction_count"] * WEIGHT_CONTRADICTION
+        + s["relation_conflict_count"] * WEIGHT_RELATION_CONFLICT
+        + s["relation_cycle_count"] * WEIGHT_RELATION_CYCLE
+        + s["low_trust_count"] * WEIGHT_LOW_TRUST
+        + s["outdated_count"] * WEIGHT_OUTDATED
+        + s["duplicate_count"] * WEIGHT_DUPLICATE
+    )
+
+    defect_rate = weighted_defects / total_items
+    raw = 1.0 / (1.0 + defect_rate * 100)
+    raw = max(0.05, min(1.0, raw))
+
+    if _consistency_ema is None:
+        _consistency_ema = raw
+    else:
+        alpha = _CONSISTENCY_EMA_ALPHA_UP if raw >= _consistency_ema else _CONSISTENCY_EMA_ALPHA_DOWN
+        _consistency_ema = alpha * raw + (1 - alpha) * _consistency_ema
+
+    return _consistency_ema
 
 
 def _identify_blind_spots(patterns: Dict[str, Any]) -> List[str]:

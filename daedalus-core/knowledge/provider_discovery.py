@@ -203,16 +203,62 @@ class ProviderRegistry:
     # Fitness Scoring + Task Assignment
     # --------------------------------------------------------
 
+    def record_call_outcome(self, provider_id: str, success: bool, latency_ms: float = 0.0) -> None:
+        """
+        Track per-provider call reliability for fitness weighting.
+        Sim-fix M1: cascade failure detection — 5 consecutive failures
+        triggers auto-degradation.
+        """
+        p = self._providers.get(provider_id)
+        if not p:
+            return
+        if not hasattr(p, "_call_successes"):
+            p._call_successes = 0  # type: ignore[attr-defined]
+            p._call_failures = 0  # type: ignore[attr-defined]
+            p._consecutive_failures = 0  # type: ignore[attr-defined]
+        if success:
+            p._call_successes += 1  # type: ignore[attr-defined]
+            p._consecutive_failures = 0  # type: ignore[attr-defined]
+        else:
+            p._call_failures += 1  # type: ignore[attr-defined]
+            p._consecutive_failures = getattr(p, "_consecutive_failures", 0) + 1  # type: ignore[attr-defined]
+            # M1: cascade failure — 5 consecutive failures auto-degrades
+            if p._consecutive_failures >= 5 and p.status == ProviderStatus.ACTIVE:  # type: ignore[attr-defined]
+                p.status = ProviderStatus.DEGRADED
+                self._add_notification(
+                    "provider_cascade_degraded",
+                    f"Provider '{p.name}' degraded after {p._consecutive_failures} consecutive failures",
+                    {"provider_id": provider_id},
+                )
+        p.last_used_at = time.time()
+
+    def get_reliability(self, provider_id: str) -> float:
+        """Compute reliability ratio (0.0-1.0) for a provider."""
+        p = self._providers.get(provider_id)
+        if not p:
+            return 0.0
+        successes = getattr(p, "_call_successes", 0)
+        failures = getattr(p, "_call_failures", 0)
+        total = successes + failures
+        if total < 5:
+            return 0.5  # insufficient data, assume neutral
+        return successes / total
+
     def compute_fitness(self, provider_id: str) -> Dict[str, float]:
         """
         Compute fitness scores for each task type.
-        Higher = better suited for that task.
+        Now includes reliability weighting: providers with low
+        reliability are penalized, and a minimum reliability floor
+        gates task selection entirely.
         """
         p = self._providers.get(provider_id)
         if not p or p.status not in (ProviderStatus.ACTIVE, ProviderStatus.DEGRADED):
             return {}
 
         caps = p.capabilities
+        reliability = self.get_reliability(provider_id)
+        RELIABILITY_FLOOR = 0.70  # Sim-fix M1: raised from 0.60
+
         scores: Dict[str, float] = {}
 
         for task in TaskType:
@@ -255,6 +301,13 @@ class ProviderRegistry:
             # Degraded penalty
             if p.status == ProviderStatus.DEGRADED:
                 score *= 0.7
+
+            # Reliability weighting: scale fitness by reliability ratio
+            # Below the floor, the provider is not eligible at all
+            if reliability < RELIABILITY_FLOOR:
+                score = 0.0
+            else:
+                score *= (0.5 + 0.5 * reliability)
 
             scores[task.value] = min(1.0, max(0.0, score))
 

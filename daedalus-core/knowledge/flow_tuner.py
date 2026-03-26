@@ -195,23 +195,90 @@ class TuningParams:
 # FLOW TUNER
 # ------------------------------------------------------------
 
-class FlowTuner:
+class QualitySignals:
     """
-    Observes pipeline metrics and adjusts tuning parameters to
-    optimize throughput while maintaining quality constraints.
+    Tracks quality-side metrics that the flow tuner uses to make
+    bidirectional decisions: decelerate when quality degrades,
+    not just when throughput degrades.
     """
 
     def __init__(self) -> None:
+        self.consistency = MetricWindow(max_size=200)
+        self.coherence = MetricWindow(max_size=200)
+        self.knowledge_quality = MetricWindow(max_size=200)
+
+    def record(self, consistency: float, coherence: float, quality: float) -> None:
+        self.consistency.record(consistency)
+        self.coherence.record(coherence)
+        self.knowledge_quality.record(quality)
+
+    def summary(self) -> Dict[str, Any]:
+        return {
+            "consistency": _window_summary(self.consistency),
+            "coherence": _window_summary(self.coherence),
+            "knowledge_quality": _window_summary(self.knowledge_quality),
+        }
+
+    def any_degrading(self) -> bool:
+        return any(
+            w.trend() == "degrading"
+            for w in (self.consistency, self.coherence, self.knowledge_quality)
+        )
+
+    def worst_trend(self) -> str:
+        trends = [
+            self.consistency.trend(),
+            self.coherence.trend(),
+            self.knowledge_quality.trend(),
+        ]
+        if "degrading" in trends:
+            return "degrading"
+        if "improving" in trends:
+            return "improving"
+        return "stable"
+
+
+class FlowTuner:
+    """
+    Observes pipeline metrics AND quality signals, then adjusts
+    tuning parameters bidirectionally: accelerate when both throughput
+    and quality are healthy; decelerate when either degrades.
+
+    Sim-fix C3: Recovery mode with hysteresis. After braking,
+    batch size recovers gradually once quality stabilizes for
+    N consecutive tune cycles.
+    """
+
+    RECOVERY_STABLE_CYCLES = 5  # stable quality cycles before recovery
+    RECOVERY_BATCH_INCREMENT = 2  # batch size increase per recovery step
+    RECOVERY_MAX_BATCH = 30  # cap during recovery (not full 50)
+    RECOVERY_IMMUNITY_CYCLES = 10  # T2: ignore quality brakes for N cycles after recovery starts
+
+    def __init__(self) -> None:
         self.metrics = PipelineMetrics()
+        self.quality = QualitySignals()
         self.params = TuningParams()
         self._last_tune_at: float = 0.0
         self._tune_interval_sec: float = 60.0
         self._tuning_history: List[Dict[str, Any]] = []
+        self._defensive_mode: bool = False
+        self._stable_cycles: int = 0
+        self._in_recovery: bool = False
+        self._pre_brake_batch_size: int = 10
+        self._recovery_immunity_remaining: int = 0  # T2
+
+    def record_quality(self, consistency: float, coherence: float, quality: float) -> None:
+        """Called after each meta-cycle or batch to feed quality signals."""
+        self.quality.record(consistency, coherence, quality)
+
+    def set_defensive_mode(self, active: bool) -> None:
+        """When active, tuner biases toward deceleration and deeper verification."""
+        self._defensive_mode = active
 
     def tune(self) -> Dict[str, Any]:
         """
-        Run a tuning cycle. Analyzes recent metrics and adjusts
-        parameters to improve throughput.
+        Bidirectional tuning cycle: considers both throughput metrics
+        and quality signals before making parameter adjustments.
         """
         now = time.time()
         if now - self._last_tune_at < self._tune_interval_sec:
@@ -220,14 +287,69 @@ class FlowTuner:
         self._last_tune_at = now
         adjustments: List[str] = []
 
-        # Batch size tuning
         throughput_trend = self.metrics.batch_throughput.trend()
-        if throughput_trend == "improving" and self.params.batch_size < 50:
-            self.params.batch_size = min(50, int(self.params.batch_size * 1.3))
-            adjustments.append(f"batch_size -> {self.params.batch_size}")
-        elif throughput_trend == "degrading" and self.params.batch_size > 5:
-            self.params.batch_size = max(5, int(self.params.batch_size * 0.7))
-            adjustments.append(f"batch_size -> {self.params.batch_size}")
+        quality_trend = self.quality.worst_trend()
+        quality_degrading = quality_trend == "degrading"
+
+        # --- Quality-first gating ---
+        # T2: During recovery immunity, only brake for true emergencies (defensive_mode),
+        # not transient quality fluctuations from increased throughput
+        should_brake = quality_degrading or self._defensive_mode
+        if self._in_recovery and self._recovery_immunity_remaining > 0:
+            self._recovery_immunity_remaining -= 1
+            if not self._defensive_mode:
+                should_brake = False
+                adjustments.append(f"recovery_immunity ({self._recovery_immunity_remaining} remaining)")
+
+        if should_brake:
+            if self.params.batch_size > 5:
+                self._pre_brake_batch_size = max(self._pre_brake_batch_size, self.params.batch_size)
+                self.params.batch_size = max(5, int(self.params.batch_size * 0.6))
+                adjustments.append(f"batch_size -> {self.params.batch_size} (quality brake)")
+
+            if self.params.verification_parallelism < 4:
+                self.params.verification_parallelism = min(
+                    4, self.params.verification_parallelism + 1
+                )
+                adjustments.append(
+                    f"verification_parallelism -> {self.params.verification_parallelism} (quality brake)"
+                )
+
+            if self.params.evolution_batch_cap > 3:
+                self.params.evolution_batch_cap = max(3, self.params.evolution_batch_cap - 2)
+                adjustments.append(
+                    f"evolution_batch_cap -> {self.params.evolution_batch_cap} (quality brake)"
+                )
+
+            self._stable_cycles = 0
+            self._in_recovery = False
+            self._recovery_immunity_remaining = 0
+        else:
+            # C3: Recovery mode with hysteresis
+            self._stable_cycles += 1
+
+            if self._stable_cycles >= self.RECOVERY_STABLE_CYCLES:
+                target = min(self._pre_brake_batch_size, self.RECOVERY_MAX_BATCH)
+                if self.params.batch_size < target:
+                    if not self._in_recovery:
+                        self._recovery_immunity_remaining = self.RECOVERY_IMMUNITY_CYCLES
+                    self._in_recovery = True
+                    self.params.batch_size = min(
+                        target,
+                        self.params.batch_size + self.RECOVERY_BATCH_INCREMENT,
+                    )
+                    adjustments.append(f"batch_size -> {self.params.batch_size} (recovery, immune={self._recovery_immunity_remaining})")
+                elif self._in_recovery:
+                    self._in_recovery = False
+                    adjustments.append("recovery_complete")
+            elif not self._in_recovery:
+                # Normal throughput-driven tuning
+                if throughput_trend == "improving" and self.params.batch_size < 50:
+                    self.params.batch_size = min(50, int(self.params.batch_size * 1.3))
+                    adjustments.append(f"batch_size -> {self.params.batch_size}")
+                elif throughput_trend == "degrading" and self.params.batch_size > 5:
+                    self.params.batch_size = max(5, int(self.params.batch_size * 0.7))
+                    adjustments.append(f"batch_size -> {self.params.batch_size}")
 
         # Verification latency tuning
         ver_p95 = self.metrics.verification_latency.p95()
@@ -277,6 +399,9 @@ class FlowTuner:
             "adjustments": adjustments,
             "params": self.params.as_dict(),
             "metrics_summary": self.metrics.summary(),
+            "quality_summary": self.quality.summary(),
+            "quality_trend": quality_trend,
+            "defensive_mode": self._defensive_mode,
             "timestamp": now,
         }
 
@@ -296,7 +421,9 @@ class FlowTuner:
         """Cockpit-ready summary of pipeline health and tuning state."""
         return {
             "metrics": self.metrics.summary(),
+            "quality": self.quality.summary(),
             "params": self.params.as_dict(),
+            "defensive_mode": self._defensive_mode,
             "recent_tuning": self._tuning_history[-5:] if self._tuning_history else [],
         }
 

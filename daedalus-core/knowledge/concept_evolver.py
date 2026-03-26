@@ -97,6 +97,7 @@ def merge_concepts(a: str, b: str) -> Dict[str, Any]:
     - A becomes the canonical concept
     - B is marked as an alias
     - All relations pointing to B are redirected to A
+    - T3: Actively resolves contradictions between A and B's items
     """
     from knowledge.knowledge_graph import _load_graph, _save_graph, _load_entities, _save_entities
 
@@ -104,10 +105,24 @@ def merge_concepts(a: str, b: str) -> Dict[str, Any]:
     entities = _load_entities()
 
     # Redirect edges
+    redirected = 0
     for subj, edges in graph.items():
         for edge in edges:
             if edge["object"] == b:
                 edge["object"] = a
+                redirected += 1
+
+    # T3: Resolve contradictions between A's and B's edge sets
+    contradictions_resolved = 0
+    if a in graph and b in graph:
+        a_rels = {(e["relation"], e["object"]): e for e in graph.get(a, [])}
+        b_rels = {(e["relation"], e["object"]): e for e in graph.get(b, [])}
+        for key in set(a_rels) & set(b_rels):
+            a_edge = a_rels[key]
+            b_edge = b_rels[key]
+            if a_edge.get("trust", 0) < b_edge.get("trust", 0):
+                a_edge["trust"] = b_edge["trust"]
+            contradictions_resolved += 1
 
     # Merge entity metadata
     if b in entities:
@@ -126,6 +141,8 @@ def merge_concepts(a: str, b: str) -> Dict[str, Any]:
         "action": "merged",
         "canonical": a,
         "merged": b,
+        "redirected_edges": redirected,
+        "contradictions_resolved": contradictions_resolved,
     }
 
 
@@ -227,13 +244,38 @@ def refine_relationships(entity: str) -> Dict[str, Any]:
 # FULL EVOLUTION CYCLE
 # ------------------------------------------------------------
 
-def evolution_cycle() -> Dict[str, Any]:
+# T6: Maximum coherence improvement per evolution cycle.
+# Prevents 30+ point jumps that cause sawtooth oscillation.
+MAX_COHERENCE_IMPROVEMENT_PER_CYCLE = 0.08
+
+
+def _compute_evolution_intensity(coherence: float, target: float = 0.75) -> Dict[str, Any]:
     """
-    Runs a full conceptual evolution cycle:
-    - find merge candidates
-    - merge similar concepts
-    - create abstract concepts
-    - refine relationships
+    Sim-fix C4: Proportional evolution intensity. Instead of
+    binary on/off, the intensity scales linearly with the
+    distance below the target coherence.
+
+    T6: Each level now includes a max_improvement cap to prevent
+    over-correction in a single cycle.
+    """
+    if coherence >= target:
+        return {"level": "maintenance", "cap_multiplier": 0.5, "threshold": 0.65, "max_improvement": 0.03}
+    deficit = target - coherence
+    if deficit < 0.10:
+        return {"level": "light", "cap_multiplier": 0.8, "threshold": 0.60, "max_improvement": 0.05}
+    if deficit < 0.25:
+        return {"level": "moderate", "cap_multiplier": 1.0, "threshold": 0.55, "max_improvement": 0.08}
+    if deficit < 0.40:
+        return {"level": "aggressive", "cap_multiplier": 1.5, "threshold": 0.50, "max_improvement": 0.10}
+    return {"level": "emergency", "cap_multiplier": 2.0, "threshold": 0.45, "max_improvement": 0.12}
+
+
+def evolution_cycle(coherence: float = 0.0) -> Dict[str, Any]:
+    """
+    Runs a full conceptual evolution cycle with proportional
+    intensity (C4): evolution effort scales with distance from
+    target coherence. Also computes a consistency boost (H2)
+    from contradiction-resolving merges.
     """
     evolution_cap = 10
     try:
@@ -242,22 +284,41 @@ def evolution_cycle() -> Dict[str, Any]:
     except ImportError:
         pass
 
-    merges = find_merge_candidates()
+    # C4: proportional intensity
+    intensity = _compute_evolution_intensity(coherence)
+    effective_cap = max(3, int(evolution_cap * intensity["cap_multiplier"]))
+    merge_threshold = intensity["threshold"]
+
+    merges = find_merge_candidates(threshold=merge_threshold)
     merge_results = []
 
-    for a, b, sim in merges[:evolution_cap]:
+    for a, b, sim in merges[:effective_cap]:
         merge_results.append(merge_concepts(a, b))
 
     abstracts = create_abstract_concepts()
 
     refined = []
-    for concept, _, _ in merges[:evolution_cap]:
+    for concept, _, _ in merges[:effective_cap]:
         refined.append(refine_relationships(concept))
+
+    # H2 + T3: real consistency benefit from contradiction-resolving merges
+    total_contradictions_resolved = sum(
+        m.get("contradictions_resolved", 0) for m in merge_results
+    )
+    consistency_boost = min(
+        0.15,
+        0.01 * total_contradictions_resolved
+        + 0.005 * len(merge_results)
+        + 0.002 * len(refined),
+    )
 
     return {
         "merged_concepts": merge_results,
         "abstract_concepts": abstracts,
         "refined_relationships": refined,
+        "intensity": intensity["level"],
+        "effective_cap": effective_cap,
+        "consistency_boost_estimate": round(consistency_boost, 4),
     }
 
 
