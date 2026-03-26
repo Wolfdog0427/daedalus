@@ -27,6 +27,10 @@ import { DEFAULT_REGULATION_CONFIG } from "./types";
 let regulationConfig: RegulationConfig = { ...DEFAULT_REGULATION_CONFIG };
 let lastRegulationOutput: RegulationOutput | null = null;
 
+// B2: Macro-correction cooldown prevents rapid-fire macro adjustments
+const MACRO_COOLDOWN_TICKS = 6;
+let macroCooldown = 0;
+
 // ── Drift Computation ───────────────────────────────────────────────
 
 const DRIFT_COMPUTATION_WINDOW = 40;
@@ -83,6 +87,7 @@ export function regulateAlignment(
   safeMode: SafeModeState,
   autonomyPaused: boolean,
   config: RegulationConfig = regulationConfig,
+  confidenceDamping: number = 0,
 ): RegulationOutput {
   const {
     targetAlignment,
@@ -96,12 +101,45 @@ export function regulateAlignment(
     catastrophicAlignmentThreshold,
   } = config;
 
+  // B2: tick-down macro cooldown regardless of whether macro fires
+  if (macroCooldown > 0) macroCooldown--;
+
+  // B1: When safe mode is active AND alignment is below the catastrophic
+  // threshold, the problem is external context — not configuration.
+  // Suspend all corrections to avoid wasting regulatory budget on noise.
+  if (safeMode.active && alignment <= catastrophicAlignmentThreshold) {
+    const output: RegulationOutput = {
+      microAdjustment: 0,
+      macroAdjustment: 0,
+      shouldEnterSafeMode: false,
+      shouldExitSafeMode: false,
+      shouldPauseAutonomy: !autonomyPaused,
+      shouldResumeAutonomy: false,
+      driftMetrics,
+      telemetry: {
+        appliedMicro: false,
+        appliedMacro: false,
+        macroRawCorrection: 0,
+        macroDampedCorrection: 0,
+        reason: "corrections_suspended_catastrophic_safe_mode",
+      },
+    };
+    lastRegulationOutput = output;
+    return output;
+  }
+
+  // Confidence-based damping: reduce correction intensity when alignment
+  // is stable and high. NEVER applies during safe mode (confidenceDamping
+  // is forced to 0 upstream by alignmentConfidence.ts).
+  const effectiveMicroGain = microGain * (1 - confidenceDamping * 0.5);
+  const effectiveMacroGain = macroGain * (1 - confidenceDamping * 0.7);
+
   // ── 1. Micro-correction layer (continuous homeostasis) ──────────
   const directionToTarget =
     alignment < targetAlignment ? 1 :
     alignment > targetAlignment ? -1 : 0;
 
-  const microBase = driftMetrics.magnitude * microGain * directionToTarget;
+  const microBase = driftMetrics.magnitude * effectiveMicroGain * directionToTarget;
   const microAdjustment = clamp(microBase, -2, 2);
 
   // ── 2. Macro-correction layer (damped emergency response) ───────
@@ -113,11 +151,13 @@ export function regulateAlignment(
   const largeDrift = driftMetrics.magnitude >= macroDriftThreshold;
   const acceleratingDrift = driftMetrics.acceleration >= macroAccelerationThreshold;
 
-  if (largeDrift || acceleratingDrift) {
-    macroRawCorrection = driftMetrics.magnitude * macroGain * directionToTarget;
+  // B2: Only fire macro-corrections when cooldown has elapsed
+  if ((largeDrift || acceleratingDrift) && macroCooldown === 0) {
+    macroRawCorrection = driftMetrics.magnitude * effectiveMacroGain * directionToTarget;
     macroDampedCorrection = macroRawCorrection * macroDamping;
     macroDampedCorrection = clamp(macroDampedCorrection, -15, 15);
     appliedMacro = true;
+    macroCooldown = MACRO_COOLDOWN_TICKS;
     macroReason = largeDrift && acceleratingDrift
       ? "large_and_accelerating_drift"
       : largeDrift
@@ -183,10 +223,12 @@ export function runRegulation(
   safeMode: SafeModeState,
   autonomyPaused: boolean,
   config?: RegulationConfig,
+  confidenceDamping?: number,
+  precomputedDrift?: DriftMetrics,
 ): RegulationOutput {
   const cfg = config ?? regulationConfig;
-  const driftMetrics = computeDriftMetrics(history, cfg.targetAlignment);
-  return regulateAlignment(currentAlignment, driftMetrics, safeMode, autonomyPaused, cfg);
+  const driftMetrics = precomputedDrift ?? computeDriftMetrics(history, cfg.targetAlignment);
+  return regulateAlignment(currentAlignment, driftMetrics, safeMode, autonomyPaused, cfg, confidenceDamping);
 }
 
 // ── Posture Modulation ──────────────────────────────────────────────
@@ -236,6 +278,7 @@ export function getLastRegulationOutput(): RegulationOutput | null {
 export function resetRegulationState(): void {
   regulationConfig = { ...DEFAULT_REGULATION_CONFIG };
   lastRegulationOutput = null;
+  macroCooldown = 0;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────

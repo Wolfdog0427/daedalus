@@ -517,11 +517,11 @@ function DaedalusOrchestratorPanel() {
                   <ul className="beings-list">
                     {snapshot.beings.map((b) => (
                       <li key={b.id} className="being-item">
-                        <div className="being-label">{b.label}</div>
+                        <div className="being-label">{b.name}</div>
                         <div className="being-meta">
-                          <span>Glow: {b.dominantGlow}</span>
-                          <span>Risk: {b.dominantRisk}</span>
-                          <span>Nodes: {b.nodes.length}</span>
+                          <span>Glow: {b.glow.level} ({Math.round(b.glow.intensity * 100)}%)</span>
+                          <span>Posture: {b.posture}</span>
+                          <span>Presence: {b.presenceMode}</span>
                         </div>
                       </li>
                     ))}

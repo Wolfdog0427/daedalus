@@ -199,7 +199,7 @@ describe("Kernel Expressive Physiology Pipeline", () => {
 
     it("returns ALERT during safe mode entry", () => {
       const overlay = selectOverlay(
-        { safeMode: { active: true, reason: "test", since: Date.now() }, previousSafeModeActive: false, postureChanged: false, highFocusTask: false, lowStress: false },
+        { safeMode: { active: true, reason: "test", since: Date.now() }, safeModeJustExited: false, postureChanged: false, highFocusTask: false, lowStress: false },
         basePosture,
       );
       expect(overlay).toBe(ExpressiveOverlay.ALERT);
@@ -207,7 +207,7 @@ describe("Kernel Expressive Physiology Pipeline", () => {
 
     it("returns RECOVERY during safe mode exit", () => {
       const overlay = selectOverlay(
-        { safeMode: { active: false }, previousSafeModeActive: true, postureChanged: false, highFocusTask: false, lowStress: false },
+        { safeMode: { active: false }, safeModeJustExited: true, postureChanged: false, highFocusTask: false, lowStress: false },
         basePosture,
       );
       expect(overlay).toBe(ExpressiveOverlay.RECOVERY);
@@ -215,7 +215,7 @@ describe("Kernel Expressive Physiology Pipeline", () => {
 
     it("returns TRANSITION during posture change", () => {
       const overlay = selectOverlay(
-        { safeMode: { active: false }, previousSafeModeActive: false, postureChanged: true, highFocusTask: false, lowStress: false },
+        { safeMode: { active: false }, safeModeJustExited: false, postureChanged: true, highFocusTask: false, lowStress: false },
         basePosture,
       );
       expect(overlay).toBe(ExpressiveOverlay.TRANSITION);
@@ -223,7 +223,7 @@ describe("Kernel Expressive Physiology Pipeline", () => {
 
     it("returns FOCUS during high-focus tasks", () => {
       const overlay = selectOverlay(
-        { safeMode: { active: false }, previousSafeModeActive: false, postureChanged: false, highFocusTask: true, lowStress: false },
+        { safeMode: { active: false }, safeModeJustExited: false, postureChanged: false, highFocusTask: true, lowStress: false },
         basePosture,
       );
       expect(overlay).toBe(ExpressiveOverlay.FOCUS);
@@ -232,7 +232,7 @@ describe("Kernel Expressive Physiology Pipeline", () => {
     it("returns CALM during low-stress periods with low caution", () => {
       const lowCautionPosture = { responsiveness: 0.7, caution: 0.2 };
       const overlay = selectOverlay(
-        { safeMode: { active: false }, previousSafeModeActive: false, postureChanged: false, highFocusTask: false, lowStress: true },
+        { safeMode: { active: false }, safeModeJustExited: false, postureChanged: false, highFocusTask: false, lowStress: true },
         lowCautionPosture,
       );
       expect(overlay).toBe(ExpressiveOverlay.CALM);
@@ -241,7 +241,7 @@ describe("Kernel Expressive Physiology Pipeline", () => {
     it("does NOT return CALM when caution is high", () => {
       const highCautionPosture = { responsiveness: 0.5, caution: 0.5 };
       const overlay = selectOverlay(
-        { safeMode: { active: false }, previousSafeModeActive: false, postureChanged: false, highFocusTask: false, lowStress: true },
+        { safeMode: { active: false }, safeModeJustExited: false, postureChanged: false, highFocusTask: false, lowStress: true },
         highCautionPosture,
       );
       expect(overlay).not.toBe(ExpressiveOverlay.CALM);
@@ -249,7 +249,7 @@ describe("Kernel Expressive Physiology Pipeline", () => {
 
     it("returns NONE when no condition is met", () => {
       const overlay = selectOverlay(
-        { safeMode: { active: false }, previousSafeModeActive: false, postureChanged: false, highFocusTask: false, lowStress: false },
+        { safeMode: { active: false }, safeModeJustExited: false, postureChanged: false, highFocusTask: false, lowStress: false },
         basePosture,
       );
       expect(overlay).toBe(ExpressiveOverlay.NONE);

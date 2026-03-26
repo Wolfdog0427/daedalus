@@ -1,15 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  fetchPendingProposals,
+  fetchProposalQueue,
   fetchProposalHistory,
   approveDaedalusProposal,
   denyDaedalusProposal,
   fetchApprovalGate,
   submitChangeProposal,
   fetchRollbackRegistry,
+  fetchOperatorProposals,
+  forceApproveOperatorProposal,
+  withdrawOperatorProposal,
   type DaedalusProposal,
   type ProposalParameterChange,
   type ProposalHistoryEntry,
+  type ProposalQueueState,
+  type OperatorPendingProposal,
   type ApprovalGateResponse,
   type ApprovalDecision,
   type ApprovalReasonBreakdown,
@@ -92,6 +97,21 @@ function AxesBadge({ label, ok }: { label: string; ok: boolean }) {
   );
 }
 
+function ConfidenceDimension({ label, value, description }: { label: string; value: number; description: string }) {
+  const tier = value >= 75 ? "high" : value >= 50 ? "mid" : "low";
+  return (
+    <div className={`evo-confidence-dim evo-confidence-dim--${tier}`} title={description}>
+      <div className="evo-confidence-dim__bar">
+        <div className="evo-confidence-dim__fill" style={{ width: `${value}%` }} />
+      </div>
+      <div className="evo-confidence-dim__meta">
+        <span className="evo-confidence-dim__label">{label}</span>
+        <span className="evo-confidence-dim__value">{value}%</span>
+      </div>
+    </div>
+  );
+}
+
 /* ── Helpers ────────────────────────────────────────────────────── */
 
 function formatPayloadKey(key: string): string {
@@ -111,6 +131,20 @@ function formatPayloadValue(val: unknown): string {
 type RecommendationLevel = "safe" | "review" | "caution";
 
 function computeRecommendation(p: DaedalusProposal): { level: RecommendationLevel; label: string; detail: string } {
+  if (p.proposalConfidence) {
+    const pc = p.proposalConfidence;
+    const criticalLow = pc.identity < 50 || pc.safety < 50;
+    if (criticalLow) {
+      return { level: "caution", label: "Proceed with Caution", detail: `${pc.identity < 50 ? "Identity" : "Safety"} score critically low (${Math.min(pc.identity, pc.safety)}%)` };
+    }
+    if (pc.overall >= 75 && pc.safety >= 70 && pc.identity >= 70 && pc.timing >= 60) {
+      return { level: "safe", label: "Likely Safe", detail: `Overall ${pc.overall}% — identity-preserving, safe, well-timed` };
+    }
+    if (pc.overall >= 50 && pc.safety >= 50) {
+      return { level: "review", label: "Review Recommended", detail: `Overall ${pc.overall}% — some dimensions need attention` };
+    }
+    return { level: "caution", label: "Proceed with Caution", detail: `Overall ${pc.overall}% — low confidence in critical dimensions` };
+  }
   const passCount =
     (p.alignment >= 85 ? 1 : 0) +
     (p.confidence >= 80 ? 1 : 0) +
@@ -237,28 +271,54 @@ function DaedalusProposalCard({
         </div>
       )}
 
-      {/* Decision metrics */}
-      <div className="evo-daedalus-card__grid">
-        <div className="evo-daedalus-card__metrics">
-          <AlignmentBar value={proposal.alignment} label="Alignment" />
-          <AlignmentBar value={proposal.confidence} label="Confidence" />
-        </div>
-        {proposal.effectBaseline != null && (
-          <div className="evo-baseline">
-            <span className="evo-baseline__label">Baseline when proposed:</span>
-            <span className="evo-baseline__val">{proposal.effectBaseline}%</span>
+      {/* Multi-dimensional confidence breakdown */}
+      {proposal.proposalConfidence ? (
+        <div className="evo-daedalus-card__confidence">
+          <div className="evo-confidence-grid">
+            <ConfidenceDimension label="Identity" value={proposal.proposalConfidence.identity} description="Will Daedalus still be Daedalus?" />
+            <ConfidenceDimension label="Continuity" value={proposal.proposalConfidence.continuity} description="Will behavior remain smooth?" />
+            <ConfidenceDimension label="Need" value={proposal.proposalConfidence.need} description="How necessary is this right now?" />
+            <ConfidenceDimension label="Efficacy" value={proposal.proposalConfidence.efficacy} description="Will it work as intended?" />
+            <ConfidenceDimension label="Safety" value={proposal.proposalConfidence.safety} description="Risk of errors or drift" />
+            <ConfidenceDimension label="Timing" value={proposal.proposalConfidence.timing} description="Is now a good time?" />
+            <ConfidenceDimension label="Reversibility" value={proposal.proposalConfidence.reversibility} description="How easily undone?" />
+            <ConfidenceDimension label="Track Record" value={proposal.proposalConfidence.trackRecord} description="Past success for this type" />
           </div>
-        )}
-      </div>
+          <div className="evo-confidence-overall">
+            <span className="evo-confidence-overall__label">Overall</span>
+            <span className={`evo-confidence-overall__value evo-confidence-overall__value--${proposal.proposalConfidence.overall >= 75 ? "high" : proposal.proposalConfidence.overall >= 50 ? "mid" : "low"}`}>
+              {proposal.proposalConfidence.overall}%
+            </span>
+            <span className="evo-confidence-overall__scope">
+              Scope: {proposal.proposalConfidence.scope}
+            </span>
+          </div>
+          {proposal.proposalConfidence.reasoning.length > 0 && (
+            <div className="evo-confidence-reasoning">
+              {proposal.proposalConfidence.reasoning.map((r, i) => (
+                <span key={i} className="evo-confidence-reasoning__item">{r}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="evo-daedalus-card__grid">
+          <div className="evo-daedalus-card__metrics">
+            <AlignmentBar value={proposal.alignment} label="Alignment" />
+            <AlignmentBar value={proposal.confidence} label="Confidence" />
+          </div>
+        </div>
+      )}
 
-      {/* Safety axes */}
+      {proposal.effectBaseline != null && (
+        <div className="evo-baseline">
+          <span className="evo-baseline__label">Baseline when proposed:</span>
+          <span className="evo-baseline__val">{proposal.effectBaseline}%</span>
+        </div>
+      )}
+
+      {/* Quick safety axes */}
       <div className="evo-daedalus-card__axes">
-        <span className={`evo-axis ${proposal.alignment >= 85 ? "evo-axis--ok" : "evo-axis--warn"}`}>
-          {proposal.alignment >= 85 ? "✓" : "⚠"} Alignment {proposal.alignment >= 85 ? "≥85" : "<85"}
-        </span>
-        <span className={`evo-axis ${proposal.confidence >= 80 ? "evo-axis--ok" : "evo-axis--warn"}`}>
-          {proposal.confidence >= 80 ? "✓" : "⚠"} Confidence {proposal.confidence >= 80 ? "≥80" : "<80"}
-        </span>
         <span className={`evo-axis ${proposal.touchesInvariants ? "evo-axis--warn" : "evo-axis--ok"}`}>
           {proposal.touchesInvariants ? "⚠ Touches Invariants" : "✓ Invariants Safe"}
         </span>
@@ -275,10 +335,96 @@ function DaedalusProposalCard({
 
       <div className="evo-daedalus-card__actions">
         <button className="evo-btn evo-btn--approve" onClick={() => onApprove(proposal.id)}>
-          Approve
+          {proposal.advisory ? "Acknowledge" : "Approve"}
         </button>
         <button className="evo-btn evo-btn--deny" onClick={() => onDeny(proposal.id)}>
-          Deny
+          {proposal.advisory ? "Dismiss" : "Deny"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Approval Window Timer ──────────────────────────────────────── */
+
+function ApprovalWindowTimer({ endsAt }: { endsAt: number | null }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  if (!endsAt) return null;
+  const remaining = Math.max(0, endsAt - now);
+  const hours = Math.floor(remaining / 3_600_000);
+  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+  const seconds = Math.floor((remaining % 60_000) / 1_000);
+  if (remaining === 0) return <span className="evo-timer evo-timer--expired">Window expired</span>;
+  return (
+    <span className="evo-timer">
+      {hours > 0 ? `${hours}h ` : ""}{minutes}m {seconds}s remaining
+    </span>
+  );
+}
+
+/* ── Deferred Queue Summary ───────────────────────────────────── */
+
+function DeferredQueueSummary({ queue }: { queue: ProposalQueueState }) {
+  if (queue.deferredCount === 0) return null;
+  return (
+    <div className="evo-deferred-summary">
+      <span className="evo-deferred-summary__icon">◈</span>
+      <span className="evo-deferred-summary__text">
+        {queue.deferredCount} proposal{queue.deferredCount !== 1 ? "s" : ""} queued
+      </span>
+      <div className="evo-deferred-summary__list">
+        {queue.deferred.slice(0, 5).map(d => (
+          <span key={d.id} className="evo-deferred-summary__item" title={d.title}>
+            {d.kind} ({d.priorityScore})
+          </span>
+        ))}
+        {queue.deferredCount > 5 && (
+          <span className="evo-deferred-summary__more">+{queue.deferredCount - 5} more</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Operator Pending Proposal Card ────────────────────────────── */
+
+function OperatorPendingCard({
+  proposal,
+  onForceApprove,
+  onWithdraw,
+}: {
+  proposal: OperatorPendingProposal;
+  onForceApprove: (id: string) => void;
+  onWithdraw: (id: string) => void;
+}) {
+  const time = new Date(proposal.createdAt).toLocaleTimeString();
+  const failedAxes = Object.entries(proposal.decision.reasons)
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
+
+  return (
+    <div className="evo-operator-pending-card">
+      <div className="evo-operator-pending-card__header">
+        <span className="evo-operator-pending-card__kind">{proposal.kind}</span>
+        <span className="evo-operator-pending-card__time">{time}</span>
+      </div>
+      <p className="evo-operator-pending-card__desc">{proposal.description}</p>
+      <div className="evo-operator-pending-card__reasons">
+        <span className="evo-operator-pending-card__label">Failed gates:</span>
+        {failedAxes.map(ax => (
+          <span key={ax} className="evo-operator-pending-card__fail">{ax}</span>
+        ))}
+      </div>
+      <div className="evo-operator-pending-card__actions">
+        <button className="evo-btn evo-btn--approve" onClick={() => onForceApprove(proposal.id)}>
+          Force Approve
+        </button>
+        <button className="evo-btn evo-btn--deny" onClick={() => onWithdraw(proposal.id)}>
+          Withdraw
         </button>
       </div>
     </div>
@@ -382,10 +528,11 @@ function HistoryRow({ entry }: { entry: ProposalHistoryEntry }) {
 /* ── Main Panel ─────────────────────────────────────────────────── */
 
 export function EvolutionPanel() {
-  const [pending, setPending] = useState<DaedalusProposal[]>([]);
+  const [queue, setQueue] = useState<ProposalQueueState | null>(null);
   const [history, setHistory] = useState<ProposalHistoryEntry[]>([]);
   const [gate, setGate] = useState<ApprovalGateResponse | null>(null);
   const [rollback, setRollback] = useState<RollbackRegistrySnapshot | null>(null);
+  const [operatorPending, setOperatorPending] = useState<OperatorPendingProposal[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [kind, setKind] = useState<ChangeProposalKind>("alignment_config");
@@ -394,16 +541,18 @@ export function EvolutionPanel() {
 
   const load = useCallback(async () => {
     try {
-      const [p, h, g, r] = await Promise.all([
-        fetchPendingProposals(),
+      const [q, h, g, r, op] = await Promise.all([
+        fetchProposalQueue(),
         fetchProposalHistory(),
         fetchApprovalGate(),
         fetchRollbackRegistry(),
+        fetchOperatorProposals(),
       ]);
-      setPending(p);
+      setQueue(q);
       setHistory(h);
       setGate(g);
       setRollback(r);
+      setOperatorPending(op);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load evolution data");
@@ -434,6 +583,24 @@ export function EvolutionPanel() {
     }
   }, [load]);
 
+  const handleForceApprove = useCallback(async (id: string) => {
+    try {
+      await forceApproveOperatorProposal(id);
+      void load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Force approval failed");
+    }
+  }, [load]);
+
+  const handleWithdraw = useCallback(async (id: string) => {
+    try {
+      await withdrawOperatorProposal(id);
+      void load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Withdrawal failed");
+    }
+  }, [load]);
+
   const handleSubmit = useCallback(async () => {
     if (!description.trim() || submitting) return;
     setSubmitting(true);
@@ -457,41 +624,70 @@ export function EvolutionPanel() {
           <span className="evolution-panel__icon">◈</span>
           Evolution
         </h3>
-        {pending.length > 0 && (
+        {queue?.surfaced && (
           <span className="evolution-panel__badge evolution-panel__badge--pending">
-            {pending.length} awaiting your approval
+            1 awaiting your {queue.surfaced.advisory ? "acknowledgment" : "approval"}
+          </span>
+        )}
+        {(queue?.deferredCount ?? 0) > 0 && (
+          <span className="evolution-panel__badge evolution-panel__badge--deferred">
+            {queue!.deferredCount} queued
           </span>
         )}
       </div>
 
       {error && <div className="evolution-error">{error}</div>}
 
-      {/* ── Section 1: Daedalus Proposals ──────────────────────────── */}
+      {/* ── Section 1: Daedalus Proposals (single-surfaced) ──────── */}
       <div className="evo-section">
         <div className="evo-section__header">
           <span className="evo-section__title">Daedalus Proposals</span>
           <span className="evo-section__subtitle">
-            Proposals generated by the kernel based on system state
+            One proposal at a time. Approve or deny to see the next.
           </span>
+          {queue?.approvalWindowEndsAt && (
+            <ApprovalWindowTimer endsAt={queue.approvalWindowEndsAt} />
+          )}
         </div>
 
-        {pending.length === 0 ? (
+        {!queue?.surfaced ? (
           <div className="evo-section__empty">
             No active proposals. Daedalus proposes alignment corrections, self-improvements, capability expansions, resilience upgrades, and more as conditions evolve.
           </div>
         ) : (
           <div className="evo-daedalus-list">
-            {pending.map(p => (
-              <DaedalusProposalCard
+            <DaedalusProposalCard
+              proposal={queue.surfaced}
+              onApprove={handleApprove}
+              onDeny={handleDeny}
+            />
+          </div>
+        )}
+
+        {queue && <DeferredQueueSummary queue={queue} />}
+      </div>
+
+      {/* ── Section 1b: Operator Pending Proposals ─────────────────── */}
+      {operatorPending.length > 0 && (
+        <div className="evo-section">
+          <div className="evo-section__header">
+            <span className="evo-section__title">Your Pending Changes</span>
+            <span className="evo-section__subtitle">
+              Changes you submitted that need review. Force-approve to override.
+            </span>
+          </div>
+          <div className="evo-operator-pending-list">
+            {operatorPending.map(p => (
+              <OperatorPendingCard
                 key={p.id}
                 proposal={p}
-                onApprove={handleApprove}
-                onDeny={handleDeny}
+                onForceApprove={handleForceApprove}
+                onWithdraw={handleWithdraw}
               />
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── Section 2: Operator Proposals ─────────────────────────── */}
       <div className="evo-section">

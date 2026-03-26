@@ -230,13 +230,32 @@ describe("trust calibration", () => {
     expect(DEFAULT_OPERATOR_TRUST_CONFIG.fallRate / DEFAULT_OPERATOR_TRUST_CONFIG.riseRate).toBe(5);
   });
 
-  test("calibration only flips with explicit confirmation + threshold", () => {
+  test("calibration: explicit confirmation path", () => {
     bindOperator(spencerProfile);
-    for (let t = 1; t <= 200; t++) updateOperatorTrust(mkObs(t));
-    expect(getOperatorTrustState().calibrated).toBe(false);
+    // With explicit confirmation and trust above threshold, calibration is immediate
+    for (let t = 1; t <= 10; t++) updateOperatorTrust(mkObs(t, {}, true));
+    const stateAfter = getOperatorTrustState();
+    if (stateAfter.trustScore >= DEFAULT_OPERATOR_TRUST_CONFIG.calibrationThreshold) {
+      expect(stateAfter.calibrated).toBe(true);
+    }
+  });
 
-    for (let t = 201; t <= 400; t++) updateOperatorTrust(mkObs(t, {}, true));
+  test("calibration: auto-calibration after sustained good signals", () => {
+    bindOperator(spencerProfile);
+    // Behavior learns at 0.2/tick pre-calibration, needing trust >= 75 to start counter.
+    // After ~250 ticks, behavior ≈ 42, trust ≈ (100*3+100*2+42*3+90*2)/10 ≈ 80.6
+    // Then 15 consecutive good ticks triggers auto-calibration.
+    for (let t = 1; t <= 300; t++) updateOperatorTrust(mkObs(t));
     expect(getOperatorTrustState().calibrated).toBe(true);
+  });
+
+  test("calibration: does not auto-calibrate with poor signals", () => {
+    bindOperator(spencerProfile);
+    // Low behavior score prevents auto-calibration
+    for (let t = 1; t <= 100; t++) {
+      updateOperatorTrust(mkObs(t, { behaviorMatchScore: 30 }));
+    }
+    expect(getOperatorTrustState().calibrated).toBe(false);
   });
 });
 

@@ -40,7 +40,11 @@ export type DaedalusEventType =
   | "DAEDALUS_PROPOSAL_CREATED"
   | "DAEDALUS_PROPOSAL_APPROVED"
   | "DAEDALUS_PROPOSAL_APPLIED"
-  | "DAEDALUS_PROPOSAL_DENIED";
+  | "DAEDALUS_PROPOSAL_DENIED"
+  | "DAEDALUS_PROPOSAL_SURFACED"
+  | "DAEDALUS_PROPOSAL_EXPIRED"
+  | "DAEDALUS_PROPOSAL_SUPERSEDED"
+  | "OPERATOR_PROPOSAL_PENDING";
 
 export interface DaedalusEventPayload {
   type: DaedalusEventType;
@@ -60,6 +64,9 @@ export interface DaedalusEventPayload {
   mirrorStatus?: string;
   strategy?: string;
   alignment?: number;
+  proposalId?: string;
+  proposalKind?: string;
+  deferredCount?: number;
 }
 
 type Listener = (event: DaedalusEventPayload) => void;

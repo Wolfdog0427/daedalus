@@ -60,16 +60,19 @@ let recentHighRiskLog: HighRiskDecisionLogEntry[] = [];
 let trustDriftSamples: TrustDriftSample[] = [];
 let relationshipTimeline: RelationshipTimeline = { events: [] };
 let attunementState: AttunementState | null = null;
+let autoCalibrationCounter = 0;
 
 const MAX_HIGH_RISK_LOG = 50;
 const MAX_DRIFT_SAMPLES = 500;
 const MAX_TIMELINE_EVENTS = 200;
+const AUTO_CALIBRATION_CONSECUTIVE_THRESHOLD = 15;
 
 // =====================================================================
 // 1. BIND / UNBIND
 // =====================================================================
 
 export function bindOperator(profile: OperatorProfile): OperatorTrustState {
+  autoCalibrationCounter = 0;
   trustState = {
     boundOperator: profile,
     trustScore: 0,
@@ -145,9 +148,22 @@ export function updateOperatorTrust(
     !signals.deviceSuspicious &&
     (trustState.calibrated || explicitlyConfirmedCanonical === true);
 
+  // H1: Allow slow behavior learning even before calibration to break catch-22.
+  // Pre-calibration learns at 20% of normal rate; post-calibration at 50%.
+  const preCalibrationLearn =
+    !canLearnBehavior &&
+    signals.credentialsValid &&
+    signals.deviceKnown &&
+    !signals.deviceSuspicious &&
+    signals.behaviorMatchScore >= 50;
+
   if (canLearnBehavior) {
     trustState.axes.behaviorProfile = moveToward(
       trustState.axes.behaviorProfile, signals.behaviorMatchScore, riseRate * 0.5,
+    );
+  } else if (preCalibrationLearn) {
+    trustState.axes.behaviorProfile = moveToward(
+      trustState.axes.behaviorProfile, signals.behaviorMatchScore, riseRate * 0.2,
     );
   } else if (signals.highRiskRequest && signals.behaviorMatchScore < 40 && trustState.calibrated) {
     trustState.axes.behaviorProfile = moveToward(trustState.axes.behaviorProfile, 0, fallRate);
@@ -171,24 +187,26 @@ export function updateOperatorTrust(
     trustState.calibrated = true;
   }
 
-  // Calibration pathway 2: automatic periodic re-calibration.
+  // Calibration pathway 2: counter-based auto-calibration.
   // When trust has been sustained above threshold with valid credentials
-  // and non-suspicious device for long enough, auto-calibrate.
-  // This prevents calibration from being permanently unreachable after binding.
-  const AUTO_CALIBRATION_TICK_INTERVAL = 50;
-  const canAutoCalibrate =
+  // and non-suspicious device for N consecutive observations, auto-calibrate.
+  const meetsAutoCalibrationConditions =
     !trustState.calibrated &&
     trustState.trustScore >= calibrationThreshold &&
     signals.credentialsValid &&
     signals.deviceKnown &&
     !signals.deviceSuspicious &&
-    signals.behaviorMatchScore >= 60 &&
-    signals.continuityMatchScore >= 60 &&
-    tick > 0 &&
-    tick % AUTO_CALIBRATION_TICK_INTERVAL === 0;
+    signals.behaviorMatchScore >= 55 &&
+    signals.continuityMatchScore >= 55;
 
-  if (canAutoCalibrate) {
-    trustState.calibrated = true;
+  if (meetsAutoCalibrationConditions) {
+    autoCalibrationCounter++;
+    if (autoCalibrationCounter >= AUTO_CALIBRATION_CONSECUTIVE_THRESHOLD) {
+      trustState.calibrated = true;
+      autoCalibrationCounter = 0;
+    }
+  } else if (!trustState.calibrated) {
+    autoCalibrationCounter = Math.max(0, autoCalibrationCounter - 1);
   }
 
   trustState.lastUpdateTick = tick;
@@ -787,6 +805,7 @@ export function resetOperatorIdentity(): void {
   trustDriftSamples = [];
   relationshipTimeline = { events: [] };
   attunementState = null;
+  autoCalibrationCounter = 0;
 }
 
 // =====================================================================

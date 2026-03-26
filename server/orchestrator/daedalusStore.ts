@@ -72,15 +72,7 @@ class DaedalusStore {
     }));
     return {
       nodes,
-      beings: [
-        {
-          id: "operator",
-          label: "Operator",
-          nodes: nodes.map((n) => n.id),
-          dominantGlow: "high",
-          dominantRisk: "low",
-        },
-      ],
+      beings: this.getBeingPresences(),
     };
   }
 

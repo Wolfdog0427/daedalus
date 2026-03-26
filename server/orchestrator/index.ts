@@ -41,13 +41,14 @@ export const createOrchestratorApp = () => {
 
   if (!tickTimer) {
     tickTimer = setInterval(() => {
-      try {
-        getStrategyService().evaluate();
-        getNodeMirrorRegistry().sweepStaleHeartbeats?.();
-        governanceService.sweepExpired?.();
-      } catch (e: any) {
-        console.error("[daedalus] Background tick error:", e?.message);
-      }
+      try { getStrategyService().evaluate(); }
+      catch (e: any) { console.error("[daedalus] evaluate() error:", e?.message); }
+
+      try { getNodeMirrorRegistry().sweepStaleHeartbeats?.(); }
+      catch (e: any) { console.error("[daedalus] sweepStaleHeartbeats error:", e?.message); }
+
+      try { governanceService.sweepExpired?.(); }
+      catch (e: any) { console.error("[daedalus] sweepExpired error:", e?.message); }
     }, TICK_INTERVAL_MS);
   }
 

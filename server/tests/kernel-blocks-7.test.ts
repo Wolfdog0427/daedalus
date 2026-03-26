@@ -486,7 +486,7 @@ describe("Constitutional Safe Mode", () => {
     expect(getSafeModeState().active).toBe(false);
   });
 
-  test("stays active until alignment >= 60 (hysteresis)", () => {
+  test("stays active until alignment >= 60 sustained for 3 ticks", () => {
     updateSafeModeFromAlignment(mkEvaluation(19));
     expect(getSafeModeState().active).toBe(true);
 
@@ -496,15 +496,29 @@ describe("Constitutional Safe Mode", () => {
     updateSafeModeFromAlignment(mkEvaluation(59));
     expect(getSafeModeState().active).toBe(true);
 
+    // Single tick at 60 is not enough — need 3 sustained
     updateSafeModeFromAlignment(mkEvaluation(60));
+    expect(getSafeModeState().active).toBe(true);
+
+    updateSafeModeFromAlignment(mkEvaluation(61));
+    expect(getSafeModeState().active).toBe(true);
+
+    updateSafeModeFromAlignment(mkEvaluation(62));
     expect(getSafeModeState().active).toBe(false);
   });
 
-  test("re-activates if alignment drops below 20 again", () => {
+  test("re-activates if alignment drops below 20 after cooldown", () => {
     updateSafeModeFromAlignment(mkEvaluation(19));
+    // Sustained exit: 3 ticks above exit threshold
+    updateSafeModeFromAlignment(mkEvaluation(70));
+    updateSafeModeFromAlignment(mkEvaluation(70));
     updateSafeModeFromAlignment(mkEvaluation(70));
     expect(getSafeModeState().active).toBe(false);
 
+    // Cooldown period — burn through re-entry cooldown ticks at safe alignment
+    for (let i = 0; i < 10; i++) updateSafeModeFromAlignment(mkEvaluation(70));
+
+    // Now re-entry should be possible via instant path (<20)
     updateSafeModeFromAlignment(mkEvaluation(15));
     expect(getSafeModeState().active).toBe(true);
   });
@@ -516,26 +530,31 @@ describe("Constitutional Safe Mode", () => {
     expect(result.caution).toBe(0.5);
   });
 
-  test("applySafeModeToPosture reduces responsiveness and raises caution", () => {
+  test("applySafeModeToPosture reduces responsiveness and raises caution (graduated)", () => {
     updateSafeModeFromAlignment(mkEvaluation(19));
     const base = { responsiveness: 0.7, caution: 0.5 };
-    const result = applySafeModeToPosture(base);
-    expect(result.responsiveness).toBeCloseTo(0.4);
-    expect(result.caution).toBeCloseTo(0.8);
+    // Passing alignment=19 gives near-full penalty
+    const result = applySafeModeToPosture(base, 19);
+    expect(result.responsiveness).toBeLessThan(0.7);
+    expect(result.caution).toBeGreaterThan(0.5);
+    // With alignment=19, factor ≈ (60-19)/(60-20) ≈ 1.025 clamped to 1 → full penalty
+    expect(result.responsiveness).toBeCloseTo(0.4, 1);
+    expect(result.caution).toBeCloseTo(0.8, 1);
   });
 
   test("applySafeModeToPosture clamps values to [0, 1]", () => {
     updateSafeModeFromAlignment(mkEvaluation(15));
     const base = { responsiveness: 0.1, caution: 0.9 };
-    const result = applySafeModeToPosture(base);
+    const result = applySafeModeToPosture(base, 15);
     expect(result.responsiveness).toBeGreaterThanOrEqual(0);
     expect(result.caution).toBeLessThanOrEqual(1);
   });
 
-  test("selectPosture applies safe mode overlay", () => {
+  test("selectPosture applies graduated safe mode overlay", () => {
     updateSafeModeFromAlignment(mkEvaluation(19));
-    const eval75 = mkEvaluation(75);
-    const posture = selectPosture(eval75);
+    // Graduated safe mode: at alignment 30, penalty factor is substantial
+    const eval30 = mkEvaluation(30);
+    const posture = selectPosture(eval30);
     expect(posture.responsiveness).toBeLessThan(DEFAULT_KERNEL_POSTURE.responsiveness);
     expect(posture.caution).toBeGreaterThan(DEFAULT_KERNEL_POSTURE.caution);
   });

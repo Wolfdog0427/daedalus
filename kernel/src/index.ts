@@ -19,9 +19,10 @@ import { detectAlignmentDrift } from "./driftDetector";
 import { interpretIntent, type IntentInput } from "./intent";
 import { getSafeModeState, enterSafeModeFromRegulation, exitSafeModeFromRegulation } from "./safeMode";
 import { evaluateProposals } from "./autoApproval";
-import { runRegulation, applyRegulationToPosture } from "./regulationLoop";
+import { runRegulation, computeDriftMetrics, applyRegulationToPosture } from "./regulationLoop";
 import { processRollbacks } from "./rollbackRegistry";
 import { getOperatorTrustSnapshot, recordTrustDriftSample } from "./operatorIdentity";
+import { computeSystemConfidence, getLastSystemConfidence, resetSystemConfidence } from "./alignmentConfidence";
 import { selectOverlay, tickOverlay, getPreviousPosture, setPreviousPosture, setOverlay, getOverlayState, resetOverlayState } from "./overlays";
 import { computeContextualModulation, getContext, resetContextEngine } from "./contextEngine";
 import type {
@@ -37,11 +38,13 @@ import type {
   OperatorTrustCockpitSnapshot,
   OperatorCue,
   KernelExpressiveState,
+  SystemConfidence,
 } from "./types";
-import { DEFAULT_KERNEL_CONFIG, SubPosture, ExpressiveOverlay } from "./types";
+import { DEFAULT_KERNEL_CONFIG, DEFAULT_REGULATION_CONFIG, SubPosture, ExpressiveOverlay } from "./types";
 
 let activeOperatorCue: OperatorCue | null = null;
 let lastSafeModeActive = false;
+let kernelTickCounter = 0;
 
 export function setOperatorCue(cue: OperatorCue | null): void {
   activeOperatorCue = cue;
@@ -54,8 +57,10 @@ export function getOperatorCue(): OperatorCue | null {
 export function resetExpressiveState(): void {
   activeOperatorCue = null;
   lastSafeModeActive = false;
+  kernelTickCounter = 0;
   resetOverlayState();
   resetContextEngine();
+  resetSystemConfidence();
 }
 
 export function tickKernel(
@@ -66,6 +71,8 @@ export function tickKernel(
   alignmentConfig?: AlignmentConfig,
   regulationCfg?: RegulationConfig,
 ): KernelTickResult {
+  kernelTickCounter++;
+
   // Single history read per tick — reused by all downstream consumers
   const history = kernelTelemetry.getAlignmentHistory();
 
@@ -88,12 +95,23 @@ export function tickKernel(
   const autonomyPaused = escalation.level === "critical" ||
     strategy.name === "autonomy_paused_alignment_critical";
 
+  // Compute drift metrics once for both confidence and regulation
+  const regCfg = regulationCfg ?? DEFAULT_REGULATION_CONFIG;
+  const driftMetrics = computeDriftMetrics(history, regCfg.targetAlignment);
+
+  // System confidence: alignment → behavioral modifiers
+  const systemConfidence = computeSystemConfidence(
+    strategy.alignment, history, driftMetrics, safeMode,
+  );
+
   const regulation = runRegulation(
     history,
     strategy.alignment,
     safeMode,
     autonomyPaused,
     regulationCfg,
+    systemConfidence.correctionDamping,
+    driftMetrics,
   );
 
   // Wire regulation governance signals into safe mode / autonomy state.
@@ -121,12 +139,12 @@ export function tickKernel(
 
   let approvals: ApprovalDecision[] = [];
   if (changeProposals && changeProposals.length > 0) {
-    approvals = evaluateProposals(changeProposals, strategy, safeModeAfterRegulation, alignmentConfig);
+    approvals = evaluateProposals(changeProposals, strategy, safeModeAfterRegulation, alignmentConfig, systemConfidence.approvalBias);
   }
 
   const rollbacks = processRollbacks(strategy.alignment);
 
-  recordTrustDriftSample(history.length);
+  recordTrustDriftSample(kernelTickCounter);
 
   const operatorTrust = getOperatorTrustSnapshot();
 
@@ -159,7 +177,7 @@ export function tickKernel(
   const overlay = selectOverlay(
     {
       safeMode: safeModeAfterRegulation,
-      previousSafeModeActive: lastSafeModeActive && !safeModeAfterRegulation.active,
+      safeModeJustExited: lastSafeModeActive && !safeModeAfterRegulation.active,
       postureChanged,
       highFocusTask: ctx.taskType === "analysis" || ctx.taskType === "review",
       lowStress: strategy.alignment >= 85 && escalation.level === "none",
@@ -187,7 +205,11 @@ export function tickKernel(
     setOverlay(finalOverlay);
   }
 
-  const microPosture = computeMicroPosture(strategy.alignment, strategy.confidence, drift);
+  const rawMicro = computeMicroPosture(strategy.alignment, strategy.confidence, drift);
+  const microPosture = {
+    ...rawMicro,
+    expressiveness: Math.min(1, rawMicro.expressiveness * systemConfidence.expressiveRange + (1 - systemConfidence.expressiveRange) * 0.3),
+  };
 
   lastSafeModeActive = safeModeAfterRegulation.active;
   setPreviousPosture(posture);
@@ -216,6 +238,7 @@ export function tickKernel(
     rollbacks,
     operatorTrust,
     expressive,
+    systemConfidence,
   };
 }
 
@@ -223,7 +246,7 @@ export { selectStrategy, getLastStrategyName, getLastEscalation, resetDispatcher
 export { evaluateStrategy, computeAlignmentBreakdown, explainStrategy } from "./strategy";
 export { kernelTelemetry } from "./telemetry";
 export { gateStrategyByAlignment, resetGateBand } from "./strategyGate";
-export { applySelfCorrectionIfNeeded, computeRecentAlignmentTrend, setOperatorConfigBaseline } from "./selfCorrection";
+export { applySelfCorrectionIfNeeded, computeRecentAlignmentTrend, setOperatorConfigBaseline, resetSelfCorrectionState } from "./selfCorrection";
 export { selectPosture, selectSubPosture, computeMicroPosture } from "./posture";
 export type { SubPostureContext } from "./posture";
 export { selectOverlay, tickOverlay, setOverlay, forceOverlay, getOverlayState, resetOverlayState } from "./overlays";
@@ -310,6 +333,12 @@ export {
   resetRegulationState,
 } from "./regulationLoop";
 
+export {
+  computeSystemConfidence,
+  getLastSystemConfidence,
+  resetSystemConfidence,
+} from "./alignmentConfidence";
+
 export type {
   AlignmentPolicy,
   KernelConfig,
@@ -375,6 +404,8 @@ export type {
   ConstitutionalFreezeState,
   ContinuitySeal,
   OperatorTrustCockpitSnapshot,
+  SystemConfidence,
+  ProposalConfidence,
   MicroPosture,
   OperatorCue,
   ContextState,
@@ -391,4 +422,4 @@ export type { IntentInput, IntentMetrics } from "./intent";
 export type { OverlayContext } from "./overlays";
 export type { IdentitySnapshot } from "./identity";
 
-export { DEFAULT_KERNEL_CONFIG, DEFAULT_KERNEL_POSTURE, DEFAULT_ALIGNMENT_CONFIG, DEFAULT_APPROVAL_GATE_CONFIG, DEFAULT_REGULATION_CONFIG, DEFAULT_ROLLBACK_CONFIG, DEFAULT_OPERATOR_TRUST_CONFIG, DEFAULT_POSTURE_CONFIG, INITIAL_OPERATOR_TRUST_STATE, HIGH_RISK_ACTIONS, DEFAULT_ALIGNMENT_POLICY } from "./types";
+export { DEFAULT_KERNEL_CONFIG, DEFAULT_KERNEL_POSTURE, DEFAULT_ALIGNMENT_CONFIG, DEFAULT_APPROVAL_GATE_CONFIG, DEFAULT_REGULATION_CONFIG, DEFAULT_ROLLBACK_CONFIG, DEFAULT_OPERATOR_TRUST_CONFIG, DEFAULT_POSTURE_CONFIG, INITIAL_OPERATOR_TRUST_STATE, HIGH_RISK_ACTIONS, DEFAULT_ALIGNMENT_POLICY, INITIAL_SYSTEM_CONFIDENCE } from "./types";

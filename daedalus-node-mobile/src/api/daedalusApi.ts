@@ -90,10 +90,16 @@ async function del<T>(path: string): Promise<T> {
 
 let mobileSessionId = `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-export async function sendChatMessage(content: string): Promise<{
+export interface ChatResponse {
   userMessage: ChatMessage;
   daedalusMessage: ChatMessage;
-}> {
+  reply: string;
+  intent: string;
+  confidence: number;
+  context: { lastIntent: string | null; lastTopic: string | null };
+}
+
+export async function sendChatMessage(content: string): Promise<ChatResponse> {
   return post('/chat', { message: content, sessionId: mobileSessionId });
 }
 
@@ -163,7 +169,9 @@ export async function ensureOperatorBound(operatorId: string, displayName: strin
 export type ChangeProposalKind =
   | 'alignment_config' | 'governance_policy' | 'regulation_tuning'
   | 'posture_shift' | 'node_authority' | 'identity_update'
-  | 'telemetry_config' | 'other';
+  | 'telemetry_config' | 'kernel_config' | 'strategy_override'
+  | 'posture_override' | 'safe_mode_toggle' | 'governance_override'
+  | 'other';
 
 export interface ApprovalReasonBreakdown {
   alignmentOK: boolean;
@@ -185,6 +193,8 @@ export interface ApprovalDecision {
   };
   reasons: ApprovalReasonBreakdown;
   derivedImpact: 'low' | 'medium' | 'high';
+  touchesInvariants: boolean;
+  reversible: boolean;
   alignment: number;
   confidence: number;
   decidedAt: number;
@@ -217,6 +227,20 @@ export interface ProposalParameterChange {
   unit?: string;
 }
 
+export interface ProposalConfidenceBreakdown {
+  identity: number;
+  continuity: number;
+  need: number;
+  efficacy: number;
+  safety: number;
+  timing: number;
+  reversibility: number;
+  trackRecord: number;
+  scope: 'narrow' | 'moderate' | 'wide';
+  overall: number;
+  reasoning: string[];
+}
+
 export interface DaedalusProposal {
   id: string;
   kind: string;
@@ -229,22 +253,26 @@ export interface DaedalusProposal {
   touchesInvariants: boolean;
   reversible: boolean;
   autoApprovable: boolean;
+  advisory: boolean;
   payload: Record<string, unknown>;
   parameterChanges: ProposalParameterChange[];
   operatorImpact: string;
   boundaries: string[];
   createdAt: number;
-  status: 'pending' | 'approved' | 'denied' | 'expired' | 'auto_approved';
+  surfacedAt?: number;
+  status: 'pending' | 'approved' | 'denied' | 'expired' | 'auto_approved' | 'acknowledged' | 'surfaced' | 'deferred' | 'superseded';
   resolvedAt?: number;
   effectBaseline?: number;
   effectAfter?: number;
+  proposalConfidence?: ProposalConfidenceBreakdown;
+  priorityScore?: number;
 }
 
 export interface ProposalHistoryEntry {
   id: string;
   title: string;
   kind: string;
-  status: 'approved' | 'denied' | 'auto_approved' | 'expired';
+  status: 'approved' | 'denied' | 'auto_approved' | 'expired' | 'acknowledged' | 'superseded';
   alignment: number;
   confidence: number;
   impact: 'low' | 'medium' | 'high';
@@ -253,6 +281,14 @@ export interface ProposalHistoryEntry {
   effectDelta: number | null;
   createdAt: number;
   resolvedAt: number;
+}
+
+export interface ProposalQueueState {
+  surfaced: DaedalusProposal | null;
+  deferredCount: number;
+  deferred: Array<{ id: string; kind: string; title: string; priorityScore: number }>;
+  approvalWindowEndsAt: number | null;
+  lastResolutionAt: number;
 }
 
 export async function fetchApprovalGate(): Promise<ApprovalGateResponse> {
@@ -272,6 +308,10 @@ export async function fetchRollbackRegistry(): Promise<RollbackRegistrySnapshot>
 
 export async function fetchPendingProposals(): Promise<DaedalusProposal[]> {
   return get('/proposals/pending');
+}
+
+export async function fetchProposalQueue(): Promise<ProposalQueueState> {
+  return get('/proposals/queue');
 }
 
 export async function fetchProposalHistory(): Promise<ProposalHistoryEntry[]> {

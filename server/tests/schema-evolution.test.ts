@@ -277,7 +277,7 @@ describe("Constitution forward compatibility", () => {
         presenceMode: "active",
         isSpeaking: false,
         isGuiding: false,
-        continuity: { streak: 0, lastCheckIn: new Date().toISOString(), healthy: true },
+        continuity: { streak: 1, lastCheckIn: new Date().toISOString(), healthy: true },
         autopilot: { enabled: false, scope: "none" },
         updatedAt: new Date().toISOString(),
       } as any,

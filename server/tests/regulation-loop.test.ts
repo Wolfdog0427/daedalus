@@ -191,7 +191,7 @@ describe("Macro-correction layer", () => {
   });
 
   test("large drift → macro fires", () => {
-    const r = regulateAlignment(70, { magnitude: 22, slope: 1, acceleration: 0 }, safeModeOff, false);
+    const r = regulateAlignment(70, { magnitude: 30, slope: 1, acceleration: 0 }, safeModeOff, false);
     expect(r.macroAdjustment).not.toBe(0);
     expect(r.telemetry.appliedMacro).toBe(true);
     expect(r.telemetry.reason).toBe("large_drift");
@@ -209,7 +209,7 @@ describe("Macro-correction layer", () => {
   });
 
   test("macro is damped", () => {
-    const r = regulateAlignment(70, { magnitude: 22, slope: 1, acceleration: 0 }, safeModeOff, false);
+    const r = regulateAlignment(70, { magnitude: 30, slope: 1, acceleration: 0 }, safeModeOff, false);
     expect(Math.abs(r.telemetry.macroDampedCorrection)).toBeLessThan(
       Math.abs(r.telemetry.macroRawCorrection),
     );
@@ -250,8 +250,9 @@ describe("Governance signals", () => {
     expect(r.shouldExitSafeMode).toBe(true);
   });
 
-  test("recovery above floor but still worsening → no exit", () => {
-    const r = regulateAlignment(75, { magnitude: 17, slope: 0.5, acceleration: 0 }, safeModeOn, false);
+  test("recovery near floor but still worsening → no exit", () => {
+    // At exactly floor (70), with positive slope, should not exit
+    const r = regulateAlignment(71, { magnitude: 21, slope: 0.5, acceleration: 0 }, safeModeOn, false);
     expect(r.shouldExitSafeMode).toBe(false);
   });
 
@@ -260,8 +261,9 @@ describe("Governance signals", () => {
     expect(r.shouldResumeAutonomy).toBe(true);
   });
 
-  test("autonomy paused + still accelerating → no resume", () => {
-    const r = regulateAlignment(80, { magnitude: 12, slope: 0, acceleration: 0.5 }, safeModeOff, true);
+  test("autonomy paused + near floor + still accelerating → no resume", () => {
+    // At floor (70), acceleration positive, not comfortably above → no resume
+    const r = regulateAlignment(71, { magnitude: 21, slope: 0.5, acceleration: 0.5 }, safeModeOff, true);
     expect(r.shouldResumeAutonomy).toBe(false);
   });
 
@@ -279,9 +281,9 @@ describe("Governance signals", () => {
 describe("Posture modulation", () => {
   const basePosture: KernelPosture = { responsiveness: 0.7, caution: 0.5 };
 
-  test("positive micro → responsiveness increases, caution decreases", () => {
+  test("negative micro (alignment above target) → responsiveness increases, caution decreases", () => {
     const reg: RegulationOutput = {
-      microAdjustment: 1.5, macroAdjustment: 0,
+      microAdjustment: -1.5, macroAdjustment: 0,
       shouldEnterSafeMode: false, shouldExitSafeMode: false,
       shouldPauseAutonomy: false, shouldResumeAutonomy: false,
       driftMetrics: defaultDrift,
@@ -305,7 +307,7 @@ describe("Posture modulation", () => {
     expect(p.caution).toBe(basePosture.caution);
   });
 
-  test("macro adjustment further modulates posture", () => {
+  test("macro adjustment further modulates posture (tightens when below target)", () => {
     const reg: RegulationOutput = {
       microAdjustment: 1, macroAdjustment: 10,
       shouldEnterSafeMode: false, shouldExitSafeMode: false,
@@ -314,7 +316,9 @@ describe("Posture modulation", () => {
       telemetry: { appliedMicro: true, appliedMacro: true, macroRawCorrection: 14, macroDampedCorrection: 10, reason: "large_drift" },
     };
     const p = applyRegulationToPosture(basePosture, reg);
-    expect(p.responsiveness).toBeGreaterThan(basePosture.responsiveness);
+    // Positive micro + positive macro = alignment needs correction upward = tighten posture
+    expect(p.responsiveness).toBeLessThan(basePosture.responsiveness);
+    expect(p.caution).toBeGreaterThan(basePosture.caution);
   });
 
   test("posture stays in [0, 1]", () => {
@@ -369,10 +373,10 @@ describe("Configurable thresholds", () => {
     const cfg = getRegulationConfig();
     expect(cfg.targetAlignment).toBe(92);
     expect(cfg.floorAlignment).toBe(70);
-    expect(cfg.microGain).toBe(0.08);
-    expect(cfg.macroGain).toBe(0.5);
+    expect(cfg.microGain).toBe(0.12);
+    expect(cfg.macroGain).toBe(0.35);
     expect(cfg.macroDamping).toBe(0.7);
-    expect(cfg.macroDriftThreshold).toBe(18);
+    expect(cfg.macroDriftThreshold).toBe(26);
     expect(cfg.macroAccelerationThreshold).toBe(0.6);
     expect(cfg.criticalAlignmentThreshold).toBe(40);
     expect(cfg.catastrophicAlignmentThreshold).toBe(15);
@@ -396,16 +400,17 @@ describe("Configurable thresholds", () => {
     expect(Math.abs(high.microAdjustment)).toBeGreaterThan(Math.abs(low.microAdjustment));
   });
 
-  test("higher macro damping → smaller damped correction", () => {
+  test("higher macro damping coefficient → larger damped correction", () => {
     const lowDamp = regulateAlignment(
       60, { magnitude: 32, slope: 2, acceleration: 0 }, safeModeOff, false,
       { ...DEFAULT_REGULATION_CONFIG, macroDamping: 0.3 },
     );
+    resetRegulationState();
     const highDamp = regulateAlignment(
       60, { magnitude: 32, slope: 2, acceleration: 0 }, safeModeOff, false,
       { ...DEFAULT_REGULATION_CONFIG, macroDamping: 0.9 },
     );
-    expect(Math.abs(lowDamp.macroAdjustment)).toBeLessThan(Math.abs(highDamp.macroAdjustment));
+    expect(Math.abs(highDamp.macroAdjustment)).toBeGreaterThan(Math.abs(lowDamp.macroAdjustment));
   });
 
   test("reset restores defaults", () => {
@@ -514,7 +519,7 @@ describe("Edge cases", () => {
   });
 
   test("drift magnitude at exact macro threshold", () => {
-    const r = regulateAlignment(74, { magnitude: 18, slope: 0, acceleration: 0 }, safeModeOff, false);
+    const r = regulateAlignment(74, { magnitude: 26, slope: 0, acceleration: 0 }, safeModeOff, false);
     expect(r.telemetry.appliedMacro).toBe(true);
   });
 

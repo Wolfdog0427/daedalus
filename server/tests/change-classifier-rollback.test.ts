@@ -413,7 +413,7 @@ describe("rollback registry: registration", () => {
     expect(getActiveChanges()).toHaveLength(5);
   });
 
-  test("exceeding maxActiveChanges auto-accepts oldest", () => {
+  test("exceeding maxActiveChanges evicts oldest", () => {
     updateRollbackConfig({ maxActiveChanges: 3 });
     for (let i = 0; i < 5; i++) {
       registerChange({
@@ -428,7 +428,7 @@ describe("rollback registry: registration", () => {
     }
     const snapshot = getRollbackRegistrySnapshot();
     expect(snapshot.activeChanges.length).toBeLessThanOrEqual(3);
-    expect(snapshot.acceptedCount).toBeGreaterThanOrEqual(2);
+    expect(snapshot.evictedCount).toBeGreaterThanOrEqual(2);
   });
 
   test("getCurrentTick starts at 0", () => {
@@ -698,7 +698,7 @@ describe("processRollbacks", () => {
 describe("rollback config", () => {
   test("defaults", () => {
     const cfg = getRollbackConfig();
-    expect(cfg.degradationThreshold).toBe(7);
+    expect(cfg.degradationThreshold).toBe(5);
     expect(cfg.defaultEvaluationWindow).toBe(100);
     expect(cfg.maxActiveChanges).toBe(20);
     expect(cfg.maxRollbackHistory).toBe(50);

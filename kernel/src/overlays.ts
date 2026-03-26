@@ -31,7 +31,7 @@ const OVERLAY_DURATIONS: Record<ExpressiveOverlay, number> = {
 
 export interface OverlayContext {
   safeMode: SafeModeState;
-  previousSafeModeActive: boolean;
+  safeModeJustExited: boolean;
   postureChanged: boolean;
   highFocusTask: boolean;
   lowStress: boolean;
@@ -41,11 +41,11 @@ export function selectOverlay(
   context: OverlayContext,
   posture: KernelPosture,
 ): ExpressiveOverlay {
-  if (context.safeMode.active && !context.previousSafeModeActive) {
+  if (context.safeMode.active && !context.safeModeJustExited) {
     setOverlay(ExpressiveOverlay.ALERT);
     return ExpressiveOverlay.ALERT;
   }
-  if (!context.safeMode.active && context.previousSafeModeActive) {
+  if (!context.safeMode.active && context.safeModeJustExited) {
     setOverlay(ExpressiveOverlay.RECOVERY);
     return ExpressiveOverlay.RECOVERY;
   }

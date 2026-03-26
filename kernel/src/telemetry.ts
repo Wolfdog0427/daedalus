@@ -13,6 +13,7 @@ import { getRecentApprovalDecisions } from "./autoApproval";
 import { getLastRegulationOutput } from "./regulationLoop";
 import { getRollbackRegistrySnapshot } from "./rollbackRegistry";
 import { getOperatorTrustSnapshot } from "./operatorIdentity";
+import { getLastSystemConfidence } from "./alignmentConfidence";
 import type {
   StrategyTelemetryEntry,
   KernelTelemetrySnapshot,
@@ -106,6 +107,7 @@ class KernelTelemetry {
       lastRegulation: getLastRegulationOutput(),
       rollbackRegistry: getRollbackRegistrySnapshot(),
       operatorTrust: getOperatorTrustSnapshot(),
+      systemConfidence: getLastSystemConfidence(),
     };
   }
 

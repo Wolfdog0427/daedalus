@@ -1,16 +1,6 @@
 import { Router, Request, Response } from "express";
 import { governanceService } from "./GovernanceService";
 import { actionLog } from "./ActionLog";
-import { getConstitutionalFreezeState } from "../../../kernel/src";
-
-function requireUnfrozen(res: Response): boolean {
-  const freeze = getConstitutionalFreezeState();
-  if (freeze.frozen) {
-    res.status(403).json({ error: "Constitutional freeze active", reason: freeze.reason });
-    return false;
-  }
-  return true;
-}
 
 export function createGovernanceRouter(): Router {
   const router = Router();
@@ -35,7 +25,6 @@ export function createGovernanceRouter(): Router {
 
   router.post("/governance/overrides", (req: Request, res: Response) => {
     try {
-      if (!requireUnfrozen(res)) return;
       const body = req.body;
       if (!body?.createdBy?.id || !body?.reason || !body?.scope || !body?.effect) {
         res.status(400).json({ error: "Missing required fields: createdBy.id, reason, scope, effect" });
@@ -67,7 +56,6 @@ export function createGovernanceRouter(): Router {
 
   router.post("/governance/drifts", (req: Request, res: Response) => {
     try {
-      if (!requireUnfrozen(res)) return;
       const body = req.body;
       if (!body?.severity || !body?.summary) {
         res.status(400).json({ error: "Missing required fields: severity, summary" });
@@ -89,7 +77,6 @@ export function createGovernanceRouter(): Router {
 
   router.delete("/governance/drifts", (_req: Request, res: Response) => {
     try {
-      if (!requireUnfrozen(res)) return;
       governanceService.clearDrifts();
       actionLog.record("CLEAR_DRIFTS", {}, false);
       res.status(204).end();
@@ -101,7 +88,6 @@ export function createGovernanceRouter(): Router {
 
   router.delete("/governance/overrides/:id", (req: Request, res: Response) => {
     try {
-      if (!requireUnfrozen(res)) return;
       const removed = governanceService.removeOverride(req.params.id);
       if (!removed) {
         res.status(404).json({ error: "Override not found" });
@@ -117,7 +103,6 @@ export function createGovernanceRouter(): Router {
 
   router.delete("/governance/overrides", (_req: Request, res: Response) => {
     try {
-      if (!requireUnfrozen(res)) return;
       governanceService.clearOverrides();
       actionLog.record("CLEAR_OVERRIDES", {}, false);
       res.status(204).end();
@@ -138,7 +123,6 @@ export function createGovernanceRouter(): Router {
 
   router.post("/governance/votes", (req: Request, res: Response) => {
     try {
-      if (!requireUnfrozen(res)) return;
       const body = req.body;
       if (!body?.being?.id || !body?.vote || typeof body?.weight !== "number") {
         res.status(400).json({ error: "Missing required fields: being.id, vote, weight" });
@@ -159,7 +143,6 @@ export function createGovernanceRouter(): Router {
 
   router.delete("/governance/votes", (_req: Request, res: Response) => {
     try {
-      if (!requireUnfrozen(res)) return;
       governanceService.clearVotes();
       actionLog.record("CLEAR_VOTES", {}, false);
       res.status(204).end();

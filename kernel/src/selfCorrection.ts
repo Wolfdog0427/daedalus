@@ -30,7 +30,11 @@ const RELAX_STRICTNESS_STEP = 0.01;
 const RELAX_TARGET = 92;
 const RELAX_SUSTAINED_SAMPLES = 15;
 
+const DEAD_BAND = 5;
+const CORRECTION_COOLDOWN_TICKS = 4;
+
 let operatorBaseline: { sensitivity: number; strictness: number } | null = null;
+let correctionCooldown = 0;
 
 export function setOperatorConfigBaseline(config: KernelRuntimeConfig): void {
   operatorBaseline = {
@@ -69,12 +73,27 @@ export function applySelfCorrectionIfNeeded(
     return { config, corrected: false, trend };
   }
 
+  // Tick-down cooldown regardless of correction decision
+  if (correctionCooldown > 0) {
+    correctionCooldown--;
+    return { config, corrected: false, trend };
+  }
+
   if (trend.belowFloor) {
+    // Dead-band: only correct if genuinely below floor, not within margin
+    if (trend.avgAlignment > floor - DEAD_BAND) {
+      return { config, corrected: false, trend };
+    }
+
+    // Diminishing steps: correction force shrinks as config approaches saturation
+    const sensFactor = Math.max(0.2, config.strategySensitivity);
+    const strictFactor = Math.max(0.2, 1 - config.governanceStrictness);
     const corrected: KernelRuntimeConfig = {
       ...config,
-      strategySensitivity: Math.max(0, config.strategySensitivity - TIGHTEN_SENSITIVITY_STEP),
-      governanceStrictness: Math.min(1, config.governanceStrictness + TIGHTEN_STRICTNESS_STEP),
+      strategySensitivity: Math.max(0, config.strategySensitivity - TIGHTEN_SENSITIVITY_STEP * sensFactor),
+      governanceStrictness: Math.min(1, config.governanceStrictness + TIGHTEN_STRICTNESS_STEP * strictFactor),
     };
+    correctionCooldown = CORRECTION_COOLDOWN_TICKS;
     return { config: corrected, corrected: true, trend };
   }
 
@@ -96,11 +115,17 @@ export function applySelfCorrectionIfNeeded(
         strategySensitivity: Math.min(sensFloor, config.strategySensitivity + RELAX_SENSITIVITY_STEP),
         governanceStrictness: Math.max(strictFloor, config.governanceStrictness - RELAX_STRICTNESS_STEP),
       };
+      correctionCooldown = CORRECTION_COOLDOWN_TICKS;
       return { config: relaxed, corrected: true, trend };
     }
   }
 
   return { config, corrected: false, trend };
+}
+
+export function resetSelfCorrectionState(): void {
+  operatorBaseline = null;
+  correctionCooldown = 0;
 }
 
 export { ALIGNMENT_WINDOW, ALIGNMENT_FLOOR_DEFAULT };

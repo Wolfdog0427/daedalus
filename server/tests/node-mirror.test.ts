@@ -120,7 +120,7 @@ describe("NodeMirror.lifecycle", () => {
   test("phaseToStatus maps correctly", () => {
     expect(phaseToStatus("active")).toBe("trusted");
     expect(phaseToStatus("quarantined")).toBe("quarantined");
-    expect(phaseToStatus("detached")).toBe("unknown");
+    expect(phaseToStatus("detached")).toBe("detached");
     expect(phaseToStatus("joining")).toBe("pending");
   });
 });

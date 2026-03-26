@@ -30,6 +30,8 @@ import {
   resetSafeMode,
   resetIdentityState,
   resetIntentState,
+  resetEscalation,
+  resetGateBand,
   getSafeModeState,
   DEFAULT_KERNEL_CONFIG,
 } from "../../kernel/src";
@@ -121,15 +123,16 @@ function contextForSeverity(severity: Severity): AlignmentContext {
       });
     case "strained":
       return mkContext({
-        totalErrors: 45,
-        quarantinedCount: 4,
-        activeHeartbeats: 6,
+        totalErrors: 35,
+        quarantinedCount: 3,
+        activeHeartbeats: 7,
         posture: "GUARDED" as PostureState,
         constitutionReport: { allPassed: false, failedCount: 1, checks: [] },
-        drifts: Array.from({ length: 3 }, (_, i) => ({
-          id: `d-${i}`, axis: "governance", severity: "HIGH" as const,
-          detectedAt: new Date().toISOString(), description: "strained drift", summary: "strained drift",
-        })),
+        drifts: [
+          { id: "d-h-0", severity: "HIGH" as const, detectedAt: new Date().toISOString(), summary: "strained drift" },
+          { id: "d-m-0", severity: "MEDIUM" as const, detectedAt: new Date().toISOString(), summary: "strained drift" },
+          { id: "d-m-1", severity: "MEDIUM" as const, detectedAt: new Date().toISOString(), summary: "strained drift" },
+        ],
       });
     case "severe":
       return mkContext({
@@ -419,6 +422,8 @@ describe("Daedalus 250-Year Alignment Simulation", () => {
 
   beforeAll(() => {
     resetDispatcher();
+    resetEscalation();
+    resetGateBand();
     kernelTelemetry.clear();
     resetSafeMode();
     resetIdentityState();

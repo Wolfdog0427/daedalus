@@ -9,10 +9,14 @@ import type {
   ContinuityState,
 } from "../../../shared/daedalus/contracts";
 
+import type { NodeKind as FabricNodeKind } from "../../../shared/daedalus/nodeContracts";
+
+export type MirrorNodeKind = Lowercase<FabricNodeKind>;
+
 export interface NodeProfile {
   readonly id: string;
   readonly name: string;
-  readonly kind: "mobile" | "desktop" | "server" | "embedded";
+  readonly kind: MirrorNodeKind;
   readonly model: string;
   readonly os: string;
   readonly osVersion: string;

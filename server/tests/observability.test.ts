@@ -188,7 +188,7 @@ describe("Telemetry Completeness", () => {
     expect(postureHit!.posture).toBe("LOCKDOWN");
   });
 
-  test("vote cast emits GOVERNANCE_OVERRIDE_APPLIED event", () => {
+  test("vote cast emits BEING_VOTE_CAST event", () => {
     const svc = new GovernanceService();
     svc.castVote({
       being: { id: "voter-1", role: "GUARDIAN", label: "V1" },
@@ -197,7 +197,7 @@ describe("Telemetry Completeness", () => {
     });
 
     const voteHit = busEvents.find(
-      (e) => e.type === "GOVERNANCE_OVERRIDE_APPLIED" && e.beings != null,
+      (e) => e.type === "BEING_VOTE_CAST" && e.beings != null,
     );
     expect(voteHit).toBeDefined();
   });

@@ -99,22 +99,26 @@ export interface DaedalusProposal {
   touchesInvariants: boolean;
   reversible: boolean;
   autoApprovable: boolean;
+  advisory: boolean;
   payload: Record<string, unknown>;
   parameterChanges: ProposalParameterChange[];
   operatorImpact: string;
   boundaries: string[];
   createdAt: number;
-  status: "pending" | "approved" | "denied" | "expired" | "auto_approved";
+  status: "pending" | "approved" | "denied" | "expired" | "auto_approved" | "acknowledged" | "surfaced" | "deferred" | "superseded";
+  surfacedAt?: number;
   resolvedAt?: number;
   effectBaseline?: number;
   effectAfter?: number;
+  proposalConfidence?: import("../../../kernel/src/types").ProposalConfidence;
+  priorityScore?: number;
 }
 
 export interface ProposalHistoryEntry {
   id: string;
   title: string;
   kind: string;
-  status: "approved" | "denied" | "auto_approved" | "expired";
+  status: "approved" | "denied" | "auto_approved" | "expired" | "acknowledged" | "superseded";
   alignment: number;
   confidence: number;
   impact: "low" | "medium" | "high";
@@ -123,11 +127,44 @@ export interface ProposalHistoryEntry {
   effectDelta: number | null;
   createdAt: number;
   resolvedAt: number;
+  proposalConfidence?: import("../../../kernel/src/types").ProposalConfidence;
 }
 
-const MAX_PENDING_PROPOSALS = 10;
+export interface OperatorPendingProposal {
+  id: string;
+  kind: string;
+  description: string;
+  payload: Record<string, unknown>;
+  decision: ApprovalDecision;
+  createdAt: number;
+  status: "pending_review" | "force_approved" | "withdrawn";
+  resolvedAt?: number;
+}
+
+export interface PatternPreset {
+  id: string;
+  name: string;
+  sourceKinds: string[];
+  parameters: Record<string, unknown>;
+  avgEffectDelta: number;
+  proposalCount: number;
+  createdAt: number;
+}
+
+export interface ProposalQueueState {
+  surfaced: DaedalusProposal | null;
+  deferredCount: number;
+  deferred: Array<{ id: string; kind: string; title: string; priorityScore: number }>;
+  approvalWindowEndsAt: number | null;
+  lastResolutionAt: number;
+}
+
+const ADVISORY_KINDS = new Set(["pattern_learning", "fleet_expansion", "self_assessment"]);
+const MAX_DEFERRED_PROPOSALS = 15;
 const MAX_PROPOSAL_HISTORY = 50;
-const PROPOSAL_EXPIRE_MS = 15 * 60 * 1000;
+const APPROVAL_WINDOW_MS = 2 * 60 * 60 * 1000;
+const MAX_OPERATOR_PENDING = 20;
+function clamp100(v: number): number { return Math.max(0, Math.min(100, Math.round(v))); }
 
 class StrategyService {
   private lastEvaluation: StrategyEvaluation | null = null;
@@ -142,8 +179,19 @@ class StrategyService {
   private lastProposalKindTick: Map<string, number> = new Map();
 
   private autonomyPaused = false;
-  private pendingDaedalusProposals: DaedalusProposal[] = [];
+  private surfacedProposal: DaedalusProposal | null = null;
+  private deferredProposals: DaedalusProposal[] = [];
   private proposalHistory: ProposalHistoryEntry[] = [];
+  private lastResolutionAt = 0;
+  private operatorPendingProposals: OperatorPendingProposal[] = [];
+  private patternPresets: PatternPreset[] = [];
+
+  // Legacy getter for backward compat — returns surfaced + deferred
+  private get pendingDaedalusProposals(): DaedalusProposal[] {
+    const result: DaedalusProposal[] = [];
+    if (this.surfacedProposal) result.push(this.surfacedProposal);
+    return result;
+  }
 
   evaluate(): StrategyEvaluation {
     const ctx = this.buildContext();
@@ -277,13 +325,20 @@ class StrategyService {
   // ── Daedalus-Initiated Proposals ──────────────────────────────
 
   private generateDaedalusProposals(tick: KernelTickResult): void {
-    this.expireStalePendingProposals();
+    this.checkApprovalWindowExpiry();
     this.tickCounter++;
+
+    if (getConstitutionalFreezeState().frozen) return;
+
+    // Don't generate new proposals while a surfaced proposal has an active approval window
+    if (this.surfacedProposal && this.isApprovalWindowActive()) return;
 
     const eval_ = tick.strategy;
     const safeMode = tick.safeMode;
     const regulation = tick.regulation;
-    const pendingIds = new Set(this.pendingDaedalusProposals.map(p => p.kind));
+    const activeKinds = new Set<string>();
+    if (this.surfacedProposal) activeKinds.add(this.surfacedProposal.kind);
+    for (const d of this.deferredProposals) activeKinds.add(d.kind);
 
     if (safeMode.active) this.safeModeStreak++;
     else this.safeModeStreak = 0;
@@ -295,8 +350,9 @@ class StrategyService {
       const last = this.lastProposalKindTick.get(kind) ?? -Infinity;
       return this.tickCounter - last >= minTicks;
     };
-    const queueHasRoom = () => this.pendingDaedalusProposals.length < MAX_PENDING_PROPOSALS;
+    const queueHasRoom = () => this.deferredProposals.length < MAX_DEFERRED_PROPOSALS;
     const mark = (kind: string) => this.lastProposalKindTick.set(kind, this.tickCounter);
+    const pendingIds = activeKinds;
 
     // ── Alignment & Governance Proposals ──────────────────────────
 
@@ -525,7 +581,7 @@ class StrategyService {
         parameterChanges: [
           { parameter: "degradationThreshold", displayName: "Rollback Degradation Threshold", currentValue: currentDegThreshold, proposedValue: proposedDegThreshold, unit: "alignment points" },
         ],
-        operatorImpact: "Daedalus will revert applied changes faster if they degrade alignment (at ${proposedDegThreshold} points instead of ${currentDegThreshold}). No change to operator authority or approval requirements.",
+        operatorImpact: `Daedalus will revert applied changes faster if they degrade alignment (at ${proposedDegThreshold} points instead of ${currentDegThreshold}). No change to operator authority or approval requirements.`,
         boundaries: [
           "Does NOT change operator approval gates",
           "Does NOT expand Daedalus autonomy",
@@ -674,6 +730,11 @@ class StrategyService {
         eval_,
       });
     }
+
+    // After all proposals are generated for this tick, surface the best one if needed
+    if (!this.surfacedProposal) {
+      this.surfaceNextProposal();
+    }
   }
 
   private createDaedalusProposal(opts: {
@@ -691,8 +752,6 @@ class StrategyService {
     eval_: StrategyEvaluation;
     surfaces?: string[];
   }): void {
-    if (this.pendingDaedalusProposals.length >= MAX_PENDING_PROPOSALS) return;
-
     const surfaces = opts.surfaces ?? this.inferSurfaces(opts.payload);
     const classification = classifyChange({
       surfaces: surfaces as any[],
@@ -704,7 +763,11 @@ class StrategyService {
 
     const gateConfig = getApprovalGateConfig();
     const safeMode = getSafeModeState();
+    const frozen = getConstitutionalFreezeState().frozen;
+    const isAdvisory = ADVISORY_KINDS.has(opts.kind);
     const autoApprovable =
+      !frozen &&
+      !isAdvisory &&
       opts.eval_.alignment >= gateConfig.alignmentThreshold &&
       opts.eval_.confidence >= gateConfig.confidenceThreshold &&
       classifiedImpact === "low" &&
@@ -712,6 +775,18 @@ class StrategyService {
       opts.reversible &&
       (!safeMode.active || gateConfig.allowDuringSafeMode) &&
       !this.autonomyPaused;
+
+    const proposalConfidence = this.computeProposalConfidence({
+      eval_: opts.eval_,
+      kind: opts.kind,
+      impact: classifiedImpact,
+      touchesInvariants: classifiedTouchesInvariants,
+      reversible: opts.reversible,
+      surfaces,
+      parameterChanges: opts.parameterChanges,
+    });
+
+    const priorityScore = this.computeProposalPriority(proposalConfidence, classifiedImpact, opts.kind, safeMode.active);
 
     const proposal: DaedalusProposal = {
       id: `dp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -725,12 +800,15 @@ class StrategyService {
       touchesInvariants: classifiedTouchesInvariants,
       reversible: opts.reversible,
       autoApprovable,
+      advisory: isAdvisory,
       payload: opts.payload,
       parameterChanges: opts.parameterChanges,
+      proposalConfidence,
+      priorityScore,
       operatorImpact: opts.operatorImpact,
       boundaries: opts.boundaries,
       createdAt: Date.now(),
-      status: autoApprovable ? "auto_approved" : "pending",
+      status: autoApprovable ? "auto_approved" : "deferred",
       effectBaseline: opts.eval_.alignment,
     };
 
@@ -750,13 +828,140 @@ class StrategyService {
         alignment: opts.eval_.alignment,
       });
     } else {
-      this.pendingDaedalusProposals.push(proposal);
+      this.deferredProposals.push(proposal);
+      if (this.deferredProposals.length > MAX_DEFERRED_PROPOSALS) {
+        const dropped = this.deferredProposals
+          .sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
+          .pop()!;
+        dropped.status = "superseded";
+        dropped.resolvedAt = Date.now();
+        this.recordProposalHistory(dropped);
+      }
       getDaedalusEventBus().publish({
         type: "DAEDALUS_PROPOSAL_CREATED",
         timestamp: nowIso(),
         summary: `Daedalus proposes: ${opts.title} (alignment ${opts.eval_.alignment}%, impact ${classifiedImpact})`,
         alignment: opts.eval_.alignment,
       });
+    }
+  }
+
+  private computeProposalPriority(
+    pc: import("../../../kernel/src/types").ProposalConfidence,
+    impact: "low" | "medium" | "high",
+    kind: string,
+    safeModeActive: boolean,
+  ): number {
+    let score = pc.overall;
+    score += pc.need * 0.4;
+    score += pc.identity * 0.2;
+    if (safeModeActive && (kind === "safe_mode_recovery" || kind === "resilience_upgrade")) {
+      score += 30;
+    }
+    if (impact === "high") score += 10;
+    else if (impact === "medium") score += 5;
+    if (kind === "trust_recovery_protocol") score += 15;
+    return Math.round(score);
+  }
+
+  private isApprovalWindowActive(): boolean {
+    if (!this.surfacedProposal?.surfacedAt) return false;
+    return Date.now() - this.surfacedProposal.surfacedAt < APPROVAL_WINDOW_MS;
+  }
+
+  private checkApprovalWindowExpiry(): void {
+    if (!this.surfacedProposal) return;
+    if (this.surfacedProposal.surfacedAt && Date.now() - this.surfacedProposal.surfacedAt >= APPROVAL_WINDOW_MS) {
+      this.surfacedProposal.status = "expired";
+      this.surfacedProposal.resolvedAt = Date.now();
+      this.recordProposalHistory(this.surfacedProposal);
+      getDaedalusEventBus().publish({
+        type: "DAEDALUS_PROPOSAL_DENIED",
+        timestamp: nowIso(),
+        summary: `Proposal expired after approval window: ${this.surfacedProposal.title}`,
+        alignment: this.lastEvaluation?.alignment,
+      });
+      this.surfacedProposal = null;
+      this.lastResolutionAt = Date.now();
+      this.surfaceNextProposal();
+    }
+  }
+
+  private surfaceNextProposal(): void {
+    if (this.surfacedProposal) return;
+    if (this.deferredProposals.length === 0) return;
+
+    this.deferredProposals.sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0));
+    const next = this.deferredProposals.shift()!;
+    next.status = "surfaced";
+    next.surfacedAt = Date.now();
+    this.surfacedProposal = next;
+
+    getDaedalusEventBus().publish({
+      type: "DAEDALUS_PROPOSAL_SURFACED",
+      timestamp: nowIso(),
+      summary: `Proposal ready for review: ${next.title}`,
+      alignment: next.alignment,
+      proposalId: next.id,
+      proposalKind: next.kind,
+      deferredCount: this.deferredProposals.length,
+    });
+  }
+
+  private reEvaluateDeferredProposals(tick?: KernelTickResult): void {
+    if (this.deferredProposals.length === 0) return;
+    const currentTick = tick ?? this.lastTickResult;
+    if (!currentTick) return;
+
+    const stillRelevant: DaedalusProposal[] = [];
+    for (const proposal of this.deferredProposals) {
+      if (this.isProposalStillRelevant(proposal, currentTick)) {
+        const newConfidence = this.computeProposalConfidence({
+          eval_: currentTick.strategy,
+          kind: proposal.kind,
+          impact: proposal.impact,
+          touchesInvariants: proposal.touchesInvariants,
+          reversible: proposal.reversible,
+          surfaces: this.inferSurfaces(proposal.payload),
+          parameterChanges: proposal.parameterChanges,
+        });
+        proposal.proposalConfidence = newConfidence;
+        proposal.priorityScore = this.computeProposalPriority(
+          newConfidence, proposal.impact, proposal.kind, currentTick.safeMode.active,
+        );
+        proposal.alignment = currentTick.strategy.alignment;
+        proposal.confidence = currentTick.strategy.confidence;
+        stillRelevant.push(proposal);
+      } else {
+        proposal.status = "superseded";
+        proposal.resolvedAt = Date.now();
+        this.recordProposalHistory(proposal);
+      }
+    }
+    this.deferredProposals = stillRelevant;
+  }
+
+  private isProposalStillRelevant(proposal: DaedalusProposal, tick: KernelTickResult): boolean {
+    const eval_ = tick.strategy;
+    switch (proposal.kind) {
+      case "alignment_boost": return eval_.alignment < 80;
+      case "regulation_tune": return tick.regulation.telemetry.appliedMacro;
+      case "sensitivity_reduction": return eval_.confidence < 70;
+      case "safe_mode_recovery": return tick.safeMode.active;
+      case "drift_correction": return tick.drift.drifting;
+      case "resilience_upgrade": return this.safeModeStreak === 0 && this.tickCounter > 5;
+      case "capability_expansion": return this.stableStreak >= 30;
+      case "monitoring_enhancement": {
+        const recent = this.proposalHistory.filter(p => Date.now() - p.resolvedAt < 300_000);
+        return recent.filter(p => p.kind === "drift_correction").length >= 2;
+      }
+      case "architecture_improvement": return tick.rollbacks.length >= 2;
+      case "trust_recovery_protocol": return tick.operatorTrust.trustScore < 60;
+      case "fleet_expansion": return this.buildContext().nodeCount < 3;
+      case "pattern_learning":
+      case "self_assessment":
+        return true;
+      default: return true;
     }
   }
 
@@ -773,23 +978,239 @@ class StrategyService {
     return surfaces;
   }
 
-  private expireStalePendingProposals(): void {
-    const now = Date.now();
-    const expired: DaedalusProposal[] = [];
-    this.pendingDaedalusProposals = this.pendingDaedalusProposals.filter(p => {
-      if (now - p.createdAt > PROPOSAL_EXPIRE_MS) {
-        p.status = "expired";
-        p.resolvedAt = now;
-        expired.push(p);
-        return false;
+  // Surfaces that directly define Daedalus' constitutional identity.
+  // Touching these carries inherent identity risk.
+  private static readonly IDENTITY_SURFACES = new Set([
+    "governance_policy", "identity", "posture", "node_authority",
+  ]);
+  // Surfaces that affect operational continuity but not core identity.
+  private static readonly CONTINUITY_SURFACES = new Set([
+    "alignment_tuning", "performance_tuning", "persistence",
+    "continuity", "network_topology",
+  ]);
+  // Proposal kinds that restrict or tighten Daedalus behavior (identity-preserving).
+  private static readonly TIGHTENING_KINDS = new Set([
+    "alignment_boost", "safe_mode_recovery", "trust_recovery_protocol",
+    "monitoring_enhancement", "resilience_upgrade",
+  ]);
+  // Proposal kinds that expand Daedalus autonomy (identity-altering).
+  private static readonly EXPANDING_KINDS = new Set([
+    "capability_expansion", "fleet_expansion",
+  ]);
+
+  private computeProposalConfidence(opts: {
+    eval_: StrategyEvaluation;
+    kind: string;
+    impact: "low" | "medium" | "high";
+    touchesInvariants: boolean;
+    reversible: boolean;
+    surfaces: string[];
+    parameterChanges: ProposalParameterChange[];
+  }): import("../../../kernel/src/types").ProposalConfidence {
+    const { eval_, kind, impact, touchesInvariants, reversible, surfaces, parameterChanges } = opts;
+    const tick = this.lastTickResult;
+    const sysConf = tick?.systemConfidence;
+    const reasoning: string[] = [];
+
+    // ── 1. IDENTITY: Will Daedalus still be Daedalus? ─────────────────
+    let identity = 90;
+    const identitySurfaceCount = surfaces.filter(s => StrategyService.IDENTITY_SURFACES.has(s)).length;
+    if (identitySurfaceCount > 0) {
+      identity -= identitySurfaceCount * 15;
+      reasoning.push(`Touches ${identitySurfaceCount} identity surface(s)`);
+    }
+    if (touchesInvariants) {
+      identity -= 25;
+      reasoning.push("Touches constitutional invariants");
+    }
+    if (StrategyService.TIGHTENING_KINDS.has(kind)) {
+      identity += 10;
+      reasoning.push("Tightens governance — reinforces identity");
+    } else if (StrategyService.EXPANDING_KINDS.has(kind)) {
+      identity -= 15;
+      reasoning.push("Expands autonomy — shifts identity boundary");
+    }
+    if (surfaces.includes("alignment_tuning")) {
+      identity -= 8;
+      reasoning.push("Modifies alignment parameters — defines what alignment means");
+    }
+    if (impact === "high") identity -= 10;
+    identity = clamp100(identity);
+
+    // ── 2. CONTINUITY: Will behavior remain smooth? ───────────────────
+    let continuity = 85;
+    const continuitySurfaceCount = surfaces.filter(s => StrategyService.CONTINUITY_SURFACES.has(s)).length;
+    if (continuitySurfaceCount > 0) continuity -= continuitySurfaceCount * 5;
+    // Parameter change magnitude: larger deltas = more disruption
+    let maxRelativeDelta = 0;
+    for (const pc of parameterChanges) {
+      const cur = typeof pc.currentValue === "number" ? pc.currentValue : NaN;
+      const prop = typeof pc.proposedValue === "number" ? pc.proposedValue : NaN;
+      if (!isNaN(cur) && !isNaN(prop) && cur !== 0) {
+        const relDelta = Math.abs((prop - cur) / cur);
+        maxRelativeDelta = Math.max(maxRelativeDelta, relDelta);
       }
-      return true;
-    });
-    for (const p of expired) this.recordProposalHistory(p);
+    }
+    if (maxRelativeDelta > 0.3) {
+      continuity -= 20;
+      reasoning.push(`Large parameter shift (${Math.round(maxRelativeDelta * 100)}% relative change)`);
+    } else if (maxRelativeDelta > 0.1) {
+      continuity -= 8;
+      reasoning.push(`Moderate parameter shift (${Math.round(maxRelativeDelta * 100)}%)`);
+    }
+    if (parameterChanges.length > 2) {
+      continuity -= (parameterChanges.length - 2) * 5;
+      reasoning.push(`${parameterChanges.length} simultaneous parameter changes`);
+    }
+    if (impact === "high") continuity -= 15;
+    else if (impact === "medium") continuity -= 5;
+    if (!reversible) { continuity -= 10; reasoning.push("Irreversible — cannot restore prior behavior"); }
+    if (sysConf && sysConf.stabilityBonus >= 75) continuity += 5;
+    else if (sysConf && sysConf.stabilityBonus < 40) {
+      continuity -= 10;
+      reasoning.push("System already unstable — change may amplify disruption");
+    }
+    continuity = clamp100(continuity);
+
+    // ── 3. NEED: How necessary is this right now? ─────────────────────
+    let need = 50;
+    // Low alignment makes alignment-related proposals more needed
+    if (eval_.alignment < 70) { need += 25; reasoning.push(`Alignment critically low (${eval_.alignment}%)`); }
+    else if (eval_.alignment < 80) { need += 15; reasoning.push(`Alignment below target (${eval_.alignment}%)`); }
+    else if (eval_.alignment >= 92) { need -= 10; }
+    // Active drift makes drift/alignment proposals more urgent
+    if (tick?.drift.drifting) {
+      const driftMag = Math.abs(tick.drift.delta);
+      need += Math.min(20, Math.round(driftMag * 2));
+      reasoning.push(`Active drift (${tick.drift.delta > 0 ? "+" : ""}${tick.drift.delta.toFixed(1)}pt)`);
+    }
+    // Safe mode makes recovery proposals critical
+    if (tick?.safeMode.active) {
+      if (kind === "safe_mode_recovery" || kind === "resilience_upgrade") {
+        need += 25;
+        reasoning.push("System in safe mode — recovery proposals urgently needed");
+      } else {
+        need += 5;
+      }
+    }
+    // Escalation level
+    if (tick?.escalation.level === "critical") need += 10;
+    else if (tick?.escalation.level === "high") need += 5;
+    // Recent rollbacks raise need for monitoring improvements
+    const rbSnap = tick ? getRollbackRegistrySnapshot() : null;
+    if (rbSnap && rbSnap.recentRollbacks.length > 0 && (kind === "monitoring_enhancement" || kind === "architecture_improvement")) {
+      need += 15;
+      reasoning.push(`${rbSnap.recentRollbacks.length} recent rollback(s) — monitoring improvements needed`);
+    }
+    // Stable and healthy system lowers urgency
+    if (eval_.alignment >= 90 && eval_.confidence >= 85 && !tick?.drift.drifting && !tick?.safeMode.active) {
+      need -= 5;
+    }
+    need = clamp100(need);
+
+    // ── 4. EFFICACY: Will this actually work? ─────────────────────────
+    let efficacy = 50;
+    const kindHistory = this.proposalHistory.filter(h => h.kind === kind);
+    const kindApproved = kindHistory.filter(h => h.status === "approved" || h.status === "auto_approved");
+    const kindWithEffect = kindApproved.filter(h => h.effectDelta != null);
+    if (kindWithEffect.length >= 2) {
+      const avgDelta = kindWithEffect.reduce((s, h) => s + (h.effectDelta ?? 0), 0) / kindWithEffect.length;
+      efficacy = avgDelta > 2 ? 85 : avgDelta > 0 ? 70 : avgDelta > -2 ? 50 : 30;
+      reasoning.push(`${kindWithEffect.length} past "${kind}" changes: avg effect ${avgDelta > 0 ? "+" : ""}${avgDelta.toFixed(1)}pt`);
+    } else {
+      efficacy = 55;
+      reasoning.push(`Limited history for "${kind}" proposals`);
+    }
+    if (sysConf && sysConf.stabilityBonus >= 75) efficacy += 10;
+    else if (sysConf && sysConf.stabilityBonus < 40) {
+      efficacy -= 15;
+      reasoning.push("System unstable — outcome predictions less reliable");
+    }
+    if (eval_.confidence >= 85) efficacy += 5;
+    else if (eval_.confidence < 60) { efficacy -= 10; reasoning.push("Low strategy confidence"); }
+    efficacy = clamp100(efficacy);
+
+    // ── 5. SAFETY: Won't introduce errors or drift? ───────────────────
+    let safety = 80;
+    if (touchesInvariants) { safety -= 30; reasoning.push("Touches invariants — higher error risk"); }
+    if (!reversible) { safety -= 25; reasoning.push("NOT easily reversible"); }
+    if (impact === "high") safety -= 20;
+    else if (impact === "medium") safety -= 5;
+    if (rbSnap && rbSnap.rolledBackCount > 0 && rbSnap.recentRollbacks.length > 0) {
+      safety -= 10;
+      reasoning.push(`${rbSnap.recentRollbacks.length} recent rollback(s) — changes may compound`);
+    }
+    if (tick?.selfCorrected) { safety -= 5; reasoning.push("Self-correction active — system already adjusting"); }
+    safety = clamp100(safety);
+
+    // ── 6. TIMING: Is now the right time? ─────────────────────────────
+    let timing = 80;
+    if (tick?.safeMode.active) { timing -= 35; reasoning.push("System in SAFE MODE"); }
+    if (tick?.escalation.level === "critical") { timing -= 30; reasoning.push("Critical escalation active"); }
+    else if (tick?.escalation.level === "high") { timing -= 15; reasoning.push("High escalation active"); }
+    if (tick?.drift.drifting && Math.abs(tick.drift.delta) > 10) {
+      timing -= 15;
+      reasoning.push("Large active drift — may interfere with change evaluation");
+    }
+    if (sysConf && sysConf.score >= 80) { timing += 10; reasoning.push("High system confidence — good window"); }
+    timing = clamp100(timing);
+
+    // ── 7. REVERSIBILITY ──────────────────────────────────────────────
+    let reversibility = reversible ? 85 : 20;
+    if (reversible && impact === "low") reversibility = 95;
+    else if (reversible && touchesInvariants) reversibility = 60;
+    if (!reversible) reasoning.push("Change is irreversible — manual intervention needed to undo");
+
+    // ── 8. TRACK RECORD ──────────────────────────────────────────────
+    let trackRecord = 50;
+    if (kindApproved.length > 0) {
+      const successes = kindWithEffect.filter(h => (h.effectDelta ?? 0) > 0).length;
+      trackRecord = kindWithEffect.length > 0
+        ? Math.round((successes / kindWithEffect.length) * 100)
+        : 60;
+    }
+
+    // ── SCOPE ─────────────────────────────────────────────────────────
+    const scope: "narrow" | "moderate" | "wide" =
+      surfaces.length <= 1 ? "narrow" :
+      surfaces.length <= 3 ? "moderate" : "wide";
+
+    // ── OVERALL: weighted composite ───────────────────────────────────
+    // Identity and safety carry the most weight because they gate whether
+    // the change should exist at all. Need and efficacy follow because they
+    // determine whether it's worth doing. Timing, continuity, reversibility,
+    // and track record provide supporting context.
+    const overall = Math.round(
+      identity     * 0.18 +
+      safety       * 0.18 +
+      need         * 0.15 +
+      efficacy     * 0.15 +
+      continuity   * 0.12 +
+      timing       * 0.10 +
+      reversibility * 0.07 +
+      trackRecord  * 0.05
+    );
+
+    return {
+      identity,
+      continuity,
+      need,
+      efficacy,
+      safety,
+      timing,
+      reversibility,
+      trackRecord,
+      scope,
+      overall: clamp100(overall),
+      reasoning,
+    };
   }
 
+  // Approval window expiry is handled in checkApprovalWindowExpiry()
+
   private recordProposalHistory(proposal: DaedalusProposal): void {
-    const effectAfter = this.lastEvaluation?.alignment ?? null;
+    const wasApplied = proposal.status === "approved" || proposal.status === "auto_approved";
+    const effectAfter = wasApplied ? (this.lastEvaluation?.alignment ?? null) : null;
     const entry: ProposalHistoryEntry = {
       id: proposal.id,
       title: proposal.title,
@@ -800,11 +1221,12 @@ class StrategyService {
       impact: proposal.impact,
       effectBaseline: proposal.effectBaseline ?? null,
       effectAfter,
-      effectDelta: (proposal.effectBaseline != null && effectAfter != null)
+      effectDelta: (wasApplied && proposal.effectBaseline != null && effectAfter != null)
         ? effectAfter - proposal.effectBaseline
         : null,
       createdAt: proposal.createdAt,
       resolvedAt: proposal.resolvedAt ?? Date.now(),
+      proposalConfidence: proposal.proposalConfidence,
     };
     this.proposalHistory.push(entry);
     if (this.proposalHistory.length > MAX_PROPOSAL_HISTORY) {
@@ -813,8 +1235,31 @@ class StrategyService {
   }
 
   getPendingDaedalusProposals(): DaedalusProposal[] {
-    this.expireStalePendingProposals();
-    return [...this.pendingDaedalusProposals];
+    this.checkApprovalWindowExpiry();
+    return this.surfacedProposal ? [this.surfacedProposal] : [];
+  }
+
+  getProposalQueueState(): ProposalQueueState {
+    this.checkApprovalWindowExpiry();
+    return {
+      surfaced: this.surfacedProposal,
+      deferredCount: this.deferredProposals.length,
+      deferred: this.deferredProposals
+        .sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0))
+        .map(d => ({ id: d.id, kind: d.kind, title: d.title, priorityScore: d.priorityScore ?? 0 })),
+      approvalWindowEndsAt: this.surfacedProposal?.surfacedAt
+        ? this.surfacedProposal.surfacedAt + APPROVAL_WINDOW_MS
+        : null,
+      lastResolutionAt: this.lastResolutionAt,
+    };
+  }
+
+  getOperatorPendingProposals(): OperatorPendingProposal[] {
+    return [...this.operatorPendingProposals.filter(p => p.status === "pending_review")];
+  }
+
+  getPatternPresets(): PatternPreset[] {
+    return [...this.patternPresets];
   }
 
   getProposalHistory(): ProposalHistoryEntry[] {
@@ -828,30 +1273,80 @@ class StrategyService {
   }> = [];
 
   approveDaedalusProposal(proposalId: string): DaedalusProposal | null {
-    const idx = this.pendingDaedalusProposals.findIndex(p => p.id === proposalId);
-    if (idx < 0) return null;
-    const proposal = this.pendingDaedalusProposals[idx];
-    proposal.status = "approved";
-    proposal.resolvedAt = Date.now();
-    proposal.effectBaseline = this.lastEvaluation?.alignment ?? undefined;
-    this.pendingDaedalusProposals.splice(idx, 1);
+    let proposal: DaedalusProposal | null = null;
 
-    this.applyProposalPayload(proposal);
+    if (this.surfacedProposal?.id === proposalId) {
+      proposal = this.surfacedProposal;
+      this.surfacedProposal = null;
+    } else {
+      const idx = this.deferredProposals.findIndex(p => p.id === proposalId);
+      if (idx >= 0) {
+        proposal = this.deferredProposals[idx];
+        this.deferredProposals.splice(idx, 1);
+      }
+    }
+    if (!proposal) return null;
 
-    this.deferredEffectChecks.push({
-      proposalId: proposal.id,
-      baseline: proposal.effectBaseline ?? 0,
-      checkAfterTick: this.tickCounter + 20,
-    });
+    if (proposal.advisory) {
+      proposal.status = "acknowledged";
+      proposal.resolvedAt = Date.now();
 
-    this.recordProposalHistory(proposal);
-    getDaedalusEventBus().publish({
-      type: "DAEDALUS_PROPOSAL_APPROVED",
-      timestamp: nowIso(),
-      summary: `Operator approved: ${proposal.title}`,
-      alignment: this.lastEvaluation?.alignment,
-    });
+      if (proposal.kind === "pattern_learning") {
+        this.savePatternPreset(proposal);
+      }
+
+      this.recordProposalHistory(proposal);
+      getDaedalusEventBus().publish({
+        type: "DAEDALUS_PROPOSAL_APPROVED",
+        timestamp: nowIso(),
+        summary: `Operator acknowledged: ${proposal.title}`,
+        alignment: this.lastEvaluation?.alignment,
+      });
+    } else {
+      proposal.status = "approved";
+      proposal.resolvedAt = Date.now();
+      proposal.effectBaseline = this.lastEvaluation?.alignment ?? undefined;
+
+      this.applyProposalPayload(proposal);
+
+      this.deferredEffectChecks.push({
+        proposalId: proposal.id,
+        baseline: proposal.effectBaseline ?? 0,
+        checkAfterTick: this.tickCounter + 20,
+      });
+
+      this.recordProposalHistory(proposal);
+      getDaedalusEventBus().publish({
+        type: "DAEDALUS_PROPOSAL_APPROVED",
+        timestamp: nowIso(),
+        summary: `Operator approved: ${proposal.title}`,
+        alignment: this.lastEvaluation?.alignment,
+      });
+    }
+
+    this.lastResolutionAt = Date.now();
+    this.reEvaluateDeferredProposals();
+    this.surfaceNextProposal();
+
     return proposal;
+  }
+
+  private savePatternPreset(proposal: DaedalusProposal): void {
+    const sourceKinds = typeof proposal.payload.patternKinds === "string"
+      ? proposal.payload.patternKinds.split(", ") : [];
+    const preset: PatternPreset = {
+      id: `preset-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+      name: `Pattern from ${sourceKinds.join(", ") || proposal.kind}`,
+      sourceKinds,
+      parameters: { ...proposal.payload },
+      avgEffectDelta: typeof proposal.payload.avgEffectDelta === "number" ? proposal.payload.avgEffectDelta : 0,
+      proposalCount: typeof proposal.payload.patternCount === "number" ? proposal.payload.patternCount : 1,
+      createdAt: Date.now(),
+    };
+    this.patternPresets.push(preset);
+    if (this.patternPresets.length > 20) {
+      this.patternPresets = this.patternPresets.slice(-20);
+    }
   }
 
   private applyProposalPayload(proposal: DaedalusProposal): void {
@@ -974,12 +1469,22 @@ class StrategyService {
   }
 
   denyDaedalusProposal(proposalId: string): DaedalusProposal | null {
-    const idx = this.pendingDaedalusProposals.findIndex(p => p.id === proposalId);
-    if (idx < 0) return null;
-    const proposal = this.pendingDaedalusProposals[idx];
+    let proposal: DaedalusProposal | null = null;
+
+    if (this.surfacedProposal?.id === proposalId) {
+      proposal = this.surfacedProposal;
+      this.surfacedProposal = null;
+    } else {
+      const idx = this.deferredProposals.findIndex(p => p.id === proposalId);
+      if (idx >= 0) {
+        proposal = this.deferredProposals[idx];
+        this.deferredProposals.splice(idx, 1);
+      }
+    }
+    if (!proposal) return null;
+
     proposal.status = "denied";
     proposal.resolvedAt = Date.now();
-    this.pendingDaedalusProposals.splice(idx, 1);
     this.recordProposalHistory(proposal);
     getDaedalusEventBus().publish({
       type: "DAEDALUS_PROPOSAL_DENIED",
@@ -987,6 +1492,11 @@ class StrategyService {
       summary: `Operator denied: ${proposal.title}`,
       alignment: this.lastEvaluation?.alignment,
     });
+
+    this.lastResolutionAt = Date.now();
+    this.reEvaluateDeferredProposals();
+    this.surfaceNextProposal();
+
     return proposal;
   }
 
@@ -1014,9 +1524,45 @@ class StrategyService {
         summary: `Change requires review: ${proposal.description} — failed: ${failedAxes}`,
         alignment: decision.alignment,
       });
+
+      const pendingOp: OperatorPendingProposal = {
+        id: `op-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+        kind: proposal.kind,
+        description: proposal.description,
+        payload: proposal.payload ?? {},
+        decision,
+        createdAt: Date.now(),
+        status: "pending_review",
+      };
+      this.operatorPendingProposals.push(pendingOp);
+      if (this.operatorPendingProposals.length > MAX_OPERATOR_PENDING) {
+        this.operatorPendingProposals = this.operatorPendingProposals.slice(-MAX_OPERATOR_PENDING);
+      }
     }
 
     return decision;
+  }
+
+  forceApproveOperatorProposal(id: string): OperatorPendingProposal | null {
+    const proposal = this.operatorPendingProposals.find(p => p.id === id && p.status === "pending_review");
+    if (!proposal) return null;
+    proposal.status = "force_approved";
+    proposal.resolvedAt = Date.now();
+    getDaedalusEventBus().publish({
+      type: "CHANGE_AUTO_APPROVED",
+      timestamp: nowIso(),
+      summary: `Operator force-approved: ${proposal.description}`,
+      alignment: this.lastEvaluation?.alignment,
+    });
+    return proposal;
+  }
+
+  withdrawOperatorProposal(id: string): OperatorPendingProposal | null {
+    const proposal = this.operatorPendingProposals.find(p => p.id === id && p.status === "pending_review");
+    if (!proposal) return null;
+    proposal.status = "withdrawn";
+    proposal.resolvedAt = Date.now();
+    return proposal;
   }
 
   getApprovalGateConfig(): ApprovalGateConfig {

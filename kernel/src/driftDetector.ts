@@ -25,7 +25,6 @@ export function detectAlignmentDrift(history: AlignmentHistoryPoint[]): Alignmen
 
   const first = win[0].alignment;
   const last = win[win.length - 1].alignment;
-  const endpointDelta = last - first;
 
   const slope = computeWeightedSlope(win);
 

@@ -1000,3 +1000,253 @@
   color: #3fb950;
   content: "✓ ";
 }
+
+/* ── Multi-Dimensional Confidence ────────────────────────────── */
+
+.evo-daedalus-card__confidence {
+  margin-top: 10px;
+  border: 1px solid rgba(56, 139, 253, 0.12);
+  border-radius: 8px;
+  background: rgba(56, 139, 253, 0.03);
+  padding: 10px 12px;
+}
+
+.evo-confidence-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 6px 14px;
+}
+
+.evo-confidence-dim {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.evo-confidence-dim__bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.evo-confidence-dim__fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.evo-confidence-dim--high .evo-confidence-dim__fill { background: #3fb950; }
+.evo-confidence-dim--mid .evo-confidence-dim__fill { background: #d29922; }
+.evo-confidence-dim--low .evo-confidence-dim__fill { background: #f85149; }
+
+.evo-confidence-dim__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.evo-confidence-dim__label {
+  font-size: 0.72rem;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.evo-confidence-dim__value {
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.evo-confidence-dim--high .evo-confidence-dim__value { color: #3fb950; }
+.evo-confidence-dim--mid .evo-confidence-dim__value { color: #d29922; }
+.evo-confidence-dim--low .evo-confidence-dim__value { color: #f85149; }
+
+.evo-confidence-overall {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(139, 148, 158, 0.1);
+}
+
+.evo-confidence-overall__label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #8b949e;
+  text-transform: uppercase;
+}
+
+.evo-confidence-overall__value {
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.evo-confidence-overall__value--high { color: #3fb950; }
+.evo-confidence-overall__value--mid { color: #d29922; }
+.evo-confidence-overall__value--low { color: #f85149; }
+
+.evo-confidence-overall__scope {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: #6c7299;
+  text-transform: uppercase;
+}
+
+.evo-confidence-reasoning {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.evo-confidence-reasoning__item {
+  font-size: 0.7rem;
+  color: #7d8590;
+  background: rgba(139, 148, 158, 0.06);
+  border-radius: 4px;
+  padding: 2px 6px;
+  line-height: 1.4;
+}
+
+/* ── Approval Window Timer ──────────────────────────────────── */
+
+.evo-timer {
+  font-size: 0.75rem;
+  color: #d29922;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.evo-timer--expired {
+  color: #f85149;
+}
+
+/* ── Deferred Queue Summary ─────────────────────────────────── */
+
+.evo-deferred-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(88, 166, 255, 0.04);
+  border: 1px solid rgba(88, 166, 255, 0.12);
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+.evo-deferred-summary__icon {
+  color: #58a6ff;
+  font-size: 0.8rem;
+}
+
+.evo-deferred-summary__text {
+  font-size: 0.78rem;
+  color: #8b949e;
+  font-weight: 500;
+}
+
+.evo-deferred-summary__list {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.evo-deferred-summary__item {
+  font-size: 0.68rem;
+  color: #6c7299;
+  background: rgba(88, 166, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.evo-deferred-summary__more {
+  font-size: 0.68rem;
+  color: #6c7299;
+  font-style: italic;
+}
+
+/* ── Badge for deferred count ───────────────────────────────── */
+
+.evolution-panel__badge--deferred {
+  background: rgba(88, 166, 255, 0.08);
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #58a6ff;
+}
+
+/* ── Operator Pending Proposals ─────────────────────────────── */
+
+.evo-operator-pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.evo-operator-pending-card {
+  background: rgba(210, 153, 34, 0.04);
+  border: 1px solid rgba(210, 153, 34, 0.15);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.evo-operator-pending-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.evo-operator-pending-card__kind {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #d29922;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.evo-operator-pending-card__time {
+  font-size: 0.7rem;
+  color: #6c7299;
+}
+
+.evo-operator-pending-card__desc {
+  font-size: 0.82rem;
+  color: #c9d1d9;
+  line-height: 1.45;
+}
+
+.evo-operator-pending-card__reasons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.evo-operator-pending-card__label {
+  font-size: 0.7rem;
+  color: #8b949e;
+}
+
+.evo-operator-pending-card__fail {
+  font-size: 0.68rem;
+  color: #f85149;
+  background: rgba(248, 81, 73, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.evo-operator-pending-card__actions {
+  display: flex;
+  gap: 8px;
+}

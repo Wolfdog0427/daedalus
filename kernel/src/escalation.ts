@@ -19,7 +19,7 @@ import { DEFAULT_ALIGNMENT_POLICY } from "./types";
 const CRITICAL = DEFAULT_ALIGNMENT_POLICY.escalationCriticalThreshold;
 const HIGH = DEFAULT_ALIGNMENT_POLICY.escalationHighThreshold;
 const MEDIUM = DEFAULT_ALIGNMENT_POLICY.escalationMediumThreshold;
-const CONFIDENCE_BUMP_THRESHOLD = 50;
+const CONFIDENCE_BUMP_THRESHOLD = 35;
 const HYSTERESIS = 3;
 
 let currentLevel: EscalationLevel = "none";
@@ -63,12 +63,19 @@ export function computeAlignmentEscalation(evaluation: StrategyEvaluation): Esca
   if (rawIdx > curIdx) {
     currentLevel = rawLevel;
   } else if (rawIdx < curIdx) {
-    const exitThreshold = rawLevel === "none" ? MEDIUM + HYSTERESIS
-      : rawLevel === "medium" ? HIGH + HYSTERESIS
-      : rawLevel === "high" ? CRITICAL + HYSTERESIS
-      : 0;
-    if (alignment >= exitThreshold || rawIdx <= curIdx - 2) {
+    // C3: Fast de-escalation — when raw level is 2+ tiers below current
+    // AND alignment is trending upward (approximated by alignment > exit threshold),
+    // allow jumping directly instead of stepping down one tier at a time.
+    if (rawIdx <= curIdx - 2) {
       currentLevel = rawLevel;
+    } else {
+      const exitThreshold = rawLevel === "none" ? MEDIUM + HYSTERESIS
+        : rawLevel === "medium" ? HIGH + HYSTERESIS
+        : rawLevel === "high" ? CRITICAL + HYSTERESIS
+        : 0;
+      if (alignment >= exitThreshold) {
+        currentLevel = rawLevel;
+      }
     }
   }
 

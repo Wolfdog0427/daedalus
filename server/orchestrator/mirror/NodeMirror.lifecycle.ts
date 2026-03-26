@@ -47,11 +47,11 @@ export function phaseToStatus(phase: LifecyclePhase): NodeStatus {
     case "active":
       return "trusted";
     case "degraded":
-      return "pending";
+      return "degraded";
     case "quarantined":
       return "quarantined";
     case "detached":
-      return "unknown";
+      return "detached";
   }
 }
 
@@ -133,7 +133,7 @@ export function processDetach(mirror: NodeMirror): NodeMirror {
   const lifecycle = transitionPhase(mirror.lifecycle, "detached");
   return {
     ...mirror,
-    status: "unknown",
+    status: "detached",
     lifecycle,
   };
 }

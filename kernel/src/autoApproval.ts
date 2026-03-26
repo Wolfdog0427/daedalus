@@ -145,6 +145,7 @@ export function shouldAutoApprove(
   safeMode: SafeModeState,
   currentAlignmentConfig?: AlignmentConfig,
   surfaceInput?: ChangeImpactInput,
+  confidenceApprovalBias: number = 0,
 ): ApprovalDecision {
   const now = Date.now();
 
@@ -164,7 +165,17 @@ export function shouldAutoApprove(
     reversible = assessReversibility(proposal);
   }
 
-  const alignmentOK = evaluation.alignment >= gateConfig.alignmentThreshold;
+  // System confidence biases the alignment threshold: high confidence
+  // lowers it (more fluid), low confidence raises it (more cautious).
+  // The bias only applies to LOW-impact, non-invariant, reversible changes.
+  // The bias can reduce the threshold but never below 80 OR below the
+  // operator's explicit configuration — whichever is lower.
+  const biasableImpact = derivedImpact === "low" && !touchesInvariants && reversible;
+  const maxBiasReduction = Math.max(0, gateConfig.alignmentThreshold - 80);
+  const effectiveBias = biasableImpact ? Math.min(confidenceApprovalBias, maxBiasReduction) : 0;
+  const effectiveAlignmentThreshold = gateConfig.alignmentThreshold - effectiveBias;
+
+  const alignmentOK = evaluation.alignment >= effectiveAlignmentThreshold;
   const confidenceOK = evaluation.confidence >= gateConfig.confidenceThreshold;
   const impactOK = derivedImpact === "low";
   const invariantsOK = !touchesInvariants;
@@ -222,9 +233,10 @@ export function evaluateProposals(
   evaluation: StrategyEvaluation,
   safeMode: SafeModeState,
   currentAlignmentConfig?: AlignmentConfig,
+  confidenceApprovalBias: number = 0,
 ): ApprovalDecision[] {
   return proposals.map(p =>
-    shouldAutoApprove(p, evaluation, safeMode, currentAlignmentConfig),
+    shouldAutoApprove(p, evaluation, safeMode, currentAlignmentConfig, undefined, confidenceApprovalBias),
   );
 }
 

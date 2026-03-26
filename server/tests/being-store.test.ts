@@ -197,18 +197,18 @@ describe("Being snapshot consistency", () => {
     expect(Array.isArray(snapshot.beings)).toBe(true);
     expect(snapshot.beings.length).toBeGreaterThanOrEqual(1);
     expect(snapshot.beings[0]).toHaveProperty("id");
-    expect(snapshot.beings[0]).toHaveProperty("label");
-    expect(snapshot.beings[0]).toHaveProperty("nodes");
-    expect(snapshot.beings[0]).toHaveProperty("dominantGlow");
-    expect(snapshot.beings[0]).toHaveProperty("dominantRisk");
+    expect(snapshot.beings[0]).toHaveProperty("name");
+    expect(snapshot.beings[0]).toHaveProperty("posture");
+    expect(snapshot.beings[0]).toHaveProperty("glow");
+    expect(snapshot.beings[0]).toHaveProperty("attention");
   });
 
-  test("snapshot beings.nodes contains all node ids", () => {
+  test("snapshot beings returns full BeingPresenceDetail objects", () => {
     const snapshot = daedalusStore.getSnapshot();
-    const nodeIds = snapshot.nodes.map(n => n.id).sort();
     for (const being of snapshot.beings) {
-      const beingNodeIds = [...being.nodes].sort();
-      expect(beingNodeIds).toEqual(nodeIds);
+      expect(being).toHaveProperty("posture");
+      expect(being).toHaveProperty("glow");
+      expect(being).toHaveProperty("attention");
     }
   });
 

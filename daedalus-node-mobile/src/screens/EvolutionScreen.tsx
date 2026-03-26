@@ -13,7 +13,7 @@ import {
   fetchApprovalGate,
   submitChangeProposal,
   fetchRollbackRegistry,
-  fetchPendingProposals,
+  fetchProposalQueue,
   fetchProposalHistory,
   approveDaedalusProposal,
   denyDaedalusProposal,
@@ -24,6 +24,7 @@ import {
   type RollbackRegistrySnapshot,
   type DaedalusProposal,
   type ProposalHistoryEntry,
+  type ProposalQueueState,
 } from '../api/daedalusApi';
 import { colors, spacing, radius, fonts } from '../theme';
 
@@ -145,14 +146,31 @@ function DaedalusProposalCard({ proposal, onApprove, onDeny }: { proposal: Daeda
         <Text style={s.dpAge}>{ageStr}</Text>
       </View>
       {(() => {
-        const pass = (proposal.alignment >= 85 ? 1 : 0) + (proposal.confidence >= 80 ? 1 : 0) + (proposal.impact === 'low' ? 1 : 0) + (!proposal.touchesInvariants ? 1 : 0) + (proposal.reversible ? 1 : 0);
-        const level = (pass >= 4 && !proposal.touchesInvariants && proposal.reversible) ? 'safe' : (proposal.touchesInvariants || !proposal.reversible || proposal.impact === 'high') ? 'caution' : 'review';
-        const label = level === 'safe' ? 'Low Risk' : level === 'caution' ? 'Review Carefully' : 'Moderate Risk';
-        const color = level === 'safe' ? colors.green : level === 'caution' ? colors.red : colors.yellow;
+        const pc = proposal.proposalConfidence;
+        let level: string; let label: string; let color: string; let detail: string;
+        if (pc) {
+          const criticalLow = pc.identity < 50 || pc.safety < 50;
+          if (criticalLow) {
+            level = 'caution'; label = 'Proceed with Caution'; color = colors.red;
+          } else if (pc.overall >= 75 && pc.safety >= 70 && pc.identity >= 70 && pc.timing >= 60) {
+            level = 'safe'; label = 'Likely Safe'; color = colors.green;
+          } else if (pc.overall >= 50 && pc.safety >= 50) {
+            level = 'review'; label = 'Review Recommended'; color = colors.yellow;
+          } else {
+            level = 'caution'; label = 'Proceed with Caution'; color = colors.red;
+          }
+          detail = `Overall ${pc.overall}%`;
+        } else {
+          const pass = (proposal.alignment >= 85 ? 1 : 0) + (proposal.confidence >= 80 ? 1 : 0) + (proposal.impact === 'low' ? 1 : 0) + (!proposal.touchesInvariants ? 1 : 0) + (proposal.reversible ? 1 : 0);
+          level = (pass >= 4 && !proposal.touchesInvariants && proposal.reversible) ? 'safe' : (proposal.touchesInvariants || !proposal.reversible || proposal.impact === 'high') ? 'caution' : 'review';
+          label = level === 'safe' ? 'Low Risk' : level === 'caution' ? 'Review Carefully' : 'Moderate Risk';
+          color = level === 'safe' ? colors.green : level === 'caution' ? colors.red : colors.yellow;
+          detail = `${pass}/5 axes pass`;
+        }
         return (
           <View style={[s.dpRec, { borderColor: color + '33', backgroundColor: color + '0A' }]}>
             <Text style={[s.dpRecLabel, { color }]}>{label}</Text>
-            <Text style={[s.dpRecDetail, { color }]}>{pass}/5 axes pass</Text>
+            <Text style={[s.dpRecDetail, { color }]}>{detail}</Text>
           </View>
         );
       })()}
@@ -196,10 +214,50 @@ function DaedalusProposalCard({ proposal, onApprove, onDeny }: { proposal: Daeda
         </View>
       )}
 
-      {/* Metrics */}
+      {/* Multi-dimensional confidence */}
+      {proposal.proposalConfidence ? (
+        <View style={s.dpConfidenceGrid}>
+          {([
+            ['Identity', proposal.proposalConfidence.identity],
+            ['Continuity', proposal.proposalConfidence.continuity],
+            ['Need', proposal.proposalConfidence.need],
+            ['Efficacy', proposal.proposalConfidence.efficacy],
+            ['Safety', proposal.proposalConfidence.safety],
+            ['Timing', proposal.proposalConfidence.timing],
+            ['Reversibility', proposal.proposalConfidence.reversibility],
+            ['Track Record', proposal.proposalConfidence.trackRecord],
+          ] as [string, number][]).map(([label, val]) => {
+            const c = val >= 75 ? colors.green : val >= 50 ? colors.yellow : colors.red;
+            return (
+              <View key={label} style={s.dpConfDim}>
+                <View style={s.dpConfBar}><View style={[s.dpConfFill, { width: `${val}%`, backgroundColor: c }]} /></View>
+                <View style={s.dpConfMeta}>
+                  <Text style={s.dpConfLabel}>{label}</Text>
+                  <Text style={[s.dpConfVal, { color: c }]}>{val}%</Text>
+                </View>
+              </View>
+            );
+          })}
+          <View style={s.dpConfOverall}>
+            <Text style={s.dpConfOverallLabel}>Overall</Text>
+            <Text style={[s.dpConfOverallVal, { color: proposal.proposalConfidence.overall >= 75 ? colors.green : proposal.proposalConfidence.overall >= 50 ? colors.yellow : colors.red }]}>{proposal.proposalConfidence.overall}%</Text>
+            <Text style={s.dpConfScope}>Scope: {proposal.proposalConfidence.scope}</Text>
+          </View>
+          {proposal.proposalConfidence.reasoning.length > 0 && (
+            <View style={s.dpConfReasoning}>
+              {proposal.proposalConfidence.reasoning.map((r, i) => (
+                <Text key={i} style={s.dpConfReasonItem}>{r}</Text>
+              ))}
+            </View>
+          )}
+        </View>
+      ) : (
+        <View style={s.dpMetrics}>
+          <Text style={[s.dpMetric, { color: alColor }]}>Alignment: {proposal.alignment}%</Text>
+          <Text style={[s.dpMetric, { color: coColor }]}>Confidence: {proposal.confidence}%</Text>
+        </View>
+      )}
       <View style={s.dpMetrics}>
-        <Text style={[s.dpMetric, { color: alColor }]}>Alignment: {proposal.alignment}%</Text>
-        <Text style={[s.dpMetric, { color: coColor }]}>Confidence: {proposal.confidence}%</Text>
         <View style={[s.impactBadge, proposal.impact === 'low' ? s.impactLow : proposal.impact === 'medium' ? s.impactMedium : s.impactHigh]}>
           <Text style={[s.impactText, proposal.impact === 'low' ? s.impactTextLow : proposal.impact === 'medium' ? s.impactTextMed : s.impactTextHigh]}>
             {proposal.impact.toUpperCase()}
@@ -218,10 +276,10 @@ function DaedalusProposalCard({ proposal, onApprove, onDeny }: { proposal: Daeda
 
       <View style={s.dpActions}>
         <TouchableOpacity style={s.dpApprove} onPress={() => onApprove(proposal.id)} activeOpacity={0.7}>
-          <Text style={s.dpApproveText}>Approve</Text>
+          <Text style={s.dpApproveText}>{proposal.advisory ? 'Acknowledge' : 'Approve'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.dpDeny} onPress={() => onDeny(proposal.id)} activeOpacity={0.7}>
-          <Text style={s.dpDenyText}>Deny</Text>
+          <Text style={s.dpDenyText}>{proposal.advisory ? 'Dismiss' : 'Deny'}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -229,7 +287,7 @@ function DaedalusProposalCard({ proposal, onApprove, onDeny }: { proposal: Daeda
 }
 
 export const EvolutionScreen: React.FC = () => {
-  const [pending, setPending] = React.useState<DaedalusProposal[]>([]);
+  const [queue, setQueue] = React.useState<ProposalQueueState | null>(null);
   const [history, setHistory] = React.useState<ProposalHistoryEntry[]>([]);
   const [gate, setGate] = React.useState<ApprovalGateResponse | null>(null);
   const [rollback, setRollback] = React.useState<RollbackRegistrySnapshot | null>(null);
@@ -242,13 +300,13 @@ export const EvolutionScreen: React.FC = () => {
 
   const load = React.useCallback(async () => {
     try {
-      const [p, h, g, r] = await Promise.all([
-        fetchPendingProposals(),
+      const [q, h, g, r] = await Promise.all([
+        fetchProposalQueue(),
         fetchProposalHistory(),
         fetchApprovalGate(),
         fetchRollbackRegistry(),
       ]);
-      setPending(p);
+      setQueue(q);
       setHistory(h);
       setGate(g);
       setRollback(r);
@@ -313,9 +371,11 @@ export const EvolutionScreen: React.FC = () => {
     >
       <View style={s.header}>
         <Text style={s.title}>◈ Evolution</Text>
-        <View style={[s.headerBadge, pending.length > 0 ? s.headerBadgePending : s.headerBadgeClear]}>
-          <Text style={[s.headerBadgeText, pending.length > 0 ? s.headerBadgeTextPending : s.headerBadgeTextClear]}>
-            {pending.length > 0 ? `${pending.length} awaiting approval` : 'All clear'}
+        <View style={[s.headerBadge, queue?.surfaced ? s.headerBadgePending : s.headerBadgeClear]}>
+          <Text style={[s.headerBadgeText, queue?.surfaced ? s.headerBadgeTextPending : s.headerBadgeTextClear]}>
+            {queue?.surfaced
+              ? (queue.surfaced.advisory ? '1 awaiting acknowledgment' : '1 awaiting approval')
+              : 'All clear'}
           </Text>
         </View>
       </View>
@@ -326,12 +386,19 @@ export const EvolutionScreen: React.FC = () => {
         </View>
       )}
 
-      {pending.length > 0 && (
+      {queue?.surfaced && (
         <View style={s.sectionBox}>
-          <Text style={s.sectionTitle}>Daedalus Proposals</Text>
-          {pending.map(p => (
-            <DaedalusProposalCard key={p.id} proposal={p} onApprove={handleApprove} onDeny={handleDeny} />
-          ))}
+          <Text style={s.sectionTitle}>Daedalus Proposal</Text>
+          <DaedalusProposalCard proposal={queue.surfaced} onApprove={handleApprove} onDeny={handleDeny} />
+        </View>
+      )}
+
+      {(queue?.deferredCount ?? 0) > 0 && (
+        <View style={s.registryCard}>
+          <Text style={s.registryTitle}>Queued Proposals</Text>
+          <Text style={s.statText}>
+            {queue!.deferredCount} more proposal{queue!.deferredCount !== 1 ? 's' : ''} waiting — resolve the current one to see the next.
+          </Text>
         </View>
       )}
 
@@ -525,6 +592,19 @@ const s = StyleSheet.create({
   dpRationale: { fontSize: fonts.small, color: colors.textMuted, lineHeight: 18, paddingLeft: spacing.sm, borderLeftWidth: 2, borderLeftColor: 'rgba(88,166,255,0.2)' },
   dpMetrics: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   dpMetric: { fontSize: fonts.body, fontWeight: '700' },
+  dpConfidenceGrid: { gap: 4, padding: spacing.sm, borderWidth: 1, borderColor: 'rgba(88,166,255,0.12)', borderRadius: radius.sm, backgroundColor: 'rgba(88,166,255,0.03)' },
+  dpConfDim: { gap: 2 },
+  dpConfBar: { height: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' as const },
+  dpConfFill: { height: '100%' as any, borderRadius: 2 },
+  dpConfMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dpConfLabel: { fontSize: 10, color: colors.dim, textTransform: 'uppercase' as const, letterSpacing: 0.3 },
+  dpConfVal: { fontSize: 11, fontWeight: '700' as any, fontVariant: ['tabular-nums'] as any },
+  dpConfOverall: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: 'rgba(139,148,158,0.1)' },
+  dpConfOverallLabel: { fontSize: fonts.micro, fontWeight: '700' as any, color: colors.dim, textTransform: 'uppercase' as const },
+  dpConfOverallVal: { fontSize: fonts.body, fontWeight: '800' as any },
+  dpConfScope: { marginLeft: 'auto' as any, fontSize: 10, color: colors.textFaint, textTransform: 'uppercase' as const },
+  dpConfReasoning: { gap: 3, marginTop: 6 },
+  dpConfReasonItem: { fontSize: 10, color: colors.textMuted, backgroundColor: 'rgba(139,148,158,0.06)', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, lineHeight: 16 },
   dpRec: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.sm, borderWidth: 1 },
   dpRecLabel: { fontSize: fonts.micro, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 } as any,
   dpRecDetail: { fontSize: fonts.caption, opacity: 0.85 },

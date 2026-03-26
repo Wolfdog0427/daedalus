@@ -55,7 +55,7 @@ export function selectPosture(
     caution: clamp01(basePosture.caution + cautAdj),
   };
 
-  return applySafeModeToPosture(posture);
+  return applySafeModeToPosture(posture, alignment);
 }
 
 // ── Sub-Posture Selection ───────────────────────────────────────────

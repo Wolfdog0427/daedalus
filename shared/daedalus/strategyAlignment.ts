@@ -101,6 +101,9 @@ export function scoreSovereignty(ctx: AlignmentContext): number {
     if (operator.presenceMode === "active" || operator.presenceMode === "dominant") score += 15;
     if (operator.isGuiding) score += 10;
     score += Math.round(operator.influenceLevel * 20);
+  } else if (ctx.beings.length === 0) {
+    // L3: Autonomous preservation — operator absent but constitutional governance intact
+    if (ctx.constitutionReport.allPassed && ctx.posture !== "LOCKDOWN") score += 15;
   }
 
   const hasGlobalDeny = ctx.overrides.some(o => o.scope === "GLOBAL" && o.effect === "DENY");
@@ -180,7 +183,9 @@ export function scoreStability(ctx: AlignmentContext): number {
     else if (ctx.totalErrors <= 5) score += 10;
     else if (ctx.totalErrors <= 20) score += 5;
   } else {
-    score += 50;
+    // L2: Zero nodes = minimal stability, not 50. System with no nodes shouldn't
+    // report moderate stability.
+    score += 5;
   }
 
   if (ctx.quarantinedCount === 0) score += 10;

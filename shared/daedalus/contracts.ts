@@ -1,7 +1,7 @@
 export type RiskTier = "low" | "medium" | "high";
 export type GlowLevel = "none" | "low" | "medium" | "high";
 
-export type NodeStatus = "unknown" | "pending" | "trusted" | "quarantined";
+export type NodeStatus = "unknown" | "pending" | "trusted" | "degraded" | "quarantined" | "detached";
 
 export interface Capability {
   name: string;
@@ -82,7 +82,7 @@ export interface NegotiationApplyResult {
 
 export interface OrchestratorSnapshot {
   nodes: NodePresence[];
-  beings: BeingPresence[];
+  beings: BeingPresenceDetail[];
 }
 
 // ── Governance & Posture (v0.7) ──────────────────────────────────────

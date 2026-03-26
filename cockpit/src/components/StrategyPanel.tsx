@@ -46,7 +46,7 @@ function strategyTone(name: StrategyName): string {
   if (name === "sovereignty_stable" || name === "alignment_nominal") return "healthy";
   if (name === "governance_attentive" || name === "identity_reinforcement") return "attentive";
   if (name === "sovereignty_contested" || name === "governance_undercorrection") return "warning";
-  if (name === "alignment_guard_cautious") return "warning";
+  if (name === "alignment_guard_cautious" || name === "stability_recovery" || name === "alignment_degraded") return "warning";
   if (name === "alignment_guard_critical" || name === "autonomy_paused_alignment_critical") return "critical";
   return "critical";
 }
@@ -155,6 +155,15 @@ export function StrategyPanel() {
               <div className="strategy-composite__confidence">
                 Confidence: <strong>{evaluation.confidence}%</strong>
               </div>
+              {telemetry?.systemConfidence && (
+                <div className="strategy-composite__sys-confidence" title={`Stability: ${telemetry.systemConfidence.stabilityBonus}% · Trajectory: ${telemetry.systemConfidence.trajectoryBonus}%`}>
+                  System: <strong>{telemetry.systemConfidence.score}%</strong>
+                  <span className="strategy-composite__sys-bias">
+                    {telemetry.systemConfidence.approvalBias > 0 ? ` (+${telemetry.systemConfidence.approvalBias})` :
+                     telemetry.systemConfidence.approvalBias < 0 ? ` (${telemetry.systemConfidence.approvalBias})` : ""}
+                  </span>
+                </div>
+              )}
               <div className="strategy-composite__evaluated">
                 {new Date(evaluation.evaluatedAt).toLocaleTimeString()}
               </div>

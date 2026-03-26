@@ -79,9 +79,9 @@ describe("Phase transitions are locked", () => {
     expect(phaseToStatus("discovered")).toBe("pending");
     expect(phaseToStatus("joining")).toBe("pending");
     expect(phaseToStatus("active")).toBe("trusted");
-    expect(phaseToStatus("degraded")).toBe("pending");
+    expect(phaseToStatus("degraded")).toBe("degraded");
     expect(phaseToStatus("quarantined")).toBe("quarantined");
-    expect(phaseToStatus("detached")).toBe("unknown");
+    expect(phaseToStatus("detached")).toBe("detached");
   });
 });
 

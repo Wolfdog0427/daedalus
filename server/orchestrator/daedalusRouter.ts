@@ -57,7 +57,12 @@ daedalusRouter.get("/events", (req: Request, res: Response) => {
 
   res.write(": daedalus-events-stream-open\n\n");
 
+  const keepalive = setInterval(() => {
+    res.write(": keepalive\n\n");
+  }, 30_000);
+
   req.on("close", () => {
+    clearInterval(keepalive);
     unsubscribe();
     res.end();
   });
@@ -109,7 +114,7 @@ daedalusRouter.get("/strategy", (_req: Request, res: Response) => {
     const evaluation = strategyService.getCachedEvaluation();
     const tick = strategyService.getLastTickResult();
     if (!evaluation) {
-      res.json({ name: "pending", confidence: 0, alignment: 0, alignmentBreakdown: { sovereignty: 0, identity: 0, governance: 0, stability: 0 }, posture: null, drift: null, selfCorrected: false, trend: null, escalation: null, safeMode: null, expressive: null });
+      res.json({ name: "pending", confidence: 0, alignment: 0, alignmentBreakdown: { sovereignty: 0, identity: 0, governance: 0, stability: 0 }, weakestAxis: "sovereignty", strongestAxis: "sovereignty", notes: "No evaluation yet", evaluatedAt: new Date().toISOString(), posture: null, drift: null, selfCorrected: false, trend: null, escalation: null, safeMode: null, expressive: null });
       return;
     }
     res.json({
@@ -235,7 +240,6 @@ daedalusRouter.get("/alignment-config", (_req: Request, res: Response) => {
  */
 daedalusRouter.post("/alignment-config", (req: Request, res: Response) => {
   try {
-    if (!requireUnfrozen(res)) return;
     const gate = strategyService.gateHighRiskAction("alignment_config_change");
     if (!gate.allowed) {
       res.status(403).json({ error: "High-risk action denied", reasons: gate.reasons });
@@ -285,6 +289,81 @@ daedalusRouter.get("/proposals/pending", (_req: Request, res: Response) => {
 });
 
 /**
+ * GET /daedalus/proposals/queue
+ * Returns the full proposal queue state: surfaced proposal, deferred count/summary, timing.
+ */
+daedalusRouter.get("/proposals/queue", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getProposalQueueState());
+  } catch (err: any) {
+    console.error("[daedalus] /proposals/queue GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch proposal queue" });
+  }
+});
+
+/**
+ * GET /daedalus/proposals/operator
+ * Returns operator-submitted proposals that need review.
+ */
+daedalusRouter.get("/proposals/operator", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getOperatorPendingProposals());
+  } catch (err: any) {
+    console.error("[daedalus] /proposals/operator GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch operator proposals" });
+  }
+});
+
+/**
+ * POST /daedalus/proposals/operator/:id/force-approve
+ * Force-approve an operator proposal that didn't pass auto-approval.
+ */
+daedalusRouter.post("/proposals/operator/:id/force-approve", (req: Request, res: Response) => {
+  try {
+    const result = strategyService.forceApproveOperatorProposal(req.params.id);
+    if (!result) {
+      res.status(404).json({ error: "Operator proposal not found or already resolved" });
+      return;
+    }
+    res.json(result);
+  } catch (err: any) {
+    console.error("[daedalus] /proposals/operator/:id/force-approve error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to force-approve proposal" });
+  }
+});
+
+/**
+ * POST /daedalus/proposals/operator/:id/withdraw
+ * Withdraw a pending operator proposal.
+ */
+daedalusRouter.post("/proposals/operator/:id/withdraw", (req: Request, res: Response) => {
+  try {
+    const result = strategyService.withdrawOperatorProposal(req.params.id);
+    if (!result) {
+      res.status(404).json({ error: "Operator proposal not found or already resolved" });
+      return;
+    }
+    res.json(result);
+  } catch (err: any) {
+    console.error("[daedalus] /proposals/operator/:id/withdraw error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to withdraw proposal" });
+  }
+});
+
+/**
+ * GET /daedalus/proposals/presets
+ * Returns saved pattern presets from successful tuning patterns.
+ */
+daedalusRouter.get("/proposals/presets", (_req: Request, res: Response) => {
+  try {
+    res.json(strategyService.getPatternPresets());
+  } catch (err: any) {
+    console.error("[daedalus] /proposals/presets GET error:", err?.message);
+    res.status(500).json({ error: err?.message ?? "Failed to fetch presets" });
+  }
+});
+
+/**
  * GET /daedalus/proposals/history
  * Returns resolved proposal history with effect tracking.
  */
@@ -303,7 +382,6 @@ daedalusRouter.get("/proposals/history", (_req: Request, res: Response) => {
  */
 daedalusRouter.post("/proposals/:id/approve", (req: Request, res: Response) => {
   try {
-    if (!requireUnfrozen(res)) return;
     const result = strategyService.approveDaedalusProposal(req.params.id);
     if (!result) {
       res.status(404).json({ error: "Proposal not found or already resolved" });
@@ -341,7 +419,6 @@ daedalusRouter.post("/proposals/:id/deny", (req: Request, res: Response) => {
  */
 daedalusRouter.post("/propose-change", (req: Request, res: Response) => {
   try {
-    if (!requireUnfrozen(res)) return;
     const body = req.body ?? {};
     if (!body.kind || !body.description) {
       res.status(400).json({ error: "Missing required fields: kind, description" });
@@ -385,7 +462,6 @@ daedalusRouter.get("/approval-gate", (_req: Request, res: Response) => {
  */
 daedalusRouter.post("/approval-gate/config", (req: Request, res: Response) => {
   try {
-    if (!requireUnfrozen(res)) return;
     const updated = strategyService.updateApprovalGateConfig(req.body ?? {});
     res.json(updated);
   } catch (err: any) {
@@ -416,7 +492,6 @@ daedalusRouter.get("/regulation", (_req: Request, res: Response) => {
  */
 daedalusRouter.post("/regulation/config", (req: Request, res: Response) => {
   try {
-    if (!requireUnfrozen(res)) return;
     const updated = strategyService.updateRegulationConfig(req.body ?? {});
     getDaedalusEventBus().publish({
       type: "ALIGNMENT_CONFIG_CHANGED",
@@ -508,7 +583,6 @@ daedalusRouter.get("/rollback-registry/config", (_req: Request, res: Response) =
  */
 daedalusRouter.post("/rollback-registry/config", (req: Request, res: Response) => {
   try {
-    if (!requireUnfrozen(res)) return;
     const updated = strategyService.updateRollbackConfig(req.body ?? {});
     res.json(updated);
   } catch (err: any) {

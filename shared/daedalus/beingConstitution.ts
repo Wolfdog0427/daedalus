@@ -94,7 +94,7 @@ function checkContinuityCoherent(beings: BeingPresenceDetail[]): BeingInvariantC
   );
   return {
     name: "continuity-coherent",
-    passed: true,
+    passed: incoherent.length === 0,
     detail: incoherent.length > 0 ? `Questionable continuity: ${incoherent.map(b => b.id).join(", ")}` : undefined,
   };
 }

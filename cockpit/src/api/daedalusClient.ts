@@ -272,6 +272,26 @@ export interface TelemetrySnapshot {
   drift: AlignmentDriftResult;
   lastEscalation: { level: EscalationLevel; reason?: string; strategy?: StrategyName; alignment?: number } | null;
   safeMode: SafeModeState;
+  recentApprovals?: ApprovalDecision[];
+  lastRegulation?: RegulationOutput | null;
+  rollbackRegistry?: RollbackRegistrySnapshot;
+  operatorTrust?: {
+    boundOperatorId: string | null;
+    trustScore: number;
+    posture: string;
+    calibrated: boolean;
+    axes: Record<string, number>;
+  };
+  systemConfidence?: {
+    score: number;
+    alignmentBasis: number;
+    stabilityBonus: number;
+    trajectoryBonus: number;
+    approvalBias: number;
+    proposalReadiness: number;
+    expressiveRange: number;
+    correctionDamping: number;
+  };
 }
 
 // ── Alignment Config ──────────────────────────────────────────────
@@ -393,6 +413,20 @@ export interface ProposalParameterChange {
   unit?: string;
 }
 
+export interface ProposalConfidenceBreakdown {
+  identity: number;
+  continuity: number;
+  need: number;
+  efficacy: number;
+  safety: number;
+  timing: number;
+  reversibility: number;
+  trackRecord: number;
+  scope: "narrow" | "moderate" | "wide";
+  overall: number;
+  reasoning: string[];
+}
+
 export interface DaedalusProposal {
   id: string;
   kind: string;
@@ -405,22 +439,26 @@ export interface DaedalusProposal {
   touchesInvariants: boolean;
   reversible: boolean;
   autoApprovable: boolean;
+  advisory: boolean;
   payload: Record<string, unknown>;
   parameterChanges: ProposalParameterChange[];
   operatorImpact: string;
   boundaries: string[];
   createdAt: number;
-  status: "pending" | "approved" | "denied" | "expired" | "auto_approved";
+  surfacedAt?: number;
+  status: "pending" | "approved" | "denied" | "expired" | "auto_approved" | "acknowledged" | "surfaced" | "deferred" | "superseded";
   resolvedAt?: number;
   effectBaseline?: number;
   effectAfter?: number;
+  proposalConfidence?: ProposalConfidenceBreakdown;
+  priorityScore?: number;
 }
 
 export interface ProposalHistoryEntry {
   id: string;
   title: string;
   kind: string;
-  status: "approved" | "denied" | "auto_approved" | "expired";
+  status: "approved" | "denied" | "auto_approved" | "expired" | "acknowledged" | "superseded";
   alignment: number;
   confidence: number;
   impact: "low" | "medium" | "high";
@@ -429,6 +467,35 @@ export interface ProposalHistoryEntry {
   effectDelta: number | null;
   createdAt: number;
   resolvedAt: number;
+}
+
+export interface ProposalQueueState {
+  surfaced: DaedalusProposal | null;
+  deferredCount: number;
+  deferred: Array<{ id: string; kind: string; title: string; priorityScore: number }>;
+  approvalWindowEndsAt: number | null;
+  lastResolutionAt: number;
+}
+
+export interface OperatorPendingProposal {
+  id: string;
+  kind: string;
+  description: string;
+  payload: Record<string, unknown>;
+  decision: ApprovalDecision;
+  createdAt: number;
+  status: "pending_review" | "force_approved" | "withdrawn";
+  resolvedAt?: number;
+}
+
+export interface PatternPreset {
+  id: string;
+  name: string;
+  sourceKinds: string[];
+  parameters: Record<string, unknown>;
+  avgEffectDelta: number;
+  proposalCount: number;
+  createdAt: number;
 }
 
 export async function fetchPendingProposals(): Promise<DaedalusProposal[]> {
@@ -455,6 +522,37 @@ export async function denyDaedalusProposal(id: string): Promise<DaedalusProposal
     headers: authHeaders(),
   });
   return handleJson<DaedalusProposal>(res);
+}
+
+export async function fetchProposalQueue(): Promise<ProposalQueueState> {
+  const res = await fetch(`${basePath}/proposals/queue`, { headers: authHeaders() });
+  return handleJson<ProposalQueueState>(res);
+}
+
+export async function fetchOperatorProposals(): Promise<OperatorPendingProposal[]> {
+  const res = await fetch(`${basePath}/proposals/operator`, { headers: authHeaders() });
+  return handleJson<OperatorPendingProposal[]>(res);
+}
+
+export async function forceApproveOperatorProposal(id: string): Promise<OperatorPendingProposal> {
+  const res = await fetch(`${basePath}/proposals/operator/${id}/force-approve`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  return handleJson<OperatorPendingProposal>(res);
+}
+
+export async function withdrawOperatorProposal(id: string): Promise<OperatorPendingProposal> {
+  const res = await fetch(`${basePath}/proposals/operator/${id}/withdraw`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  return handleJson<OperatorPendingProposal>(res);
+}
+
+export async function fetchPatternPresets(): Promise<PatternPreset[]> {
+  const res = await fetch(`${basePath}/proposals/presets`, { headers: authHeaders() });
+  return handleJson<PatternPreset[]>(res);
 }
 
 export async function fetchTelemetry(): Promise<TelemetrySnapshot> {

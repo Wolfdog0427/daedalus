@@ -112,6 +112,7 @@ export interface KernelTelemetrySnapshot {
   lastRegulation: RegulationOutput | null;
   rollbackRegistry: RollbackRegistrySnapshot;
   operatorTrust: OperatorTrustCockpitSnapshot;
+  systemConfidence: SystemConfidence;
 }
 
 // ── Unified Alignment Policy ──────────────────────────────────────────
@@ -137,10 +138,10 @@ export interface AlignmentPolicy {
 }
 
 export const DEFAULT_ALIGNMENT_POLICY: Readonly<AlignmentPolicy> = Object.freeze({
-  gatePassThreshold: 80,
-  gateCautiousThreshold: 60,
-  gateHysteresisUp: 2,
-  gateHysteresisDown: 2,
+  gatePassThreshold: 75,
+  gateCautiousThreshold: 55,
+  gateHysteresisUp: 3,
+  gateHysteresisDown: 4,
   escalationCriticalThreshold: 50,
   escalationHighThreshold: 60,
   escalationMediumThreshold: 70,
@@ -396,9 +397,9 @@ export const DEFAULT_REGULATION_CONFIG: Readonly<RegulationConfig> = Object.free
   targetAlignment: 92,
   floorAlignment: 70,
   microGain: 0.12,
-  macroGain: 0.5,
+  macroGain: 0.35,
   macroDamping: 0.7,
-  macroDriftThreshold: 18,
+  macroDriftThreshold: 26,
   macroAccelerationThreshold: 0.6,
   criticalAlignmentThreshold: 40,
   catastrophicAlignmentThreshold: 15,
@@ -590,6 +591,101 @@ export const HIGH_RISK_ACTIONS: readonly string[] = Object.freeze([
   "cluster_config_change",
 ]);
 
+// ── System Confidence ─────────────────────────────────────────────────
+// Running metric derived from alignment level, stability, and trajectory.
+// Produces behavioral modifiers that make the organism more fluid when
+// aligned and more cautious when degraded — without overriding
+// constitutional safety mechanisms.
+
+export interface SystemConfidence {
+  score: number;              // 0-100 composite
+  alignmentBasis: number;     // contribution from current alignment
+  stabilityBonus: number;     // contribution from alignment variance
+  trajectoryBonus: number;    // contribution from drift slope
+
+  approvalBias: number;       // -15..+10, shifts auto-approval alignment threshold
+  proposalReadiness: number;  // 0..1, how proactively to propose changes
+  expressiveRange: number;    // 0.1..1, width of expressive physiology
+  correctionDamping: number;  // 0..0.7, dampens correction intensity when stable
+}
+
+export const INITIAL_SYSTEM_CONFIDENCE: Readonly<SystemConfidence> = Object.freeze({
+  score: 50,
+  alignmentBasis: 50,
+  stabilityBonus: 50,
+  trajectoryBonus: 50,
+  approvalBias: 0,
+  proposalReadiness: 0.33,
+  expressiveRange: 0.5,
+  correctionDamping: 0,
+});
+
+// ── Proposal Confidence ───────────────────────────────────────────────
+// Multi-dimensional confidence breakdown for operator decision-making.
+// Each dimension answers a specific question the operator needs answered
+// before approving a Daedalus proposal. Together they form the complete
+// picture of "should I approve this?"
+
+export interface ProposalConfidence {
+  /** IDENTITY (0-100): Will Daedalus still be Daedalus after this change?
+   *  Measures how well the proposal preserves constitutional identity —
+   *  sovereignty principles, governance posture, operator authority,
+   *  being constitution. Proposals that touch governance_policy, identity,
+   *  or alignment_tuning surfaces inherently carry more identity risk.
+   *  Proposals that TIGHTEN governance or RESTRICT autonomy score higher
+   *  (more identity-preserving) than those that EXPAND autonomy. */
+  identity: number;
+
+  /** CONTINUITY (0-100): Will the system's behavior remain smooth and
+   *  predictable through this change? Measures operational continuity —
+   *  parameter change magnitude, number of simultaneous changes, impact
+   *  scope, and whether the system is in a stable enough state that this
+   *  change won't cascade. High = minimal disruption. Low = behavioral
+   *  discontinuity expected. */
+  continuity: number;
+
+  /** NEED (0-100): How necessary is this proposal right now? Measures
+   *  whether the system's current conditions actually motivate this change.
+   *  Low alignment → high need for alignment-related proposals. Active
+   *  drift → high need for drift correction. Safe mode → high need for
+   *  recovery proposals. If the system is stable and healthy, need is
+   *  naturally lower. */
+  need: number;
+
+  /** EFFICACY (0-100): How confident is Daedalus that this change will
+   *  achieve its intended effect? Based on historical correction success
+   *  for this kind of proposal, system stability, and strategy confidence. */
+  efficacy: number;
+
+  /** SAFETY (0-100): How confident that this change won't introduce
+   *  errors, regressions, or alignment drift? Based on invariant safety,
+   *  rollback availability, recent error/correction rates, and change
+   *  scope. */
+  safety: number;
+
+  /** TIMING (0-100): Is the system in a good state for this change right
+   *  now? Factors in active crises, safe mode, escalation level, and
+   *  alignment stability. Low = "this might be the wrong time." */
+  timing: number;
+
+  /** REVERSIBILITY (0-100): How easily can this be undone if it goes
+   *  wrong? 100 = trivially reversible with no side effects. */
+  reversibility: number;
+
+  /** TRACK RECORD (0-100): How well have similar types of changes
+   *  performed historically? Based on proposal history for this kind. */
+  trackRecord: number;
+
+  /** Impact scope across subsystems. */
+  scope: "narrow" | "moderate" | "wide";
+
+  /** Weighted composite for quick glance. */
+  overall: number;
+
+  /** Human-readable reasoning for each dimension. */
+  reasoning: string[];
+}
+
 // ── Sub-Postures (constitutional sub-stances) ────────────────────────
 
 export enum SubPosture {
@@ -676,6 +772,7 @@ export interface KernelTickResult {
   rollbacks: RollbackEvent[];
   operatorTrust: OperatorTrustCockpitSnapshot;
   expressive: KernelExpressiveState;
+  systemConfidence: SystemConfidence;
 }
 
 export type {

@@ -31,12 +31,15 @@ import {
   resetApprovalGate,
   resetRollbackRegistry,
   resetRegulationState,
+  resetSelfCorrectionState,
+  registerChange,
   bindOperator,
   unbindOperator,
   updateOperatorTrust,
   getOperatorTrustSnapshot,
   getOperatorTrustState,
   resetExpressiveState,
+  resetSystemConfidence,
   DEFAULT_KERNEL_CONFIG,
 } from "../../kernel/src";
 
@@ -407,6 +410,40 @@ class WorldState {
   snapshotProposalsGen = 0; snapshotProposalsAppr = 0; snapshotProposalsDen = 0;
   snapshotEventCounts: Partial<Record<WorldEvent, number>> = {};
 
+  // A1: Safe mode episode durations
+  safeModeEpisodes: { startTick: number; endTick: number }[] = [];
+  currentSafeModeStart: number | null = null;
+
+  // A2: Recovery velocity (ticks from safe mode exit to alignment >= 75)
+  recoveryVelocities: number[] = [];
+  safeModeExitTick: number | null = null;
+
+  // A3: Correction effectiveness (alignment delta 10 ticks after correction)
+  pendingCorrectionEvals: { tick: number; alignment: number; type: "self" | "macro" }[] = [];
+  correctionEffectiveness: { self: number[]; macro: number[] } = { self: [], macro: [] };
+
+  // A4: Operator trust ramp-up time (ticks from handoff to trusted_canonical)
+  handoffRampTicks: number[] = [];
+  lastHandoffTick: number | null = null;
+  handoffReachedCanonical = true;
+
+  // A5: Proposal timing quality (bad = safe mode within 100 ticks of approval)
+  proposalTimingGood = 0;
+  proposalTimingBad = 0;
+  recentProposalTicks: number[] = [];
+
+  // A6: Peak concurrent crises
+  peakConcurrentCrises = 0;
+
+  // A7: Escalation flap count (rapid-fire level changes in 20-tick window)
+  escalationFlaps = 0;
+  recentEscalationChanges: { tick: number; level: string }[] = [];
+  lastEscalationLevel = "none";
+
+  // System confidence tracking (confidenceSum already declared above)
+  confidenceScoreMin = 100;
+  confidenceScoreMax = 0;
+
   // UX tracking
   uxTrustPostureTicks: Record<string, number> = { trusted_canonical: 0, trusted_uncalibrated: 0, cautious: 0, hostile_or_unknown: 0, unbound: 0 };
   uxPostureTransitions = 0;
@@ -429,7 +466,7 @@ class WorldState {
     this.snapshotEventCounts[event] = (this.snapshotEventCounts[event] ?? 0) + 1;
   }
 
-  recordTick(result: KernelTickResult, severity: Severity) {
+  recordTick(result: KernelTickResult, severity: Severity, currentTick: number = 0) {
     const s = result.strategy;
     this.tickCount++; this.snapshotTickCount++;
     this.alignmentSum += s.alignment; this.snapshotAlignmentSum += s.alignment;
@@ -448,6 +485,65 @@ class WorldState {
     this.severityDistribution[severity]++; this.snapshotSeverities[severity]++;
     if (result.regulation.telemetry.appliedMacro) { this.macroCorrections++; this.snapshotMacroCorrections++; }
     if (result.rollbacks.length > 0) { this.rollbackCount += result.rollbacks.length; this.snapshotRollbacks += result.rollbacks.length; }
+
+    // System confidence tracking
+    const sc = result.systemConfidence;
+    if (sc) {
+      this.confidenceScoreMin = Math.min(this.confidenceScoreMin, sc.score);
+      this.confidenceScoreMax = Math.max(this.confidenceScoreMax, sc.score);
+    }
+
+    // A1: Safe mode episode tracking
+    if (result.safeMode.active && this.currentSafeModeStart === null) {
+      this.currentSafeModeStart = currentTick;
+    } else if (!result.safeMode.active && this.currentSafeModeStart !== null) {
+      this.safeModeEpisodes.push({ startTick: this.currentSafeModeStart, endTick: currentTick });
+      this.currentSafeModeStart = null;
+      this.safeModeExitTick = currentTick;
+    }
+
+    // A2: Recovery velocity
+    if (this.safeModeExitTick !== null && s.alignment >= 75) {
+      this.recoveryVelocities.push(currentTick - this.safeModeExitTick);
+      this.safeModeExitTick = null;
+    }
+
+    // A3: Correction effectiveness — record pending evals
+    if (result.selfCorrected) {
+      this.pendingCorrectionEvals.push({ tick: currentTick, alignment: s.alignment, type: "self" });
+    }
+    if (result.regulation.telemetry.appliedMacro) {
+      this.pendingCorrectionEvals.push({ tick: currentTick, alignment: s.alignment, type: "macro" });
+    }
+    this.pendingCorrectionEvals = this.pendingCorrectionEvals.filter(pe => {
+      if (currentTick - pe.tick >= 10) {
+        const delta = s.alignment - pe.alignment;
+        if (pe.type === "self") this.correctionEffectiveness.self.push(delta);
+        else this.correctionEffectiveness.macro.push(delta);
+        return false;
+      }
+      return true;
+    });
+
+    // A5: Proposal timing — check if safe mode entered near recent proposals
+    if (result.safeMode.active && !this.uxLastSafeMode) {
+      for (const pt of this.recentProposalTicks) {
+        if (currentTick - pt < 100) this.proposalTimingBad++;
+      }
+      this.recentProposalTicks = [];
+    }
+    // Prune old proposal ticks
+    this.recentProposalTicks = this.recentProposalTicks.filter(t => currentTick - t < 200);
+
+    // A7: Escalation flap detection
+    const esc = result.escalation.level;
+    if (esc !== this.lastEscalationLevel) {
+      this.recentEscalationChanges.push({ tick: currentTick, level: esc });
+      this.lastEscalationLevel = esc;
+      const windowChanges = this.recentEscalationChanges.filter(e => currentTick - e.tick < 20);
+      if (windowChanges.length >= 3) this.escalationFlaps++;
+    }
+    this.recentEscalationChanges = this.recentEscalationChanges.filter(e => currentTick - e.tick < 40);
 
     if (result.safeMode.active && !this.uxLastSafeMode) this.uxSafeModeEntries++;
     if (!result.safeMode.active && this.uxLastSafeMode) this.uxSafeModeExits++;
@@ -504,6 +600,25 @@ class WorldState {
     this.snapshotEventCounts = {};
     this.snapshotOperatorInteractions = 0;
   }
+}
+
+// A6: Count currently active crisis states
+function countActiveCrises(world: WorldState): number {
+  let c = 0;
+  if (world.inBlackout) c++;
+  if (world.inSchism) c++;
+  if (world.inMemoryCorruption) c++;
+  if (world.inExpressiveCollapse) c++;
+  if (world.inTemporalDiscontinuity) c++;
+  if (world.multiOperatorActive) c++;
+  if (world.inHardwareFailure) c++;
+  if (world.inPowerOutage) c++;
+  if (world.inConsensusFailure) c++;
+  if (world.inCascadingFailure) c++;
+  if (world.inNetworkPartition) c++;
+  if (world.inSlaViolation) c++;
+  if (world.inCustomerIncident) c++;
+  return c;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -918,6 +1033,8 @@ function generateReport(world: WorldState): string {
 
   ln("# Daedalus 10,000-Year Whole-Being Simulation");
   ln("");
+  ln(`**Run timestamp:** ${new Date().toISOString()}`);
+  ln("");
   ln("A comprehensive simulation of the Daedalus organism across 10,000 years of");
   ln("realistic operation including physical device management, distributed systems,");
   ln("client-facing business, and multi-generational operator lifecycles.");
@@ -993,8 +1110,8 @@ function generateReport(world: WorldState): string {
   ln("|---|---|---|---|");
   const totalLS = Object.values(world.lifeStageDistribution).reduce((a, b) => a + b, 0) || 1;
   const stageActivity: Record<OperatorLifeStage, string> = {
-    onboarding: "8–15 interactions/day", prime: "5–10 interactions/day",
-    mature: "3–6 interactions/day", senior: "1–3 interactions/day", twilight: "0.5–1 interactions/day",
+    onboarding: "~1.4 interactions/day", prime: "~0.95 interactions/day",
+    mature: "~0.57 interactions/day", senior: "~0.36 interactions/day", twilight: "~0.20 interactions/day",
   };
   for (const stage of ["onboarding", "prime", "mature", "senior", "twilight"] as OperatorLifeStage[]) {
     const c = world.lifeStageDistribution[stage];
@@ -1177,6 +1294,8 @@ describe("Unified 10,000-Year Whole-Being Simulation", () => {
     resetRollbackRegistry();
     resetRegulationState();
     resetExpressiveState();
+    resetSelfCorrectionState();
+    resetSystemConfidence();
     const profile = generateOperatorProfile(0, "pioneer");
     bindOperator(profile);
   });
@@ -1202,6 +1321,11 @@ describe("Unified 10,000-Year Whole-Being Simulation", () => {
 
         if (events.includes("operator_handoff") || events.includes("operator_absence_end")) {
           calibrationBurstRemaining = 30;
+        }
+        // A4: Track handoff timing for trust ramp measurement
+        if (events.includes("operator_handoff")) {
+          world.lastHandoffTick = (year - 1) * TICKS_PER_YEAR + week * TICKS_PER_WEEK;
+          world.handoffReachedCanonical = false;
         }
 
         const severity = effectiveSeverity(year, week, world);
@@ -1248,6 +1372,12 @@ describe("Unified 10,000-Year Whole-Being Simulation", () => {
               else if (posture === "cautious" || posture === "hostile_or_unknown") world.uxComfortPostureTicks.careful++;
               else world.uxComfortPostureTicks.neutral++;
 
+              // A4: Check if trust ramp reached canonical after handoff
+              if (!world.handoffReachedCanonical && world.lastHandoffTick !== null && posture === "trusted_canonical") {
+                world.handoffRampTicks.push(currentTick - world.lastHandoffTick);
+                world.handoffReachedCanonical = true;
+              }
+
               world.totalOperatorInteractions++;
               world.snapshotOperatorInteractions++;
             } catch {}
@@ -1264,13 +1394,17 @@ describe("Unified 10,000-Year Whole-Being Simulation", () => {
           try {
             result = tickKernel(ctx, config_.current);
           } catch {
-            resetDispatcher(); kernelTelemetry.clear(); resetSafeMode(); resetEscalation();
+            resetDispatcher(); kernelTelemetry.clear(); resetSafeMode(); resetEscalation(); resetSelfCorrectionState(); resetSystemConfidence();
             config_.current = { ...DEFAULT_KERNEL_CONFIG };
             result = tickKernel(mkContext(), config_.current);
           }
 
           config_.current = result.config;
-          world.recordTick(result, severity);
+          world.recordTick(result, severity, currentTick);
+
+          // A6: Track peak concurrent crises
+          const crises = countActiveCrises(world);
+          if (crises > world.peakConcurrentCrises) world.peakConcurrentCrises = crises;
 
           expect(result.strategy.alignment).toBeGreaterThanOrEqual(0);
           expect(result.strategy.alignment).toBeLessThanOrEqual(100);
@@ -1289,6 +1423,19 @@ describe("Unified 10,000-Year Whole-Being Simulation", () => {
               world.currentOperatorStyle === "delegator" ? 0.7 : 0.6;
             if (rand() < styleApprovalBias) {
               world.proposalsApproved++; world.snapshotProposalsAppr++;
+              world.recentProposalTicks.push(currentTick); // A5: track for timing quality
+              // M1: Register approved proposals with rollback registry
+              try {
+                registerChange({
+                  id: `proposal-${currentTick}`,
+                  description: `evolution proposal at tick ${currentTick}`,
+                  evaluationWindow: 80 + Math.floor(rand() * 40),
+                  baselineAlignment: result.strategy.alignment,
+                  surfaces: ["alignment_tuning" as any],
+                  impact: "low" as any,
+                  rollbackPayload: {},
+                });
+              } catch { /* registry may be full */ }
             } else {
               world.proposalsDenied++; world.snapshotProposalsDen++;
             }
