@@ -35,16 +35,40 @@ BANNER = """
               AI SYSTEM COMMAND CONSOLE
 ===========================================================
 Type natural language commands such as:
-  • "run a consistency scan"
-  • "clean up storage"
-  • "verify this: <claim>"
-  • "explain this: <claim>"
-  • "evolve concepts"
-  • "open up autonomy"
-  • "lock down to strict"
-  • "show dashboard"
-  • "check stability"
-  • "exit"
+
+  Knowledge & Reasoning:
+  • "verify this: <claim>"      - Verify and ingest a claim
+  • "explain this: <claim>"     - Request explanation
+  • "run a consistency scan"    - Check knowledge consistency
+  • "evolve concepts"           - Run concept evolution
+
+  Curiosity & Learning:
+  • "run curiosity"             - Detect gaps and propose goals
+  • "list goals"                - Show knowledge acquisition goals
+  • "approve goal: <id>"        - Approve a proposed goal
+  • "quality gate: <id>"        - Run quality check on a goal
+
+  Meta-Cognition:
+  • "run meta cycle"            - Full meta-reasoning cycle
+  • "meta status"               - System health summary
+  • "show dashboard"            - Dashboard overview
+
+  LLM / Provider Management:
+  • "list providers"            - Show connected LLM/AGI providers
+  • "discover providers"        - Run provider discovery cycle
+  • "provider notifications"    - Check provider alerts
+
+  Pipeline Tuning:
+  • "tune flow"                 - Run flow optimization
+  • "flow dashboard"            - Pipeline health metrics
+  • "clean up storage"          - Run storage maintenance
+
+  Governance:
+  • "open up autonomy"          - Set autonomy to open
+  • "lock down to strict"       - Set autonomy to strict
+  • "check stability"           - Run stability check
+
+  • "exit"                      - Exit console
 
 All actions are governed and logged.
 ===========================================================

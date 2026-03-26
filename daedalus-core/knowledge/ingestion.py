@@ -62,9 +62,24 @@ def _generate_id(source: str, content_hash: str) -> str:
     return hashlib.sha256(base.encode("utf-8")).hexdigest()[:16]
 
 
-def ingest_text(text: str, source: str = "manual", metadata: Optional[Dict[str, Any]] = None) -> str:
+def ingest_text(
+    text: str,
+    source: str = "manual",
+    metadata: Optional[Dict[str, Any]] = None,
+    verification_status: str = "unverified",
+) -> str:
     """
     Ingests raw text into the knowledge store.
+
+    Args:
+        text: The knowledge content to ingest.
+        source: Origin identifier (e.g., "manual", URL, "curiosity_engine").
+        metadata: Optional metadata dict.
+        verification_status: Trust lifecycle stage. One of:
+            "unverified" - default, not yet checked
+            "provisional" - ingested via fast path, queued for background verification
+            "light_verified" - passed contradiction check only
+            "verified" - passed full verification pipeline
 
     Returns:
         The ID of the created KnowledgeItem.
@@ -77,13 +92,16 @@ def ingest_text(text: str, source: str = "manual", metadata: Optional[Dict[str, 
     content_hash = _hash_text(text)
     item_id = _generate_id(source, content_hash)
 
+    meta = metadata or {}
+    meta.setdefault("verification_status", verification_status)
+
     item = KnowledgeItem(
         id=item_id,
         source=source,
         text=text,
         content_hash=content_hash,
         created_at=time.time(),
-        metadata=metadata or {},
+        metadata=meta,
     )
 
     with KNOWLEDGE_FILE.open("a", encoding="utf-8") as f:

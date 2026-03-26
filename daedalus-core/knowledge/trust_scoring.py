@@ -15,8 +15,14 @@ import hashlib
 from typing import Dict, Any, Optional, List
 
 from knowledge.retrieval import _iter_items, get_item_by_id
-from knowledge.storage_manager import replace_item
+from knowledge.storage_manager import replace_item_from_text
 from knowledge.ingestion import ingest_text
+
+try:
+    from knowledge.source_integrity import validate_source as _validate_source
+    _SOURCE_INTEGRITY_AVAILABLE = True
+except ImportError:
+    _SOURCE_INTEGRITY_AVAILABLE = False
 
 
 # ------------------------------------------------------------
@@ -115,7 +121,35 @@ def compute_trust_score(item: Dict[str, Any]) -> float:
     content_score = score_content_quality(text)
     verified_bonus = 0.10 if meta.get("verified", False) else 0.0
 
-    return max(0.0, min(1.0, (source_score * 0.6) + (content_score * 0.4) + verified_bonus))
+    base = (source_score * 0.6) + (content_score * 0.4) + verified_bonus
+
+    integrity_modifier = _get_integrity_modifier(source, text, meta)
+
+    return max(0.0, min(1.0, base + integrity_modifier))
+
+
+def _get_integrity_modifier(source: str, text: str, meta: Dict[str, Any]) -> float:
+    """
+    Apply source integrity validation as a trust modifier.
+    Cached per item to avoid re-validation on every score call.
+    """
+    cached = meta.get("_integrity_modifier")
+    if cached is not None:
+        return cached
+
+    if not _SOURCE_INTEGRITY_AVAILABLE:
+        return 0.0
+
+    if not source and not text:
+        return 0.0
+
+    try:
+        report = _validate_source(source, text[:2000])
+        if report.get("blocked"):
+            return -1.0
+        return report.get("trust_modifier", 0.0)
+    except Exception:
+        return 0.0
 
 
 # ------------------------------------------------------------
@@ -174,7 +208,7 @@ def ingest_with_replacement_check(new_text: str, source: str = "manual") -> str:
 
         if old_text[:100] == new_text[:100]:
             if should_replace(item, new_text):
-                return replace_item(
+                return replace_item_from_text(
                     old_id=item["id"],
                     new_text=new_text,
                     reason="trust_score_replacement",

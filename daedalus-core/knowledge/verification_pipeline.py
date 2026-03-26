@@ -27,7 +27,7 @@ from knowledge.trust_scoring import (
     detect_contradiction,
     should_replace,
 )
-from knowledge.storage_manager import replace_item
+from knowledge.storage_manager import replace_item_from_text
 from knowledge.ingestion import ingest_text
 
 try:
@@ -35,6 +35,12 @@ try:
     WEB_SEARCH_AVAILABLE = True
 except Exception:
     WEB_SEARCH_AVAILABLE = False
+
+try:
+    from knowledge.llm_adapter import llm_adapter
+    _LLM_AVAILABLE = True
+except Exception:
+    _LLM_AVAILABLE = False
 
 
 # ------------------------------------------------------------
@@ -224,7 +230,7 @@ def verify_new_information(
         decision["reason"] = "new_information_scores_as_better_candidate"
         decision["replaced_item_id"] = best_candidate.id
 
-        new_id = replace_item(
+        new_id = replace_item_from_text(
             old_id=best_candidate.id,
             new_text=new_text,
             reason="verification_pipeline_replacement",
@@ -237,3 +243,69 @@ def verify_new_information(
         decision["new_item_id"] = new_id
 
     return decision
+
+
+# ------------------------------------------------------------
+# TIERED VERIFICATION (Part 2 acceleration)
+# ------------------------------------------------------------
+
+def tiered_verification(
+    text: str,
+    source: str = "manual",
+    intensity: str = "standard",
+    use_web: bool = False,
+) -> Dict[str, Any]:
+    """
+    Verification with configurable intensity:
+
+    - "light": contradiction check only. Fast. For known-good sources.
+    - "standard": full local verification pipeline. Default.
+    - "deep": full pipeline + web check + LLM cross-reference if available.
+
+    Returns the same decision structure as verify_new_information,
+    extended with intensity metadata.
+    """
+    result: Dict[str, Any] = {
+        "intensity": intensity,
+        "source": source,
+    }
+
+    if intensity == "light":
+        neighbors = search_knowledge(text[:200], limit=5, include_superseded=False)
+        contradictions = []
+        for n in neighbors:
+            if detect_contradiction(text, n.text):
+                contradictions.append({
+                    "id": n.id,
+                    "source": n.source,
+                })
+
+        if contradictions:
+            result["status"] = "contradiction_detected"
+            result["contradictions"] = contradictions
+            result["action"] = "flag_for_review"
+        else:
+            result["status"] = "light_pass"
+            result["action"] = "accept_new"
+            new_id = ingest_text(text, source=source, metadata={
+                "verification_status": "light_verified",
+            })
+            result["new_item_id"] = new_id
+        return result
+
+    if intensity == "deep":
+        base = verify_new_information(text, source=source, use_web=use_web or True)
+        result.update(base)
+
+        if _LLM_AVAILABLE and llm_adapter.is_available():
+            llm_check = llm_adapter.reason_about_claim(
+                claim=text,
+                context=f"Source: {source}",
+            )
+            result["llm_verification"] = llm_check
+        return result
+
+    # standard: default full pipeline
+    base = verify_new_information(text, source=source, use_web=use_web)
+    result.update(base)
+    return result

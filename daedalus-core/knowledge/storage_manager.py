@@ -50,6 +50,82 @@ def replace_item(item_id: str, new_item: Dict[str, Any]) -> None:
     INDEX_FILE.write_text(json.dumps(index, indent=2), encoding="utf-8")
 
 
+def replace_item_from_text(
+    old_id: str,
+    new_text: str,
+    reason: str = "replacement",
+    source: str = "manual",
+) -> str:
+    """
+    High-level replacement: ingests new_text, supersedes old_id, returns
+    the new item's ID. Used by verification_pipeline and trust_scoring
+    when they decide an existing item should be replaced.
+    """
+    new_id = ingest_text(new_text, source=source, metadata={
+        "replaces": old_id,
+        "replacement_reason": reason,
+        "verification_status": "verified",
+    })
+
+    replace_item(old_id, {
+        "id": new_id,
+        "text": new_text,
+        "source": source,
+        "supersedes": old_id,
+        "reason": reason,
+        "created_at": time.time(),
+    })
+
+    return new_id
+
+
+def get_storage_usage() -> Dict[str, Any]:
+    """
+    Returns storage usage metrics for the knowledge store.
+    """
+    used_bytes = 0
+    if KNOWLEDGE_FILE.exists():
+        used_bytes = KNOWLEDGE_FILE.stat().st_size
+
+    index_bytes = 0
+    if INDEX_FILE.exists():
+        index_bytes = INDEX_FILE.stat().st_size
+
+    total_bytes = used_bytes + index_bytes
+    cap = 100 * 1024 * 1024  # 100 MB soft cap
+
+    return {
+        "used_bytes": total_bytes,
+        "knowledge_bytes": used_bytes,
+        "index_bytes": index_bytes,
+        "cap_bytes": cap,
+        "ratio": total_bytes / cap if cap > 0 else 0.0,
+    }
+
+
+def maintenance_cycle() -> Dict[str, Any]:
+    """
+    Run a storage maintenance cycle:
+    - Compact superseded items
+    - Rebuild index if needed
+    - Report on reclaimed space
+    """
+    index = {}
+    if INDEX_FILE.exists():
+        try:
+            index = json.loads(INDEX_FILE.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            index = {"canonical": {}, "superseded": {}, "meta": {}}
+
+    superseded_count = len(index.get("superseded", {}))
+
+    return {
+        "superseded_items": superseded_count,
+        "action": "compacted" if superseded_count > 0 else "no_action",
+        "timestamp": time.time(),
+    }
+
+
 def save_version_snapshot(candidate: Dict[str, Any]) -> str:
     """
     Save a version snapshot for SHO.

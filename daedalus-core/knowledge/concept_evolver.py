@@ -28,15 +28,10 @@ import time
 
 from knowledge.knowledge_graph import (
     get_neighbors,
-    get_entity_info,
     get_relations_for,
     compute_entity_centrality,
     get_connected_components,
 )
-from knowledge.pattern_extractor import extract_entities, extract_relations
-from knowledge.retrieval import _iter_items
-from knowledge.trust_scoring import compute_trust_score
-from knowledge.storage_manager import replace_item
 from knowledge.ingestion import ingest_text
 
 
@@ -179,22 +174,26 @@ def refine_relationships(entity: str) -> Dict[str, Any]:
     - frequency
     - trust
     - cluster context
+
+    Persists updated trust values back to the graph.
     """
-    neighbors = get_neighbors(entity)
+    from knowledge.knowledge_graph import _load_graph, _save_graph
+
+    graph = _load_graph()
+    edges = graph.get(entity, [])
     refined = []
 
-    for edge in neighbors:
+    cluster = get_connected_components()
+    cluster_for_entity = None
+    for comp in cluster:
+        if entity in comp:
+            cluster_for_entity = comp
+            break
+
+    for edge in edges:
         trust = edge["trust"]
         relation = edge["relation"]
         obj = edge["object"]
-
-        # Strengthen if repeated across cluster
-        cluster = get_connected_components()
-        cluster_for_entity = None
-        for comp in cluster:
-            if entity in comp:
-                cluster_for_entity = comp
-                break
 
         if cluster_for_entity:
             freq = sum(
@@ -207,12 +206,16 @@ def refine_relationships(entity: str) -> Dict[str, Any]:
 
         new_strength = min(1.0, trust * 0.7 + (freq / 10) * 0.3)
 
+        edge["trust"] = new_strength
+
         refined.append({
             "relation": relation,
             "object": obj,
             "old_trust": trust,
             "new_trust": new_strength,
         })
+
+    _save_graph(graph)
 
     return {
         "entity": entity,
@@ -232,20 +235,82 @@ def evolution_cycle() -> Dict[str, Any]:
     - create abstract concepts
     - refine relationships
     """
+    evolution_cap = 10
+    try:
+        from knowledge.flow_tuner import flow_tuner as _ft
+        evolution_cap = _ft.params.evolution_batch_cap
+    except ImportError:
+        pass
+
     merges = find_merge_candidates()
     merge_results = []
 
-    for a, b, sim in merges[:10]:  # safety cap
+    for a, b, sim in merges[:evolution_cap]:
         merge_results.append(merge_concepts(a, b))
 
     abstracts = create_abstract_concepts()
 
     refined = []
-    for concept, _, _ in merges[:10]:
+    for concept, _, _ in merges[:evolution_cap]:
         refined.append(refine_relationships(concept))
 
     return {
         "merged_concepts": merge_results,
         "abstract_concepts": abstracts,
+        "refined_relationships": refined,
+    }
+
+
+# ------------------------------------------------------------
+# SCOPED EVOLUTION (Part 2 acceleration)
+# ------------------------------------------------------------
+
+def scoped_evolution_cycle(target_entities: List[str]) -> Dict[str, Any]:
+    """
+    Run concept evolution scoped to a specific set of entities.
+    Faster than a full evolution cycle because it only processes
+    the cluster affected by recent knowledge acquisition.
+
+    This is called after batch ingestion to refine the newly-
+    expanded area of the graph without touching the rest.
+    """
+    if not target_entities:
+        return {
+            "scoped": True,
+            "merged_concepts": [],
+            "refined_relationships": [],
+        }
+
+    target_set = set(target_entities)
+    merge_results = []
+    refined = []
+
+    # Only check merge candidates within the target set
+    for i in range(len(target_entities)):
+        for j in range(i + 1, len(target_entities)):
+            a = target_entities[i]
+            b = target_entities[j]
+            sim = compute_entity_similarity(a, b)
+            if sim >= 0.6:
+                merge_results.append(merge_concepts(a, b))
+
+    # Also check for merges between target entities and their neighbors
+    for entity in target_entities[:20]:  # safety cap
+        neighbors = get_neighbors(entity)
+        for edge in neighbors:
+            neighbor = edge["object"]
+            if neighbor not in target_set:
+                sim = compute_entity_similarity(entity, neighbor)
+                if sim >= 0.7:  # higher threshold for cross-cluster merges
+                    merge_results.append(merge_concepts(entity, neighbor))
+
+    # Refine relationships for affected entities
+    for entity in target_entities[:20]:
+        refined.append(refine_relationships(entity))
+
+    return {
+        "scoped": True,
+        "target_count": len(target_entities),
+        "merged_concepts": merge_results,
         "refined_relationships": refined,
     }

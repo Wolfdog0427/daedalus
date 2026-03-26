@@ -28,7 +28,7 @@ This is the system's meta-cognition layer.
 from __future__ import annotations
 
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from knowledge.retrieval import _iter_items
 from knowledge.trust_scoring import compute_trust_score
@@ -36,6 +36,7 @@ from knowledge.consistency_checker import run_consistency_check
 from knowledge.knowledge_graph import (
     compute_entity_centrality,
     get_connected_components,
+    get_neighbors,
 )
 from knowledge.storage_manager import get_storage_usage
 from knowledge.pattern_extractor import extract_patterns
@@ -56,6 +57,8 @@ SELF_MODEL: Dict[str, Any] = {
         "graph_reasoning": True,
         "pattern_extraction": True,
         "concept_evolution": True,
+        "curiosity": True,
+        "batch_ingestion": True,
     },
     "limitations": {
         "no_raw_web_access": True,
@@ -72,8 +75,12 @@ SELF_MODEL: Dict[str, Any] = {
         "entity_count": 0,
         "relation_count": 0,
         "topic_clusters": 0,
+        "shallow_clusters": 0,
+        "frontier_domains": 0,
     },
     "blind_spots": [],
+    "coverage_gaps": [],
+    "frontier_domains": [],
     "subsystem_health": {},
     "storage": {},
     "trust_distribution": [],
@@ -157,6 +164,57 @@ def _identify_blind_spots(patterns: Dict[str, Any]) -> List[str]:
     return low_freq[:20]
 
 
+def _identify_coverage_gaps() -> List[Dict[str, Any]]:
+    """
+    Identifies structured coverage gaps by analyzing graph topology.
+    Returns gaps categorized by type for the curiosity engine.
+    """
+    gaps: List[Dict[str, Any]] = []
+
+    components = get_connected_components()
+    shallow = [c for c in components if 1 < len(c) < 3]
+    for comp in shallow[:10]:
+        gaps.append({
+            "type": "shallow_cluster",
+            "entities": comp,
+            "size": len(comp),
+        })
+
+    return gaps
+
+
+def _identify_frontier_domains() -> List[str]:
+    """
+    Identifies domains at the frontier of the knowledge graph:
+    entities referenced by high-centrality nodes but with minimal
+    coverage themselves.
+    """
+    centrality = compute_entity_centrality()
+    central_set = {e for e, _ in centrality[:30]}
+    frontiers: List[str] = []
+
+    for entity, _ in centrality[:20]:
+        neighbor_edges = get_neighbors(entity)
+        for edge in neighbor_edges:
+            neighbor = edge["object"]
+            if neighbor not in central_set:
+                info = _load_entities_raw(neighbor)
+                if info and info.get("occurrences", 0) < 2:
+                    if neighbor not in frontiers:
+                        frontiers.append(neighbor)
+
+    return frontiers[:20]
+
+
+def _load_entities_raw(entity: str) -> Optional[Dict[str, Any]]:
+    """Load a single entity's metadata without full graph load."""
+    try:
+        from knowledge.knowledge_graph import get_entity_info
+        return get_entity_info(entity)
+    except Exception:
+        return None
+
+
 def _compute_trust_distribution() -> List[Dict[str, Any]]:
     """
     Returns distribution of trust scores across the knowledge base.
@@ -199,6 +257,17 @@ def update_self_model() -> Dict[str, Any]:
     SELF_MODEL["coverage"]["entity_count"] = len(patterns["entity_frequency"])
     SELF_MODEL["coverage"]["relation_count"] = len(patterns["relations"])
     SELF_MODEL["coverage"]["topic_clusters"] = len(patterns["topic_clusters"])
+
+    # Coverage gaps and frontier analysis
+    coverage_gaps = _identify_coverage_gaps()
+    SELF_MODEL["coverage"]["shallow_clusters"] = len(
+        [g for g in coverage_gaps if g["type"] == "shallow_cluster"]
+    )
+    SELF_MODEL["coverage_gaps"] = coverage_gaps
+
+    frontier_domains = _identify_frontier_domains()
+    SELF_MODEL["coverage"]["frontier_domains"] = len(frontier_domains)
+    SELF_MODEL["frontier_domains"] = frontier_domains
 
     # Blind spots
     SELF_MODEL["blind_spots"] = _identify_blind_spots(patterns)
@@ -245,7 +314,11 @@ def summarize_self_model() -> Dict[str, Any]:
         "entity_count": SELF_MODEL["coverage"]["entity_count"],
         "relation_count": SELF_MODEL["coverage"]["relation_count"],
         "topic_clusters": SELF_MODEL["coverage"]["topic_clusters"],
+        "shallow_clusters": SELF_MODEL["coverage"]["shallow_clusters"],
+        "frontier_domains": SELF_MODEL["coverage"]["frontier_domains"],
         "blind_spots": SELF_MODEL["blind_spots"][:10],
+        "coverage_gaps": len(SELF_MODEL["coverage_gaps"]),
+        "frontier_domain_list": SELF_MODEL["frontier_domains"][:10],
         "storage_used": SELF_MODEL["storage"].get("used_bytes"),
         "storage_ratio": SELF_MODEL["storage"].get("ratio"),
-  }
+    }
