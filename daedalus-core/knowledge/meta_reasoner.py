@@ -22,13 +22,8 @@ from typing import Dict, Any, List
 from collections import deque
 
 from knowledge.self_model import update_self_model, get_self_model
-from knowledge.consistency_checker import run_consistency_check, run_active_consolidation
-from knowledge.storage_manager import maintenance_cycle
-from knowledge.concept_evolver import evolution_cycle
-from knowledge.verification_pipeline import verify_new_information
 from knowledge.reasoning_engine import reason_about_claim
-from knowledge.curiosity_engine import run_curiosity_cycle, get_executable_goals, execute_next_phase
-from knowledge.batch_ingestion import verify_deferred_items
+from knowledge.curiosity_engine import get_executable_goals
 
 try:
     from knowledge.provider_discovery import (
@@ -230,7 +225,6 @@ class StabilityTrendTracker:
             "latest_composite": round(self._snapshots[-1]["composite"], 4),
             "decline_count": self._decline_count,
             "review_count": self._review_count,
-            "decline_check": self.detect_long_decline(),
         }
 
 
@@ -428,8 +422,13 @@ def _needs_storage_maintenance(self_model: Dict[str, Any]) -> bool:
 
 
 def _needs_verification(claim: str) -> bool:
-    reasoning = reason_about_claim(claim)
-    return reasoning["status"] in ("uncertain", "contradicted", "unknown")
+    try:
+        from knowledge.integration_layer import do_reasoning
+        result = do_reasoning(claim)
+        reasoning = result.get("result", result)
+        return reasoning.get("status") in ("uncertain", "contradicted", "unknown")
+    except Exception:
+        return True
 
 
 def _needs_knowledge_expansion(self_model: Dict[str, Any]) -> bool:
@@ -535,11 +534,11 @@ def run_meta_cycle(claim: str | None = None) -> Dict[str, Any]:
     report["self_model_before"] = before
 
     # --------------------------------------------------------
-    # 1b. Trust natural decay (H1)
+    # 1b. Trust natural decay (H1) — governed
     # --------------------------------------------------------
     try:
-        from knowledge.trust_scoring import apply_trust_decay
-        apply_trust_decay()
+        from knowledge.integration_layer import do_trust_decay
+        do_trust_decay()
     except (ImportError, Exception):
         pass
 
@@ -607,153 +606,95 @@ def run_meta_cycle(claim: str | None = None) -> Dict[str, Any]:
     # 2. Decide actions based on self-model
     # --------------------------------------------------------
 
+    # All mutations below are routed through integration_layer (F1 fix).
+    from knowledge import integration_layer as _il
+
     # Storage maintenance
     if _needs_storage_maintenance(before):
-        result = maintenance_cycle()
-        report["actions"].append({
-            "type": "storage_maintenance",
-            "result": result,
-        })
+        result = _il.do_storage_maintenance()
+        report["actions"].append({"type": "storage_maintenance", "result": result})
 
     # Consistency repair (always runs if needed, even during defensive)
     if _needs_consistency_repair(before):
-        consistency = run_consistency_check()
-        report["actions"].append({
-            "type": "consistency_repair",
-            "result": consistency,
-        })
+        result = _il.do_consistency_scan()
+        report["actions"].append({"type": "consistency_repair", "result": result})
 
-    # Active consolidation (C1): preventive repair starting at 0.70 instead of 0.55
+    # Active consolidation (C1, C3-v3: ceiling 0.92)
     current_consistency = before["confidence"]["consistency"]
-    current_coherence = before["confidence"]["graph_coherence"]
-    # C3-v3: Raised consolidation ceiling to 0.92
     if current_consistency < 0.92:
-        consolidation = run_active_consolidation(current_consistency, current_coherence)
-        report["actions"].append({
-            "type": "active_consolidation",
-            "result": consolidation,
-        })
+        result = _il.do_active_consolidation()
+        report["actions"].append({"type": "active_consolidation", "result": result})
 
     # Concept evolution (C4: proportional intensity)
     if _needs_concept_evolution(before):
-        evo = evolution_cycle(coherence=before["confidence"]["graph_coherence"])
-        report["actions"].append({
-            "type": "concept_evolution",
-            "result": evo,
-        })
+        result = _il.do_concept_evolution()
+        report["actions"].append({"type": "concept_evolution", "result": result})
 
     # Knowledge expansion (suppressed during defensive posture)
     if _needs_knowledge_expansion(before):
-        curiosity_report = run_curiosity_cycle(self_model=before)
-        report["actions"].append({
-            "type": "knowledge_expansion",
-            "result": curiosity_report,
-        })
+        result = _il.do_curiosity_cycle()
+        report["actions"].append({"type": "knowledge_expansion", "result": result})
 
     # Goal execution (F3): execute pending phases of approved goals
     if _needs_goal_execution():
         try:
             executable = get_executable_goals()
-            for goal in executable[:2]:  # at most 2 per cycle
-                phase_result = execute_next_phase(goal.id)
-                report["actions"].append({
-                    "type": "goal_phase_execution",
-                    "result": phase_result,
-                })
+            for goal in executable[:2]:
+                result = _il.do_execute_knowledge_goal(goal.id)
+                report["actions"].append({"type": "goal_phase_execution", "result": result})
         except Exception as e:
-            report["actions"].append({
-                "type": "goal_phase_execution",
-                "result": {"error": str(e)},
-            })
+            report["actions"].append({"type": "goal_phase_execution", "result": {"error": str(e)}})
 
     # Deferred verification
     if _needs_deferred_verification(before):
-        deferred_report = verify_deferred_items(limit=10)
-        report["actions"].append({
-            "type": "deferred_verification",
-            "result": deferred_report,
-        })
+        result = _il.do_deferred_verification(limit=10)
+        report["actions"].append({"type": "deferred_verification", "result": result})
 
-    # P4: Quarantine review — process pending quarantined items every cycle
+    # P4: Quarantine review
     try:
-        from knowledge.source_integrity import review_quarantine, get_quarantine_status
-        q_status = get_quarantine_status()
-        if q_status["pending"] > 0:
-            q_review = review_quarantine(max_review=10)
-            report["actions"].append({
-                "type": "quarantine_review",
-                "result": q_review,
-            })
-    except ImportError:
+        q_status = _il.do_quarantine_status()
+        if q_status.get("result", {}).get("pending", 0) > 0:
+            result = _il.do_quarantine_review()
+            report["actions"].append({"type": "quarantine_review", "result": result})
+    except Exception:
         pass
 
-    # P2+: Batch trust calibration — widen coverage of epistemic confidence
+    # P2+: Batch trust calibration
     try:
-        from knowledge.trust_scoring import batch_calibrate_trust
-        cal_result = batch_calibrate_trust(sample_cap=500)
-        if cal_result["calibrated"] > 0:
-            report["actions"].append({
-                "type": "batch_trust_calibration",
-                "result": cal_result,
-            })
-    except (ImportError, Exception):
+        result = _il.do_batch_trust_calibration(sample_cap=500)
+        if result.get("result", {}).get("calibrated", 0) > 0:
+            report["actions"].append({"type": "batch_trust_calibration", "result": result})
+    except Exception:
         pass
 
     # Provider discovery
     if _needs_provider_discovery(before):
-        try:
-            discovery_report = run_discovery_cycle(provider_registry)
-            report["actions"].append({
-                "type": "provider_discovery",
-                "result": discovery_report,
-            })
-        except Exception as e:
-            report["actions"].append({
-                "type": "provider_discovery",
-                "result": {"error": str(e)},
-            })
+        result = _il.do_provider_discovery()
+        report["actions"].append({"type": "provider_discovery", "result": result})
 
     # Flow tuning
     if _needs_flow_tuning():
-        try:
-            tuning_report = _flow_tuner.tune()
-            report["actions"].append({
-                "type": "flow_tuning",
-                "result": tuning_report,
-            })
-        except Exception as e:
-            report["actions"].append({
-                "type": "flow_tuning",
-                "result": {"error": str(e)},
-            })
+        result = _il.do_flow_tuning()
+        report["actions"].append({"type": "flow_tuning", "result": result})
 
     # Post-attack sweep (F9)
     if _needs_attack_sweep():
         try:
             unswept = get_unswept_attack_windows()
             for aw in unswept[:3]:
-                window_start = aw["detected_at"] - 300  # 5 min before detection
+                window_start = aw["detected_at"] - 300
                 window_end = aw["detected_at"] + 60
-                sweep_result = sweep_attack_window(window_start, window_end)
-                report["actions"].append({
-                    "type": "post_attack_sweep",
-                    "result": sweep_result,
-                })
+                result = _il.do_attack_sweep(window_start, window_end)
+                report["actions"].append({"type": "post_attack_sweep", "result": result})
         except Exception as e:
-            report["actions"].append({
-                "type": "post_attack_sweep",
-                "result": {"error": str(e)},
-            })
+            report["actions"].append({"type": "post_attack_sweep", "result": {"error": str(e)}})
 
-    # Delayed poisoning audit (M2): periodic re-verification of old items
+    # Delayed poisoning audit (M2)
     if _INTEGRITY_AVAILABLE:
         try:
-            audit = run_delayed_poison_audit(sample_size=10)
-            if audit.get("flagged", 0) > 0:
-                report["actions"].append({
-                    "type": "delayed_poison_audit",
-                    "result": audit,
-                })
+            result = _il.do_delayed_poison_audit()
+            if result.get("result", {}).get("flagged", 0) > 0:
+                report["actions"].append({"type": "delayed_poison_audit", "result": result})
         except Exception:
             pass
 
@@ -761,59 +702,51 @@ def run_meta_cycle(claim: str | None = None) -> Dict[str, Any]:
     # 2e. Anti-Entropy: Epoch management + graph compaction
     # --------------------------------------------------------
     try:
-        from knowledge.entropy.epoch_engine import (
-            get_epoch_status,
-            start_epoch,
-            end_epoch,
-            capture_epoch_metrics,
-        )
-        epoch_st = get_epoch_status()
+        epoch_st_result = _il.do_epoch_status()
+        epoch_st = epoch_st_result.get("result", {})
 
-        if not epoch_st["active"] and epoch_st.get("should_start"):
-            start_epoch()
+        if not epoch_st.get("active") and epoch_st.get("should_start"):
+            _il.do_start_epoch()
             report["actions"].append({
                 "type": "epoch_started",
                 "result": {"reason": epoch_st.get("reason", "no_epoch_running")},
             })
-        elif epoch_st.get("should_end") and epoch_st["active"]:
-            capture_epoch_metrics(before, phase="end")
-            epoch_result = end_epoch()
+        elif epoch_st.get("should_end") and epoch_st.get("active"):
+            _il.do_capture_epoch_metrics(before, phase="end")
+            epoch_result = _il.do_end_epoch()
+            end_data = epoch_result.get("result", {})
             report["actions"].append({
                 "type": "epoch_ended",
                 "result": {
-                    "duration_hours": epoch_result.get("actual_duration_hours"),
-                    "compaction": epoch_result.get("compaction_report", {}),
+                    "duration_hours": end_data.get("actual_duration_hours"),
+                    "compaction": end_data.get("compaction_report", {}),
                     "drift_court": {
-                        "reviewed": epoch_result.get("drift_court_report", {}).get("deviations_reviewed", 0),
-                        "verdicts": epoch_result.get("drift_court_report", {}).get("verdicts", {}),
+                        "reviewed": end_data.get("drift_court_report", {}).get("deviations_reviewed", 0),
+                        "verdicts": end_data.get("drift_court_report", {}).get("verdicts", {}),
                     },
                     "renewal": {
-                        "deleted": epoch_result.get("renewal_report", {}).get("deleted", 0),
-                        "compacted": epoch_result.get("renewal_report", {}).get("compacted", 0),
+                        "deleted": end_data.get("renewal_report", {}).get("deleted", 0),
+                        "compacted": end_data.get("renewal_report", {}).get("compacted", 0),
                     },
-                    "entropy_health": epoch_result.get("budget_report", {}).get("health", "unknown"),
+                    "entropy_health": end_data.get("budget_report", {}).get("health", "unknown"),
                 },
             })
-            start_epoch()
+            _il.do_start_epoch()
             report["actions"].append({
                 "type": "epoch_started",
                 "result": {"reason": "auto_restart_after_end"},
             })
         else:
             report["epoch_status"] = epoch_st
-    except (ImportError, Exception) as _ee:
+    except Exception as _ee:
         report["epoch_status"] = {"error": str(_ee)}
 
     # --------------------------------------------------------
-    # 3. Optional claim verification
+    # 3. Optional claim verification — governed
     # --------------------------------------------------------
     if claim is not None:
         if _needs_verification(claim):
-            verification = verify_new_information(
-                claim,
-                source="meta_reasoner",
-                use_web=False,
-            )
+            verification = _il.do_claim_verification(claim)
             report["claim_verification"] = verification
             report["actions"].append({
                 "type": "claim_verification",

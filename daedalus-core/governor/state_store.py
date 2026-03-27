@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-import os
 import json
+from pathlib import Path
 from typing import Any, Dict, List
 
-STATE_PATH = os.path.join("data", "governor_state.json")
-PROPOSALS_PATH = os.path.join("data", "governor_proposals.json")
+from knowledge._atomic_io import atomic_write_json
+
+STATE_DIR = Path("data")
+STATE_PATH = STATE_DIR / "governor_state.json"
+PROPOSALS_PATH = STATE_DIR / "governor_proposals.json"
 
 
 def _default_state() -> Dict[str, Any]:
@@ -35,14 +38,12 @@ def _default_state() -> Dict[str, Any]:
 
 
 def load_state() -> Dict[str, Any]:
-    if not os.path.exists(STATE_PATH):
+    if not STATE_PATH.exists():
         return _default_state()
     try:
-        with open(STATE_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        data = json.loads(STATE_PATH.read_text(encoding="utf-8"))
     except Exception:
         return _default_state()
-    # Merge with defaults to avoid missing keys
     base = _default_state()
     base.update(data)
     proposals = base.get("proposals")
@@ -55,23 +56,20 @@ def load_state() -> Dict[str, Any]:
 
 
 def save_state(state: Dict[str, Any]) -> None:
-    os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
-    with open(STATE_PATH, "w", encoding="utf-8") as f:
-        json.dump(state, f, indent=2)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    atomic_write_json(STATE_PATH, state)
 
 
 def load_proposals() -> List[Dict[str, Any]]:
-    if not os.path.exists(PROPOSALS_PATH):
+    if not PROPOSALS_PATH.exists():
         return []
     try:
-        with open(PROPOSALS_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        data = json.loads(PROPOSALS_PATH.read_text(encoding="utf-8"))
     except Exception:
         return []
     return data if isinstance(data, list) else []
 
 
 def save_proposals(proposals: List[Dict[str, Any]]) -> None:
-    os.makedirs(os.path.dirname(PROPOSALS_PATH), exist_ok=True)
-    with open(PROPOSALS_PATH, "w", encoding="utf-8") as f:
-        json.dump(proposals, f, indent=2)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    atomic_write_json(PROPOSALS_PATH, proposals)

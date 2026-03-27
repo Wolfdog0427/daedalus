@@ -45,11 +45,8 @@ def scheduler_tick(governor) -> Dict[str, Any]:
         result["status"] = "skipped_low_readiness"
         return result
 
-    # Governor evaluates before deciding
-    governor.evaluate()
-
     # SHO cycle allowed only if tier >= 2
-    if governor.tier < 2:
+    if getattr(governor, "tier", 1) < 2:
         result["status"] = "skipped_low_tier"
         return result
 

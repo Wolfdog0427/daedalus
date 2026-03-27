@@ -35,6 +35,7 @@ _READ_ONLY_ACTIONS = frozenset({
     "entropy.court_summary",
     "entropy.template_summary",
     "entropy.renewal_status",
+    "entropy.capture_metrics",
 })
 
 # Actions that mutate state — require at least "normal" mode.
@@ -48,10 +49,14 @@ _MUTATION_ACTIONS = frozenset({
     "knowledge.approve_goal",
     "knowledge.execute_goal",
     "knowledge.acquire",
+    "knowledge.deferred_verify",
     "providers.discover",
     "pipeline.tune",
+    "trust.decay",
+    "trust.calibrate",
     "security.poison_audit",
     "security.quarantine_review",
+    "security.attack_sweep",
     "entropy.renewal",
     "entropy.drift_court",
     "entropy.epoch_start",
@@ -118,6 +123,27 @@ def guard_action(action: str) -> Dict[str, Any]:
         "requires_approval": True,
         "reason": f"strict_mode:unknown:{action}",
     }
+
+
+def set_autonomy_mode(mode: str) -> Dict[str, Any]:
+    """Module-level autonomy mode setter. Valid modes: strict, normal, permissive."""
+    if mode not in ("strict", "normal", "permissive"):
+        return {"changed": False, "reason": f"invalid_mode:{mode}"}
+    state = load_state()
+    old = state.get("autonomy_mode", "strict")
+    state["autonomy_mode"] = mode
+    save_state(state)
+    try:
+        from runtime.notification_hooks import notify_autonomy_mode_changed
+        notify_autonomy_mode_changed(mode)
+    except (ImportError, Exception):
+        pass
+    try:
+        from runtime.logging_manager import log_event
+        log_event("autonomy_mode", f"Autonomy mode changed from {old} to {mode}")
+    except (ImportError, Exception):
+        pass
+    return {"changed": True, "old": old, "new": mode}
 
 
 def get_autonomy_state() -> Dict[str, Any]:

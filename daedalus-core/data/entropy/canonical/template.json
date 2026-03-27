@@ -1,0 +1,89 @@
+{
+  "version": "1.0.0",
+  "last_updated": 1774562412.8219078,
+  "updated_by": "system",
+  "invariants": [
+    "identity.core",
+    "governance.tier_system",
+    "governance.operator_sovereignty",
+    "governance.constitutional_guard",
+    "posture.modes",
+    "defense.circuit_breaker",
+    "defense.regression_detector",
+    "defense.coordinator",
+    "telemetry.schema",
+    "knowledge.verification_pipeline",
+    "knowledge.trust_scoring",
+    "knowledge.consistency_checker"
+  ],
+  "permanent_state": [
+    "data/knowledge/knowledge_store.jsonl",
+    "data/knowledge/index.json",
+    "data/knowledge_graph/graph.json",
+    "data/knowledge_graph/entities.json",
+    "data/knowledge_goals/goals.json",
+    "data/governor_state.json",
+    "data/governor_proposals.json",
+    "data/learning/",
+    "data/subsystems/",
+    "data/rollback/",
+    "data/entropy/",
+    "runtime/state.db",
+    "config/",
+    ".integrity/",
+    ".versions/"
+  ],
+  "state_tiers": {
+    "permanent": {
+      "ttl": null,
+      "action": "preserve",
+      "description": "Knowledge, graph, trust, provenance, governor \u2014 the system's value"
+    },
+    "hot": {
+      "ttl_hours": 6,
+      "action": "delete",
+      "description": "Telemetry buffers, transient caches, debug traces"
+    },
+    "warm": {
+      "ttl_days": 7,
+      "action": "compact",
+      "description": "Cockpit snapshots, notification queues, NLU logs"
+    },
+    "cold": {
+      "ttl_days": 90,
+      "action": "archive",
+      "description": "Historical metrics, old audit entries, retired artifacts"
+    },
+    "staging": {
+      "ttl_days": 7,
+      "action": "review",
+      "description": "Newly introduced state awaiting classification"
+    }
+  },
+  "state_registry": {
+    "data/knowledge/": "permanent",
+    "data/knowledge_graph/": "permanent",
+    "data/knowledge_goals/": "permanent",
+    "data/governor_state.json": "permanent",
+    "data/governor_proposals.json": "permanent",
+    "data/learning/": "permanent",
+    "data/subsystems/": "permanent",
+    "data/rollback/": "warm",
+    "data/entropy/": "permanent",
+    "data/audit/": "cold",
+    "data/cockpit/": "warm",
+    "data/logs/": "hot",
+    "data/notifications/": "hot",
+    "data/patch_history/": "warm",
+    "data/versions/": "cold",
+    "config/": "permanent",
+    "runtime/state.db": "permanent"
+  },
+  "forbidden_patterns": [
+    "*.tmp",
+    "*.bak",
+    "__pycache__/",
+    "*.pyc",
+    ".DS_Store"
+  ]
+}

@@ -482,7 +482,7 @@ def do_delayed_poison_audit() -> Dict[str, Any]:
 
     try:
         from knowledge.source_integrity import run_delayed_poison_audit
-        result = run_delayed_poison_audit()
+        result = run_delayed_poison_audit(sample_size=100)
         return {"action": action, "allowed": True, "result": result}
     except Exception as exc:
         return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
@@ -498,19 +498,23 @@ def do_quarantine_review() -> Dict[str, Any]:
 
     try:
         from knowledge.source_integrity import review_quarantine
-        result = review_quarantine(max_review=20)
+        result = review_quarantine(max_review=50)
         return {"action": action, "allowed": True, "result": result}
     except Exception as exc:
         return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
 
 
 def do_quarantine_status() -> Dict[str, Any]:
-    """Get quarantine queue status (P4). Read-only."""
+    """Get quarantine queue status (P4). Governed for audit trail."""
+    action = "security.quarantine_status"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
     try:
         from knowledge.source_integrity import get_quarantine_status
-        return {"action": "security.quarantine_status", "result": get_quarantine_status()}
+        return {"action": action, "allowed": True, "result": get_quarantine_status()}
     except Exception as exc:
-        return {"action": "security.quarantine_status", "error": str(exc)}
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
 
 
 def do_scoped_evolution(cluster_entities: List[str]) -> Dict[str, Any]:
@@ -681,6 +685,159 @@ def do_apply_canonization(proposal_id: str) -> Dict[str, Any]:
     try:
         from knowledge.entropy.drift_court import apply_approved_canonization
         result = apply_approved_canonization(proposal_id)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# ------------------------------------------------------------
+# ADDITIONAL GOVERNED WRAPPERS (F1: close governance bypass)
+# ------------------------------------------------------------
+
+def do_deferred_verification(limit: int = 10) -> Dict[str, Any]:
+    """Verify deferred batch items. Governed mutation (modifies KB)."""
+    action = "knowledge.deferred_verify"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.batch_ingestion import verify_deferred_items
+        result = verify_deferred_items(limit=limit)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_trust_decay() -> Dict[str, Any]:
+    """Apply natural trust decay. Governed mutation (modifies trust scores)."""
+    action = "trust.decay"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.trust_scoring import apply_trust_decay
+        apply_trust_decay()
+        return {"action": action, "allowed": True, "result": {"applied": True}}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_batch_trust_calibration(sample_cap: int = 500) -> Dict[str, Any]:
+    """Calibrate trust scores across the KB. Governed mutation."""
+    action = "trust.calibrate"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.trust_scoring import batch_calibrate_trust
+        result = batch_calibrate_trust(sample_cap=sample_cap)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _default_reverify(item_id: str, source: str) -> bool:
+    """Re-verify an item by running source integrity validation.
+
+    Returns True if the item passes re-verification, False if suspect.
+    Used by attack sweeps so flagged items get real re-checks instead
+    of blanket flagging.
+    """
+    try:
+        from knowledge.source_integrity import validate_url
+        if "://" in source:
+            url_check = validate_url(source)
+            if url_check.get("blocked"):
+                return False
+            if url_check.get("threat_level") in ("high", "critical"):
+                return False
+        return True
+    except Exception:
+        return False
+
+
+def do_attack_sweep(window_start: float, window_end: float) -> Dict[str, Any]:
+    """Sweep items ingested during an attack window. Governed mutation."""
+    action = "security.attack_sweep"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.source_integrity import sweep_attack_window
+        result = sweep_attack_window(
+            window_start, window_end, reverify_fn=_default_reverify)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_taint_propagation(item_id: str) -> Dict[str, Any]:
+    """Propagate taint from a discovered contaminated item. Governed mutation."""
+    action = "security.taint_propagation"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.source_integrity import propagate_taint
+        result = propagate_taint(item_id)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_source_anomaly_scan() -> Dict[str, Any]:
+    """Detect anomalous sources via statistical clustering. Read-heavy."""
+    action = "security.anomaly_scan"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.source_integrity import detect_source_anomalies
+        result = detect_source_anomalies()
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_contamination_pressure_check(
+    estimated_contaminated: int, active_items: int,
+) -> Dict[str, Any]:
+    """Compute contamination pressure relative to budget. Read-only."""
+    action = "security.contamination_pressure"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.source_integrity import compute_contamination_pressure
+        result = compute_contamination_pressure(estimated_contaminated, active_items)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_capture_epoch_metrics(metrics: Dict[str, Any], phase: str = "end") -> Dict[str, Any]:
+    """Snapshot system metrics into the current epoch. Low-risk write."""
+    action = "entropy.capture_metrics"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.entropy.epoch_engine import capture_epoch_metrics
+        capture_epoch_metrics(metrics, phase=phase)
+        return {"action": action, "allowed": True, "result": {"phase": phase}}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_entropy_register_state(path: str, tier: str) -> Dict[str, Any]:
+    """Register a new state path in the canonical template. Governed mutation."""
+    action = "entropy.register_state"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.entropy.canonical_template import register_state
+        result = register_state(path, tier)
         return {"action": action, "allowed": True, "result": result}
     except Exception as exc:
         return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}

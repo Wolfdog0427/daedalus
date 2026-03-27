@@ -24,15 +24,13 @@ from __future__ import annotations
 from typing import Dict, Any, List, Tuple
 from collections import defaultdict
 
-from knowledge.retrieval import _iter_items, get_item_by_id
+from knowledge.retrieval import _iter_items
 from knowledge.trust_scoring import (
     compute_trust_score,
     detect_contradiction,
-    should_replace,
 )
 from knowledge.pattern_extractor import extract_relations, extract_entities
 from knowledge.storage_manager import replace_item
-from knowledge.ingestion import ingest_text
 
 
 # ------------------------------------------------------------
@@ -66,7 +64,7 @@ def scan_for_contradictions(limit: int = 1000) -> List[Dict[str, Any]]:
             continue
         try:
             from knowledge.retrieval import search_knowledge
-            neighbors = search_knowledge(text[:200], limit=5, include_superseded=False)
+            neighbors = search_knowledge(text[:400], limit=10, include_superseded=False)
         except Exception:
             neighbors = []
 
@@ -261,6 +259,58 @@ def run_consistency_check() -> Dict[str, Any]:
 
 
 # ------------------------------------------------------------
+# RELATIONSHIP CONFLICT REPAIR
+# ------------------------------------------------------------
+
+def _resolve_relationship_conflict(conflict: Dict[str, Any]) -> bool:
+    """
+    Resolve a single relationship conflict in the knowledge graph.
+
+    A conflict occurs when the same (entity, relation) pair points to
+    two different objects. Resolution strategy:
+    1. Look up the source items for each edge.
+    2. Compute trust scores for both.
+    3. Remove the edge backed by the lower-trust item.
+
+    Returns True if the conflict was resolved.
+    """
+    from knowledge.knowledge_graph import _load_graph, _save_graph
+
+    entity = conflict.get("entity")
+    relation = conflict.get("relation")
+    obj_a = conflict.get("obj_a")
+    obj_b = conflict.get("obj_b")
+
+    if not all([entity, relation, obj_a, obj_b]):
+        return False
+
+    graph = _load_graph()
+    edges = graph.get(entity, [])
+    if not edges:
+        return False
+
+    edge_a = None
+    edge_b = None
+    for e in edges:
+        if e.get("relation") == relation:
+            if e.get("object") == obj_a and edge_a is None:
+                edge_a = e
+            elif e.get("object") == obj_b and edge_b is None:
+                edge_b = e
+
+    if edge_a is None or edge_b is None:
+        return False
+
+    trust_a = edge_a.get("trust", 0.5)
+    trust_b = edge_b.get("trust", 0.5)
+
+    loser = edge_b if trust_a >= trust_b else edge_a
+    graph[entity] = [e for e in edges if e is not loser]
+    _save_graph(graph)
+    return True
+
+
+# ------------------------------------------------------------
 # ACTIVE CONSISTENCY CONSOLIDATION (Sim-fix C1)
 # ------------------------------------------------------------
 
@@ -268,53 +318,80 @@ def run_active_consolidation(consistency: float, coherence: float) -> Dict[str, 
     """
     Aggressive graph-wide dedup and contradiction resolution.
 
-    Triggered when consistency drops below 0.55. Unlike the passive
-    consistency scan, this actively resolves contradictions by:
+    Triggered when consistency drops below the consolidation ceiling.
+    Unlike the passive consistency scan, this actively resolves
+    contradictions by:
     1. Removing lower-trust item in each contradiction pair
     2. Merging exact duplicates
     3. Resolving conflicting relations (keep highest-trust)
     4. Reporting a consistency_boost estimate
 
-    The intensity scales with how far below the target consistency is:
-    - mild   (0.45-0.55): scan 500 items, resolve top 5
-    - medium (0.35-0.45): scan 1000 items, resolve top 15
-    - severe (< 0.35):    scan 2000 items, resolve all found
+    Intensity scales with deficit from target.  Each category gets its
+    own resolve cap so a flood of one type cannot starve the others.
+
+    Coherence is used as a secondary multiplier: when graph quality is
+    poor (< 0.7), scan limits get a 50% boost to catch more structural
+    issues in a single pass.
     """
-    # C3-v3: Raised consolidation ceiling to 0.92 with graduated upper tiers.
     CONSOLIDATION_TARGET = 0.92
 
     if consistency >= CONSOLIDATION_TARGET:
         return {"action": "skipped", "reason": "consistency_above_target"}
 
     deficit = CONSOLIDATION_TARGET - consistency
+
     if deficit < 0.03:
         intensity = "polishing"
-        scan_limit = 100
-        resolve_cap = 2
+        scan_limit = 200
+        contradiction_cap = 4
+        duplicate_cap = 4
+        conflict_cap = 4
     elif deficit < 0.07:
         intensity = "fine_maintenance"
-        scan_limit = 150
-        resolve_cap = 3
+        scan_limit = 400
+        contradiction_cap = 8
+        duplicate_cap = 6
+        conflict_cap = 6
     elif deficit < 0.12:
         intensity = "maintenance"
-        scan_limit = 200
-        resolve_cap = 4
+        scan_limit = 600
+        contradiction_cap = 12
+        duplicate_cap = 10
+        conflict_cap = 8
     elif deficit < 0.17:
         intensity = "preventive"
-        scan_limit = 500
-        resolve_cap = 8
+        scan_limit = 1000
+        contradiction_cap = 20
+        duplicate_cap = 15
+        conflict_cap = 12
     elif deficit < 0.25:
         intensity = "mild"
-        scan_limit = 800
-        resolve_cap = 15
+        scan_limit = 1500
+        contradiction_cap = 35
+        duplicate_cap = 25
+        conflict_cap = 20
     elif deficit < 0.35:
         intensity = "medium"
-        scan_limit = 1000
-        resolve_cap = 20
+        scan_limit = 2500
+        contradiction_cap = 60
+        duplicate_cap = 40
+        conflict_cap = 30
     else:
         intensity = "severe"
-        scan_limit = 2000
-        resolve_cap = 9999
+        scan_limit = 4000
+        contradiction_cap = 9999
+        duplicate_cap = 9999
+        conflict_cap = 9999
+
+    # Coherence multiplier: poor graph quality demands wider scans
+    if coherence < 0.50:
+        coherence_boost = 1.5
+    elif coherence < 0.70:
+        coherence_boost = 1.25
+    else:
+        coherence_boost = 1.0
+
+    scan_limit = int(scan_limit * coherence_boost)
 
     resolved_contradictions = 0
     merged_duplicates = 0
@@ -323,7 +400,7 @@ def run_active_consolidation(consistency: float, coherence: float) -> Dict[str, 
 
     # 1. Resolve contradictions: remove lower-trust item
     contradictions = scan_for_contradictions(limit=scan_limit)
-    for c in contradictions[:resolve_cap]:
+    for c in contradictions[:contradiction_cap]:
         try:
             if c["score_a"] >= c["score_b"]:
                 loser_id = c["item_b"]
@@ -337,7 +414,7 @@ def run_active_consolidation(consistency: float, coherence: float) -> Dict[str, 
 
     # 2. Merge exact duplicates
     duplicates = scan_for_duplicates(limit=scan_limit)
-    for dup_a, dup_b in duplicates[:resolve_cap]:
+    for dup_a, dup_b in duplicates[:duplicate_cap]:
         try:
             replace_item(dup_b, {"text": "", "metadata": {"merged_into": dup_a}})
             merged_duplicates += 1
@@ -345,17 +422,28 @@ def run_active_consolidation(consistency: float, coherence: float) -> Dict[str, 
         except Exception:
             pass
 
-    # 3. Resolve relationship conflicts: keep the relation with higher-trust source
+    # 3. Resolve relationship conflicts: remove the lower-trust edge
     relations = scan_relationship_consistency(limit=scan_limit)
-    for conflict in relations["conflicts"][:resolve_cap]:
-        resolved_conflicts += 1
+    for conflict in relations["conflicts"][:conflict_cap]:
+        try:
+            if _resolve_relationship_conflict(conflict):
+                resolved_conflicts += 1
+        except Exception:
+            pass
 
-    boost_estimate = min(0.15, 0.01 * resolved_contradictions + 0.005 * merged_duplicates + 0.003 * resolved_conflicts)
+    boost_estimate = min(
+        0.20,
+        0.01 * resolved_contradictions
+        + 0.005 * merged_duplicates
+        + 0.003 * resolved_conflicts,
+    )
 
     return {
         "action": "consolidation",
         "intensity": intensity,
         "deficit": round(deficit, 4),
+        "coherence_boost": coherence_boost,
+        "scan_limit": scan_limit,
         "resolved_contradictions": resolved_contradictions,
         "merged_duplicates": merged_duplicates,
         "resolved_conflicts": resolved_conflicts,

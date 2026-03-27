@@ -1,0 +1,15 @@
+{
+  "id": "test-epoch",
+  "start_time": 1774562513.8533988,
+  "target_end_time": 1774562517.4533987,
+  "duration_hours": 0.001,
+  "canonical_version": "1.0.0",
+  "status": "running",
+  "deviations": [],
+  "metrics_at_start": {},
+  "metrics_at_end": {},
+  "compaction_report": null,
+  "drift_court_report": null,
+  "renewal_report": null,
+  "budget_report": null
+}

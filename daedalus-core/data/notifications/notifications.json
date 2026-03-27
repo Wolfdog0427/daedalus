@@ -118,5 +118,15 @@
       "reason": "Governor detected medium/high drift or subsystem risk."
     },
     "read": false
+  },
+  {
+    "id": "note-11",
+    "timestamp": "2026-03-27T02:25:39.053962Z",
+    "category": "autonomy",
+    "message": "Autonomy mode changed to 'normal'.",
+    "metadata": {
+      "mode": "normal"
+    },
+    "read": false
   }
 ]

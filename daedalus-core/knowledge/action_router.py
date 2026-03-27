@@ -38,7 +38,6 @@ try:
         do_execute_knowledge_goal,
         do_knowledge_acquisition,
         do_quality_gate,
-        do_scoped_evolution,
         do_concept_evolution,
         do_consistency_scan,
         do_storage_maintenance,
@@ -350,6 +349,13 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
         return "[QUARANTINE] Not available."
 
     if norm.startswith("quarantine status") or norm.startswith("quarantine"):
+        if _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_quarantine_status
+                result = do_quarantine_status()
+                return f"[QUARANTINE STATUS]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
         try:
             from knowledge.source_integrity import get_quarantine_status
             result = get_quarantine_status()
@@ -493,17 +499,23 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
     # ------------------------------------------------------------
     # AUTONOMY GOVERNOR
     # ------------------------------------------------------------
-    if norm.startswith("open up autonomy") or norm.startswith("open autonomy"):
-        if governor is not None and hasattr(governor, "set_mode"):
-            governor.set_mode("open")
-            return "[AUTONOMY] Mode set to 'open'."
-        return "[AUTONOMY] Governor module not available or set_mode() missing."
+    if norm.startswith("open up autonomy") or norm.startswith("open autonomy") or norm.startswith("permissive mode"):
+        if governor is not None and hasattr(governor, "set_autonomy_mode"):
+            result = governor.set_autonomy_mode("permissive")
+            return f"[AUTONOMY] Mode set to 'permissive'. {json.dumps(result)}"
+        return "[AUTONOMY] Governor module not available."
+
+    if norm.startswith("normal mode") or norm.startswith("guided mode"):
+        if governor is not None and hasattr(governor, "set_autonomy_mode"):
+            result = governor.set_autonomy_mode("normal")
+            return f"[AUTONOMY] Mode set to 'normal'. {json.dumps(result)}"
+        return "[AUTONOMY] Governor module not available."
 
     if norm.startswith("lock down to strict") or norm.startswith("lock down") or norm.startswith("strict mode"):
-        if governor is not None and hasattr(governor, "set_mode"):
-            governor.set_mode("strict")
-            return "[AUTONOMY] Mode set to 'strict'."
-        return "[AUTONOMY] Governor module not available or set_mode() missing."
+        if governor is not None and hasattr(governor, "set_autonomy_mode"):
+            result = governor.set_autonomy_mode("strict")
+            return f"[AUTONOMY] Mode set to 'strict'. {json.dumps(result)}"
+        return "[AUTONOMY] Governor module not available."
 
     # ------------------------------------------------------------
     # VERIFY / EXPLAIN CLAIMS (through integration layer when available)
@@ -522,6 +534,20 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
         text = claim or _extract_after_colon(cmd)
         if not text:
             return "[EXPLAIN] No claim provided."
+        if _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_reasoning
+                result = do_reasoning(text)
+                return f"[EXPLAIN]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
+        if _META_AVAILABLE:
+            try:
+                from knowledge.reasoning_engine import reason_about_claim
+                result = reason_about_claim(text)
+                return f"[EXPLAIN]\n{json.dumps(result, indent=2, default=str)}"
+            except Exception:
+                pass
         return f"[EXPLAIN] Explanation requested for:\n{text}"
 
     # ------------------------------------------------------------

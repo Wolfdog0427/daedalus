@@ -20,6 +20,8 @@ import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
+from knowledge._atomic_io import atomic_write_json
+
 CANONICAL_DIR = Path("data/entropy/canonical")
 TEMPLATE_FILE = CANONICAL_DIR / "template.json"
 
@@ -140,10 +142,7 @@ def load_template() -> Dict[str, Any]:
 def save_template(template: Dict[str, Any]) -> None:
     _ensure_dir()
     template["last_updated"] = time.time()
-    TEMPLATE_FILE.write_text(
-        json.dumps(template, indent=2, default=str),
-        encoding="utf-8",
-    )
+    atomic_write_json(TEMPLATE_FILE, template, default=str)
 
 
 def get_state_tier(path: str) -> str:

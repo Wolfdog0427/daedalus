@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from governor.autonomy_governor import AutonomyGovernor
+from knowledge.autonomy_governor import AutonomyGovernor
 from knowledge.patch_applier import apply_patch_in_sandbox
 
 

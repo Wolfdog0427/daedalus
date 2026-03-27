@@ -91,14 +91,26 @@ SELF_MODEL: Dict[str, Any] = {
 # INTERNAL ANALYSIS HELPERS
 # ------------------------------------------------------------
 
+_QUALITY_EMA_ALPHA_UP = 0.6
+_QUALITY_EMA_ALPHA_DOWN = 0.35
+_quality_ema: Optional[float] = None
+
+
 def _compute_knowledge_quality(sample_cap: int = 2000) -> float:
     """
-    Computes average trust score using reservoir sampling.
+    Computes average trust score using reservoir sampling with
+    asymmetric EMA damping (D3).
+
     At scale (millions of items), scanning every item per cycle
     is prohibitive. Reservoir sampling gives a statistically
     representative estimate in O(n) time but bounded memory,
     and the trust-score computation only runs on the sample.
+
+    D3: Output is smoothed via asymmetric EMA. Improvements track
+    faster (0.6) than declines (0.35), preventing random sample
+    variance from eroding a legitimately high quality score.
     """
+    global _quality_ema
     import random
 
     reservoir: list = []
@@ -123,7 +135,15 @@ def _compute_knowledge_quality(sample_cap: int = 2000) -> float:
         except Exception:
             continue
 
-    return sum(scores) / len(scores) if scores else 0.0
+    raw = sum(scores) / len(scores) if scores else 0.0
+
+    if _quality_ema is None:
+        _quality_ema = raw
+    else:
+        alpha = _QUALITY_EMA_ALPHA_UP if raw >= _quality_ema else _QUALITY_EMA_ALPHA_DOWN
+        _quality_ema = alpha * raw + (1 - alpha) * _quality_ema
+
+    return _quality_ema
 
 
 # P3 + B5: Asymmetric coherence damper.
@@ -316,6 +336,74 @@ def _compute_trust_distribution() -> List[Dict[str, Any]]:
 
 
 # ------------------------------------------------------------
+# SUBSYSTEM HEALTH PROBES
+# ------------------------------------------------------------
+
+def _probe_subsystem_health() -> Dict[str, str]:
+    """
+    Lightweight probes per subsystem. Each probe attempts a minimal
+    operation; failure yields "degraded" or "down" instead of a
+    hardcoded "ok".
+    """
+    health: Dict[str, str] = {}
+
+    # Retrieval: try iterating one item from the knowledge store
+    try:
+        item_iter = _iter_items()
+        next(item_iter, None)
+        health["retrieval"] = "ok"
+    except Exception:
+        health["retrieval"] = "down"
+
+    # Trust scoring: try computing a score on a synthetic item
+    try:
+        compute_trust_score({"id": "_probe", "text": "probe", "source": "self_model"})
+        health["trust_scoring"] = "ok"
+    except Exception:
+        health["trust_scoring"] = "down"
+
+    # Verification: check that the pipeline module is importable
+    try:
+        from knowledge.verification_pipeline import verify_new_information  # noqa: F401
+        health["verification"] = "ok"
+    except ImportError:
+        health["verification"] = "down"
+    except Exception:
+        health["verification"] = "degraded"
+
+    # Graph: try loading the graph file
+    try:
+        from knowledge.knowledge_graph import _load_graph
+        g = _load_graph()
+        health["graph"] = "ok" if isinstance(g, dict) else "degraded"
+    except Exception:
+        health["graph"] = "down"
+
+    # Pattern extractor: try extracting from a trivial string
+    try:
+        extract_patterns()
+        health["pattern_extractor"] = "ok"
+    except Exception:
+        health["pattern_extractor"] = "degraded"
+
+    # Consistency checker: module importable and callable
+    try:
+        from knowledge.consistency_checker import run_consistency_check as _cc
+        health["consistency_checker"] = "ok" if callable(_cc) else "degraded"
+    except Exception:
+        health["consistency_checker"] = "down"
+
+    # Storage manager: try getting usage stats
+    try:
+        usage = get_storage_usage()
+        health["storage_manager"] = "ok" if isinstance(usage, dict) else "degraded"
+    except Exception:
+        health["storage_manager"] = "down"
+
+    return health
+
+
+# ------------------------------------------------------------
 # SELF-MODEL UPDATE
 # ------------------------------------------------------------
 
@@ -360,16 +448,7 @@ def update_self_model() -> Dict[str, Any]:
     # Trust distribution
     SELF_MODEL["trust_distribution"] = _compute_trust_distribution()
 
-    # Subsystem health (simple for now)
-    SELF_MODEL["subsystem_health"] = {
-        "retrieval": "ok",
-        "trust_scoring": "ok",
-        "verification": "ok",
-        "graph": "ok",
-        "pattern_extractor": "ok",
-        "consistency_checker": "ok",
-        "storage_manager": "ok",
-    }
+    SELF_MODEL["subsystem_health"] = _probe_subsystem_health()
 
     return SELF_MODEL
 

@@ -32,6 +32,7 @@ from collections import defaultdict, Counter
 from knowledge.pattern_extractor import extract_entities, extract_relations
 from knowledge.retrieval import _iter_items
 from knowledge.trust_scoring import compute_trust_score
+from knowledge._atomic_io import atomic_write_json
 
 
 # ------------------------------------------------------------
@@ -50,9 +51,9 @@ ENTITY_FILE = GRAPH_DIR / "entities.json"
 def _ensure_storage():
     GRAPH_DIR.mkdir(parents=True, exist_ok=True)
     if not GRAPH_FILE.exists():
-        GRAPH_FILE.write_text(json.dumps({}, indent=2))
+        atomic_write_json(GRAPH_FILE, {})
     if not ENTITY_FILE.exists():
-        ENTITY_FILE.write_text(json.dumps({}, indent=2))
+        atomic_write_json(ENTITY_FILE, {})
 
 
 def _load_graph() -> Dict[str, List[Dict[str, Any]]]:
@@ -72,11 +73,11 @@ def _load_entities() -> Dict[str, Dict[str, Any]]:
 
 
 def _save_graph(graph: Dict[str, Any]):
-    GRAPH_FILE.write_text(json.dumps(graph, indent=2))
+    atomic_write_json(GRAPH_FILE, graph)
 
 
 def _save_entities(entities: Dict[str, Any]):
-    ENTITY_FILE.write_text(json.dumps(entities, indent=2))
+    atomic_write_json(ENTITY_FILE, entities)
 
 
 # ------------------------------------------------------------

@@ -28,6 +28,7 @@ import hashlib
 from dataclasses import dataclass, field, asdict
 from typing import Dict, Any, List, Optional
 from pathlib import Path
+from knowledge._atomic_io import atomic_write_json
 
 
 # ------------------------------------------------------------
@@ -41,7 +42,7 @@ GOALS_FILE = GOALS_DIR / "goals.json"
 def _ensure_storage():
     GOALS_DIR.mkdir(parents=True, exist_ok=True)
     if not GOALS_FILE.exists():
-        GOALS_FILE.write_text(json.dumps([], indent=2))
+        atomic_write_json(GOALS_FILE, [])
 
 
 # ------------------------------------------------------------
@@ -120,10 +121,7 @@ def _load_goals() -> List[Dict[str, Any]]:
 
 def _save_goals(goals: List[Dict[str, Any]]) -> None:
     _ensure_storage()
-    GOALS_FILE.write_text(
-        json.dumps(goals, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
+    atomic_write_json(GOALS_FILE, goals)
 
 
 def save_goal(goal: KnowledgeGoal) -> None:

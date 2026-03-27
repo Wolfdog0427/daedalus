@@ -1,0 +1,18 @@
+{
+  "snapshot_id": "51725725-64e3-45f9-9d51-696823bc316a",
+  "timestamp": "2026-03-27_02-25-30",
+  "epoch_time": 1774578330.8054392,
+  "reason": "validation_test",
+  "captured": {
+    "graph": true,
+    "entities": true,
+    "governor": false,
+    "index": true,
+    "goals": false
+  },
+  "confidence": {
+    "consistency": 0.0,
+    "coherence": 0.0,
+    "quality": 0.0
+  }
+}

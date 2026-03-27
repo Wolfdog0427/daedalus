@@ -24,7 +24,9 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Any, Optional
+
+from knowledge._atomic_io import atomic_write_json
 
 EPOCH_DIR = Path("data/entropy/epochs")
 CURRENT_EPOCH_FILE = EPOCH_DIR / "current.json"
@@ -82,9 +84,7 @@ def start_epoch(
         "budget_report": None,
     }
 
-    CURRENT_EPOCH_FILE.write_text(
-        json.dumps(epoch, indent=2), encoding="utf-8"
-    )
+    atomic_write_json(CURRENT_EPOCH_FILE, epoch)
     return epoch
 
 
@@ -115,9 +115,7 @@ def record_epoch_deviation(deviation: Dict[str, Any]) -> Optional[str]:
         "timestamp": time.time(),
     })
 
-    CURRENT_EPOCH_FILE.write_text(
-        json.dumps(epoch, indent=2), encoding="utf-8"
-    )
+    atomic_write_json(CURRENT_EPOCH_FILE, epoch)
     return dev_id
 
 
@@ -134,9 +132,7 @@ def capture_epoch_metrics(metrics: Dict[str, Any], phase: str = "start") -> None
 
     key = f"metrics_at_{phase}"
     epoch[key] = metrics
-    CURRENT_EPOCH_FILE.write_text(
-        json.dumps(epoch, indent=2), encoding="utf-8"
-    )
+    atomic_write_json(CURRENT_EPOCH_FILE, epoch)
 
 
 def is_epoch_expired() -> bool:
@@ -217,13 +213,8 @@ def end_epoch() -> Dict[str, Any]:
     # --- Phase 5: Archive ---
     epoch["status"] = "completed"
     archive_path = EPOCH_ARCHIVE_DIR / f"{epoch['id']}.json"
-    archive_path.write_text(
-        json.dumps(epoch, indent=2, default=str), encoding="utf-8"
-    )
-
-    CURRENT_EPOCH_FILE.write_text(
-        json.dumps(epoch, indent=2, default=str), encoding="utf-8"
-    )
+    atomic_write_json(archive_path, epoch, default=str)
+    atomic_write_json(CURRENT_EPOCH_FILE, epoch, default=str)
 
     return epoch
 

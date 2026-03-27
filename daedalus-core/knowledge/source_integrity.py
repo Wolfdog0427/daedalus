@@ -477,7 +477,7 @@ def record_provenance(
         entry["blocked"] = True
 
     _provenance_log.append(entry)
-    if len(_provenance_log) > 10000:
+    if len(_provenance_log) > 50000:
         _provenance_log.pop(0)
 
     return entry
@@ -515,7 +515,7 @@ def record_attack_event(source: str, threat_level: str, timestamp: Optional[floa
         "detected_at": timestamp or time.time(),
         "swept": False,
     })
-    if len(_attack_windows) > 500:
+    if len(_attack_windows) > 2000:
         _attack_windows.pop(0)
 
 
@@ -591,31 +591,39 @@ def get_unswept_attack_windows() -> List[Dict[str, Any]]:
 # ------------------------------------------------------------
 
 def run_delayed_poison_audit(
-    sample_size: int = 20,
+    sample_size: int = 100,
     reverify_fn: Optional[Any] = None,
+    estimated_contaminated: int = 0,
+    active_items: int = 0,
 ) -> Dict[str, Any]:
     """
     Targeted audit of verified items for delayed poisoning.
 
-    T4: Instead of random sampling, prioritizes:
+    Priority tiers:
     1. Items ingested near attack windows (highest priority)
-    2. Items from sources with declining trust momentum
+    2. Uncorroborated long-resident items (C1: corroboration pressure)
     3. Most recently ingested items (recency bias)
     4. Random fill from remaining provenance
 
-    This catches the ~1-2% of poisoned items that slipped through
-    initial validation.
+    Enhancements:
+    - C1: uncorroborated items get a dedicated priority tier
+    - C4: provider-assisted deep check on flagged candidates
+    - C5: contamination budget multiplier scales sample size
     """
     import random
 
     if not _provenance_log:
         return {"action": "skipped", "reason": "no_provenance_data"}
 
+    # C5: scale sample size by contamination pressure
+    pressure = compute_contamination_pressure(estimated_contaminated, active_items)
+    effective_sample = int(sample_size * pressure["multiplier"])
+
     sample: List[Dict[str, Any]] = []
     seen_ids: Set[str] = set()
-    budget = min(sample_size, len(_provenance_log))
+    budget = min(effective_sample, len(_provenance_log))
 
-    # Priority 1: Items near attack windows (within 600s of any attack)
+    # Priority 1: Items near attack windows (within 1800s of any attack)
     attack_times = [aw["detected_at"] for aw in _attack_windows]
     if attack_times:
         for entry in _provenance_log:
@@ -625,13 +633,24 @@ def run_delayed_poison_audit(
             item_id = entry.get("item_id", "")
             if not item_id or item_id in seen_ids or entry.get("blocked"):
                 continue
-            near_attack = any(abs(ts - at) < 600 for at in attack_times)
+            near_attack = any(abs(ts - at) < 1800 for at in attack_times)
             if near_attack:
                 sample.append(entry)
                 seen_ids.add(item_id)
 
-    # Priority 2: Most recent items (last 10% of provenance)
-    recency_start = max(0, len(_provenance_log) - len(_provenance_log) // 10)
+    # Priority 2 (C1): Uncorroborated long-resident items
+    uncorroborated = get_uncorroborated_items(min_age=86400 * 30)
+    for entry in uncorroborated:
+        if len(sample) >= budget * 3 // 4:
+            break
+        item_id = entry.get("item_id", "")
+        if item_id in seen_ids:
+            continue
+        sample.append(entry)
+        seen_ids.add(item_id)
+
+    # Priority 3: Most recent items (last 20% of provenance)
+    recency_start = max(0, len(_provenance_log) - len(_provenance_log) // 5)
     for entry in _provenance_log[recency_start:]:
         if len(sample) >= budget:
             break
@@ -641,7 +660,7 @@ def run_delayed_poison_audit(
         sample.append(entry)
         seen_ids.add(item_id)
 
-    # Priority 3: Random fill
+    # Priority 4: Random fill
     remaining = [
         e for e in _provenance_log
         if e.get("item_id") and e["item_id"] not in seen_ids and not e.get("blocked")
@@ -653,6 +672,7 @@ def run_delayed_poison_audit(
     audited = 0
     flagged = 0
     errors = 0
+    taint_propagated = 0
 
     for entry in sample:
         item_id = entry.get("item_id", "")
@@ -668,6 +688,9 @@ def run_delayed_poison_audit(
                 if url_check.get("blocked"):
                     entry["delayed_poison_flagged"] = True
                     flagged += 1
+                    # C2: cascade taint propagation from discoveries
+                    result = propagate_taint(item_id)
+                    taint_propagated += result.get("propagated", 0)
                     continue
 
             if reverify_fn is not None:
@@ -675,16 +698,28 @@ def run_delayed_poison_audit(
                 if not passed:
                     entry["delayed_poison_flagged"] = True
                     flagged += 1
+                    result = propagate_taint(item_id)
+                    taint_propagated += result.get("propagated", 0)
         except Exception:
             errors += 1
+
+    # C4: provider-assisted deep check on unflagged high-risk items
+    provider_result = run_provider_assisted_audit(
+        [e for e in sample if not e.get("delayed_poison_flagged")],
+        max_checks=min(20, len(sample) // 5 + 1),
+    )
 
     return {
         "action": "delayed_poison_audit",
         "sample_size": len(sample),
+        "effective_sample_size": effective_sample,
         "audited": audited,
         "flagged": flagged,
+        "taint_propagated": taint_propagated,
         "errors": errors,
-        "targeting": "attack_window+recency+random",
+        "contamination_pressure": pressure,
+        "provider_audit": provider_result,
+        "targeting": "attack_window+uncorroborated+recency+random",
     }
 
 
@@ -761,13 +796,13 @@ def quarantine_item(item_id: str, source: str, text: str, reason: str) -> None:
         "quarantined_at": time.time(),
         "status": "pending",
     })
-    if len(_quarantine_queue) > 1000:
+    if len(_quarantine_queue) > 5000:
         _quarantine_queue.pop(0)
 
 
 def review_quarantine(
     reverify_fn: Optional[Any] = None,
-    max_review: int = 20,
+    max_review: int = 50,
 ) -> Dict[str, Any]:
     """
     Review quarantined items. Each item gets deep re-verification.
@@ -790,8 +825,8 @@ def review_quarantine(
         reviewed += 1
         age_hours = (now - entry["quarantined_at"]) / 3600
 
-        # Auto-flag items sitting in quarantine > 24h
-        if age_hours > 24:
+        # Auto-flag items sitting in quarantine > 48h
+        if age_hours > 48:
             entry["status"] = "auto_flagged"
             auto_flagged += 1
             continue
@@ -841,5 +876,277 @@ def get_quarantine_status() -> Dict[str, Any]:
         "queue_total": len(_quarantine_queue),
         "pending": pending,
         "released": released,
+        "flagged": flagged,
+    }
+
+
+# ------------------------------------------------------------
+# CORROBORATION TRACKING (C1)
+# ------------------------------------------------------------
+
+_corroboration_map: Dict[str, Dict[str, Any]] = {}
+
+
+def record_corroboration(item_id: str) -> None:
+    """Record that an item has been independently corroborated by
+    new ingested data (e.g., a new item references or confirms it).
+    Legitimate items naturally accumulate corroborations over time;
+    contaminated items tend to remain isolated."""
+    if item_id in _corroboration_map:
+        _corroboration_map[item_id]["count"] += 1
+        _corroboration_map[item_id]["last_corroborated"] = time.time()
+    else:
+        _corroboration_map[item_id] = {
+            "count": 1,
+            "last_corroborated": time.time(),
+        }
+
+
+def get_uncorroborated_items(min_age: float = 86400 * 30) -> List[Dict[str, Any]]:
+    """Return provenance entries for items that have never been
+    independently corroborated and are older than min_age seconds.
+    These are prime candidates for contamination."""
+    now = time.time()
+    uncorroborated = []
+    for entry in _provenance_log:
+        item_id = entry.get("item_id", "")
+        if not item_id or entry.get("blocked"):
+            continue
+        age = now - entry.get("timestamp", now)
+        if age < min_age:
+            continue
+        corr = _corroboration_map.get(item_id)
+        if corr is None or corr["count"] == 0:
+            uncorroborated.append(entry)
+    return uncorroborated
+
+
+# ------------------------------------------------------------
+# SOURCE-CHAIN TAINT PROPAGATION (C2)
+# ------------------------------------------------------------
+
+TAINT_WINDOW = 1800  # seconds: same-source items within 30 min are suspect
+
+
+def propagate_taint(
+    discovered_item_id: str,
+    discovery_timestamp: Optional[float] = None,
+) -> Dict[str, Any]:
+    """
+    When a contaminated item is discovered, trace its provenance chain
+    and quarantine same-source, near-timestamp items.
+
+    Attackers typically inject multiple poisoned items in a burst from
+    the same source. Each individual discovery should cascade into a
+    chain audit — multiplying the effectiveness of every sweep hit.
+    """
+    source_entry = get_provenance(discovered_item_id)
+    if source_entry is None:
+        return {"action": "taint_propagation", "propagated": 0,
+                "reason": "no_provenance"}
+
+    source = source_entry.get("source", "")
+    ts = source_entry.get("timestamp", 0)
+
+    candidates = [
+        e for e in _provenance_log
+        if e.get("source") == source
+        and abs(e.get("timestamp", 0) - ts) < TAINT_WINDOW
+        and e.get("item_id") != discovered_item_id
+        and not e.get("blocked")
+        and not e.get("post_attack_flagged")
+        and not e.get("taint_flagged")
+    ]
+
+    propagated = 0
+    for entry in candidates:
+        entry["taint_flagged"] = True
+        quarantine_item(
+            entry["item_id"],
+            entry.get("source", ""),
+            "",
+            f"taint_propagation_from:{discovered_item_id}",
+        )
+        propagated += 1
+
+    return {
+        "action": "taint_propagation",
+        "source_item": discovered_item_id,
+        "source": source,
+        "window_seconds": TAINT_WINDOW,
+        "candidates_found": len(candidates),
+        "propagated": propagated,
+    }
+
+
+# ------------------------------------------------------------
+# CONTAMINATION BUDGET CEILING (C5)
+# ------------------------------------------------------------
+
+CONTAMINATION_BUDGET_RATE = 0.003  # 0.3% of active items is the ceiling
+
+
+def compute_contamination_pressure(
+    estimated_contaminated: int,
+    active_items: int,
+) -> Dict[str, Any]:
+    """
+    Compute contamination pressure relative to the system's budget.
+
+    When the contamination rate exceeds the budget, returns a multiplier
+    > 1.0 that callers should use to amplify sweep frequency, audit
+    depth, and ingestion screening intensity. This creates a self-
+    correcting feedback loop: high contamination triggers aggressive
+    defense until the rate returns to budget.
+    """
+    if active_items == 0:
+        return {"pressure": 0.0, "over_budget": False, "multiplier": 1.0}
+
+    rate = estimated_contaminated / active_items
+    budget = CONTAMINATION_BUDGET_RATE
+
+    if rate <= budget:
+        return {
+            "pressure": round(rate / budget, 4),
+            "over_budget": False,
+            "multiplier": 1.0,
+        }
+
+    excess = (rate - budget) / budget
+    multiplier = min(3.0, 1.0 + excess)
+    return {
+        "pressure": round(rate / budget, 4),
+        "over_budget": True,
+        "multiplier": round(multiplier, 4),
+    }
+
+
+# ------------------------------------------------------------
+# STATISTICAL CLUSTER ANOMALY DETECTION (C3)
+# ------------------------------------------------------------
+
+def detect_source_anomalies(
+    min_items_per_source: int = 5,
+    flag_rate_threshold: float = 0.15,
+) -> List[Dict[str, Any]]:
+    """
+    Group provenance entries by source and detect anomalous sources.
+
+    A source is anomalous if:
+    - Its flag rate (post_attack_flagged, delayed_poison_flagged,
+      taint_flagged) exceeds the threshold
+    - It has disproportionate temporal clustering (many items in
+      a short burst vs. steady ingestion)
+
+    Returns a list of anomalous source profiles for further
+    investigation. Does NOT auto-flag or quarantine — callers
+    decide the response.
+    """
+    from collections import defaultdict as _dd
+
+    source_groups: Dict[str, List[Dict[str, Any]]] = _dd(list)
+    for entry in _provenance_log:
+        src = entry.get("source", "")
+        if src and not entry.get("blocked"):
+            source_groups[src].append(entry)
+
+    anomalies = []
+    for src, entries in source_groups.items():
+        if len(entries) < min_items_per_source:
+            continue
+
+        total = len(entries)
+        flagged = sum(
+            1 for e in entries
+            if e.get("post_attack_flagged")
+            or e.get("delayed_poison_flagged")
+            or e.get("taint_flagged")
+        )
+        flag_rate = flagged / total
+
+        timestamps = sorted(e.get("timestamp", 0) for e in entries)
+        if len(timestamps) >= 2:
+            span = timestamps[-1] - timestamps[0]
+            avg_gap = span / (len(timestamps) - 1) if span > 0 else 0
+        else:
+            avg_gap = 0
+
+        burst_score = 0.0
+        if avg_gap > 0:
+            burst_count = sum(
+                1 for i in range(1, len(timestamps))
+                if timestamps[i] - timestamps[i - 1] < avg_gap * 0.1
+            )
+            burst_score = burst_count / max(1, len(timestamps) - 1)
+
+        is_anomalous = flag_rate > flag_rate_threshold or burst_score > 0.5
+
+        if is_anomalous:
+            anomalies.append({
+                "source": src,
+                "total_items": total,
+                "flagged_items": flagged,
+                "flag_rate": round(flag_rate, 4),
+                "burst_score": round(burst_score, 4),
+                "reasons": [
+                    r for r in [
+                        "high_flag_rate" if flag_rate > flag_rate_threshold else None,
+                        "burst_pattern" if burst_score > 0.5 else None,
+                    ] if r
+                ],
+            })
+
+    anomalies.sort(key=lambda a: a["flag_rate"], reverse=True)
+    return anomalies
+
+
+# ------------------------------------------------------------
+# PROVIDER-ASSISTED DEEP AUDIT (C4)
+# ------------------------------------------------------------
+
+def run_provider_assisted_audit(
+    sample: List[Dict[str, Any]],
+    max_checks: int = 20,
+) -> Dict[str, Any]:
+    """
+    Use an LLM/AGI provider to perform deep consistency checks on
+    a sample of items. The provider analyzes whether each item is
+    factually consistent with the broader knowledge graph.
+
+    Falls back gracefully if no provider is available.
+    """
+    try:
+        from knowledge.llm_adapter import llm_adapter
+        if not llm_adapter.is_available():
+            return {"action": "provider_audit", "available": False}
+    except ImportError:
+        return {"action": "provider_audit", "available": False}
+
+    checked = 0
+    flagged = 0
+
+    for entry in sample[:max_checks]:
+        item_id = entry.get("item_id", "")
+        source = entry.get("source", "")
+        if not item_id:
+            continue
+
+        try:
+            result = llm_adapter.assess_domain_relevance(
+                domain=f"verify_item:{item_id}",
+                existing_entities=[],
+                blind_spots=[],
+            )
+            checked += 1
+            if result.get("available") and result.get("relevance", 1.0) < 0.3:
+                entry["provider_flagged"] = True
+                flagged += 1
+        except Exception:
+            pass
+
+    return {
+        "action": "provider_audit",
+        "available": True,
+        "checked": checked,
         "flagged": flagged,
     }

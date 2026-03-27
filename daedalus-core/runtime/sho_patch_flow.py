@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
-from governor.autonomy_governor import AutonomyGovernor
+from knowledge.autonomy_governor import AutonomyGovernor
 from runtime.approval_interface import ApprovalInterface
 from runtime.logging_manager import log_event
 from knowledge.patch_applier import apply_patch_in_sandbox, apply_patch_live
@@ -62,7 +62,7 @@ class SHOPatchFlow:
             },
         )
 
-        result = self.gov.run_improvement_cycle(
+        result = self.gov.decide_for_cycle(
             cycle_id=cycle_id,
             drift=drift,
             diagnostics=diagnostics,

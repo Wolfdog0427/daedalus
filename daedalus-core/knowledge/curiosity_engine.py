@@ -37,6 +37,8 @@ from knowledge.knowledge_goal import (
     save_goal,
     has_active_goal_for_topic,
     count_active_goals,
+    list_goals,
+    update_goal_status,
 )
 from knowledge.self_model import get_self_model, update_self_model
 from knowledge.knowledge_graph import (
@@ -52,11 +54,13 @@ from knowledge.llm_adapter import llm_adapter
 # CONFIGURATION
 # ------------------------------------------------------------
 
-MAX_ACTIVE_GOALS = 5
+MAX_ACTIVE_GOALS = 8
 MIN_CLUSTER_DEPTH = 3  # entities below this count = shallow
 BLIND_SPOT_THRESHOLD = 0.3  # coverage below this triggers curiosity
 FRONTIER_LINK_THRESHOLD = 0.4  # missing-link score above this = frontier
-MAX_PROPOSALS_PER_CYCLE = 3
+MAX_PROPOSALS_PER_CYCLE = 5
+GOAL_EXPIRY_SECONDS = 86400 * 365  # approved goals older than 1 year expire
+BACKPRESSURE_THRESHOLD = MAX_ACTIVE_GOALS * 2  # defer proposals when queue too deep
 
 
 # ------------------------------------------------------------
@@ -119,7 +123,7 @@ def detect_frontier_gaps() -> List[Dict[str, Any]]:
     cluster around unknown entities. These represent domains the
     knowledge graph "points toward" but doesn't yet cover.
     """
-    central = compute_entity_centrality()[:50]
+    central = compute_entity_centrality()[:80]
     frontier_domains: Dict[str, float] = defaultdict(float)
 
     for entity, _ in central:
@@ -390,11 +394,32 @@ def run_quality_gate(goal: KnowledgeGoal) -> Dict[str, Any]:
         gate_result["passed"] = False
         gate_result["recommendation"] = "pause_consistency_degraded"
 
-    if coherence_delta < -0.05 and consistency_delta < -0.05:
+    if coherence_delta < -0.10 and consistency_delta < -0.10:
         gate_result["passed"] = False
         gate_result["recommendation"] = "pause_dual_degradation"
 
     return gate_result
+
+
+# ------------------------------------------------------------
+# GOAL HYGIENE (G1 + G3)
+# ------------------------------------------------------------
+
+def expire_stale_goals() -> int:
+    """
+    Expire approved goals that have been waiting too long for execution.
+    The knowledge landscape evolves — a gap detected a year ago may no
+    longer exist. Expired goals will be re-detected and re-proposed by
+    gap detection if they are still relevant.
+    """
+    now = time.time()
+    expired = 0
+    for goal in list_goals(status="approved", limit=200):
+        age = now - goal.updated_at
+        if age > GOAL_EXPIRY_SECONDS:
+            update_goal_status(goal.id, "expired")
+            expired += 1
+    return expired
 
 
 # ------------------------------------------------------------
@@ -419,14 +444,24 @@ def run_curiosity_cycle(
         "timestamp": time.time(),
         "gaps_detected": [],
         "goals_proposed": [],
+        "goals_expired": 0,
         "skipped_reasons": [],
     }
 
     if self_model is None:
         self_model = get_self_model()
 
+    # G1: Expire stale approved goals before counting active
+    report["goals_expired"] = expire_stale_goals()
+
     if count_active_goals() >= MAX_ACTIVE_GOALS:
         report["skipped_reasons"].append("max_active_goals_reached")
+        return report
+
+    # G3: Backpressure — defer new proposals when approved queue is deep
+    approved_backlog = len(list_goals(status="approved", limit=200))
+    if approved_backlog >= BACKPRESSURE_THRESHOLD:
+        report["skipped_reasons"].append("backpressure_approved_queue")
         return report
 
     # 1. Detect gaps
@@ -615,8 +650,9 @@ def _build_acquisition_query(concept: str, topic: str, phase_name: str) -> str:
 
 
 def get_executable_goals() -> List[KnowledgeGoal]:
-    """Return goals that are approved/in_progress with pending phases."""
-    from knowledge.knowledge_goal import list_goals
+    """Return goals that are approved/in_progress with pending phases,
+    sorted by priority (highest first) so the most impactful gaps
+    get execution slots first."""
     goals = list_goals(status="approved") + list_goals(status="in_progress")
     executable = []
     for goal in goals:
@@ -624,4 +660,5 @@ def get_executable_goals() -> List[KnowledgeGoal]:
             if isinstance(phase, dict) and phase.get("status") == "pending":
                 executable.append(goal)
                 break
+    executable.sort(key=lambda g: g.priority, reverse=True)
     return executable

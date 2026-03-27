@@ -28,7 +28,6 @@ from typing import Dict, Any, List, Callable, Optional
 from knowledge.entropy.canonical_template import (
     load_template,
     get_state_tier,
-    is_permanent,
 )
 
 RENEWAL_DIR = Path("data/entropy/renewal")

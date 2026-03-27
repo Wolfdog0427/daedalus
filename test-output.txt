@@ -1,0 +1,977 @@
+﻿  console.error
+    [persistence] Failed to load snapshot: SyntaxError: Unexpected end of JSON input
+        at JSON.parse (<anonymous>)
+        at SnapshotPersistence.load (C:\Users\molit\daedalus\server\orchestrator\persistence\SnapshotPersistence.ts:38:19)
+        at Object.<anonymous> (C:\Users\molit\daedalus\server\tests\schema-evolution.test.ts:121:32)
+        at Promise.finally.completed (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+        at _callCircusTest (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+        at processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at _runTest (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+        at C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+        at _runTestsForDescribeBlock (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+        at _runTestsForDescribeBlock (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+        at run (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+        at runAndTransformResultsToJestFormat (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+        at jestAdapter (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\runner.js:101:19)
+        at runTestInternal (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-runner\build\testWorker.js:275:16)
+        at runTest (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-runner\build\testWorker.js:343:7)
+        at Object.worker (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-runner\build\testWorker.js:497:12)
+
+      38 |       return JSON.parse(raw) as PersistableSnapshot;
+      39 |     } catch (err) {
+    > 40 |       console.error("[persistence] Failed to load snapshot:", err);
+         |               ^
+      41 |       return null;
+      42 |     }
+      43 |   }
+
+      at SnapshotPersistence.load (orchestrator/persistence/SnapshotPersistence.ts:40:15)
+      at Object.<anonymous> (tests/schema-evolution.test.ts:121:32)
+
+  console.error
+    [persistence] Failed to load snapshot: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+        at JSON.parse (<anonymous>)
+        at SnapshotPersistence.load (C:\Users\molit\daedalus\server\orchestrator\persistence\SnapshotPersistence.ts:38:19)
+        at Object.<anonymous> (C:\Users\molit\daedalus\server\tests\failure-modes.test.ts:144:27)
+        at Promise.finally.completed (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+        at _callCircusTest (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+        at processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at _runTest (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+        at C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+        at _runTestsForDescribeBlock (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+        at _runTestsForDescribeBlock (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+        at run (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+        at runAndTransformResultsToJestFormat (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+        at jestAdapter (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-circus\build\runner.js:101:19)
+        at runTestInternal (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-runner\build\testWorker.js:275:16)
+        at runTest (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-runner\build\testWorker.js:343:7)
+        at Object.worker (C:\Users\molit\AppData\Local\npm-cache\_npx\b8d86e6551a4f492\node_modules\jest-runner\build\testWorker.js:497:12)
+
+      38 |       return JSON.parse(raw) as PersistableSnapshot;
+      39 |     } catch (err) {
+    > 40 |       console.error("[persistence] Failed to load snapshot:", err);
+         |               ^
+      41 |       return null;
+      42 |     }
+      43 |   }
+
+      at SnapshotPersistence.load (orchestrator/persistence/SnapshotPersistence.ts:40:15)
+      at Object.<anonymous> (tests/failure-modes.test.ts:144:27)
+
+  console.log
+    
+    ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γòæ         LONG-HORIZON RISK ANALYSIS ΓÇö FINDINGS               Γòæ
+    ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+    
+      CONFIRMED SAFE:
+      Γ£ô Heartbeat counter: safe from overflow for ~285M years at 1/s
+      Γ£ô Event bus subscribers: properly cleaned up on unsubscribe
+      Γ£ô Detached nodes: removed from registry (no ghosts)
+      Γ£ô Join/detach cycles: no mirror leaks after 1000 cycles
+      Γ£ô Posture: always returns to OPEN when conditions clear
+      Γ£ô Snapshot size: linear growth (not exponential)
+      Γ£ô Vote cap: enforced at 50
+      Γ£ô Timestamps: consistent ISO 8601
+    
+      Γ£ô Override cap: enforced at 200 (oldest evicted)
+      Γ£ô Drift cap: enforced at 200 (oldest evicted)
+    
+      RISKS IDENTIFIED:
+      ΓÜá No auto-expiry on overrides (operator must manually clear)
+      ΓÜá No auto-expiry on drifts (must be manually cleared)
+      ΓÜá Snapshot auto-save interval (30s) means up to 30s of state loss on crash
+      ΓÜá No log rotation or log size management
+      ΓÜá Event bus is in-memory only ΓÇö no persistence of event history
+
+      at Object.<anonymous> (tests/long-horizon-risks.test.ts:307:13)
+
+  console.log
+    
+    ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γòæ         OPERATOR BAD DAY ΓÇö UX ANALYSIS REPORT               Γòæ
+    ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+    
+    ΓöîΓöÇΓöÇ Morning: all clear ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Posture: OPEN
+    Γöé  Nodes: 10 total, 0 quarantined, 0 degraded
+    Γöé  Overrides: 0, Drifts: 0
+    Γöé  Constitution: PASSED
+    Γöé  Summary: {"totalNodes":10,"byStatus":{"trusted":10},"byPosture":{"companion":10},"byRisk":{"medium":10},"totalErrors":0,"posture":"OPEN","postureReason":"Normal conditions","urgency":"calm","recommendedActions":[],"activeDriftCount":0,"activeOverrideCount":0}
+    Γöé
+    Γöé  UX Questions:
+    Γöé    ? Can operator see all 10 nodes?
+    Γöé    ? Is posture clearly OPEN?
+    Γöé    ? Any confusing signals?
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ First trouble: prod-3 degraded ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Posture: OPEN
+    Γöé  Nodes: 10 total, 0 quarantined, 1 degraded
+    Γöé  Overrides: 0, Drifts: 0
+    Γöé  Constitution: PASSED
+    Γöé  Summary: {"totalNodes":10,"byStatus":{"trusted":9,"pending":1},"byPosture":{"companion":9,"observer":1},"byRisk":{"medium":10},"totalErrors":0,"posture":"OPEN","postureReason":"Normal conditions","urgency":"calm","recommendedActions":[],"activeDriftCount":0,"activeOverrideCount":0}
+    Γöé
+    Γöé  UX Questions:
+    Γöé    ? Can operator see prod-3 is degraded?
+    Γöé    ? Is there a clear signal that ONE node is problematic?
+    Γöé    ? Does the overall posture change (should it)?
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ Cascade: 3 nodes erroring ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Posture: OPEN
+    Γöé  Nodes: 10 total, 0 quarantined, 1 degraded
+    Γöé  Overrides: 0, Drifts: 0
+    Γöé  Constitution: PASSED
+    Γöé  Summary: {"totalNodes":10,"byStatus":{"trusted":9,"pending":1},"byPosture":{"companion":9,"observer":1},"byRisk":{"medium":10},"totalErrors":12,"posture":"OPEN","postureReason":"Normal conditions","urgency":"attentive","recommendedActions":["High error count (12) ΓÇö investigate failing nodes"],"activeDriftCount":0,"activeOverrideCount":0}
+    Γöé
+    Γöé  UX Questions:
+    Γöé    ? Can operator see error counts on the 3 nodes?
+    Γöé    ? Is there a clear 'these are the problem nodes' signal?
+    Γöé    ? Should operator intervene or wait?
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ Auto-quarantine fires ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Posture: OPEN
+    Γöé  Nodes: 10 total, 2 quarantined, 0 degraded
+    Γöé  Overrides: 0, Drifts: 0
+    Γöé  Constitution: PASSED
+    Γöé  Summary: {"totalNodes":10,"byStatus":{"trusted":8,"quarantined":2},"byPosture":{"companion":8,"dormant":2},"byRisk":{"medium":8,"high":2},"totalErrors":14,"posture":"OPEN","postureReason":"Normal conditions","urgency":"elevated","recommendedActions":["2 node(s) quarantined ΓÇö review and detach or heal","High error count (14) ΓÇö investigate failing nodes"],"activeDriftCount":0,"activeOverrideCount":0}
+    Γöé
+    Γöé  UX Questions:
+    Γöé    ? Can operator see quarantined nodes clearly?
+    Γöé    ? Is it obvious WHY they were quarantined (error count)?
+    Γöé    ? Does posture change? Should it?
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ Operator escalates governance ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Posture: GUARDED
+    Γöé  Nodes: 10 total, 2 quarantined, 0 degraded
+    Γöé  Overrides: 1, Drifts: 1
+    Γöé  Constitution: PASSED
+    Γöé  Summary: {"totalNodes":10,"byStatus":{"trusted":8,"quarantined":2},"byPosture":{"companion":8,"dormant":2},"byRisk":{"medium":8,"high":2},"totalErrors":14,"posture":"GUARDED","postureReason":"High-severity continuity drift detected","urgency":"elevated","recommendedActions":["2 node(s) quarantined ΓÇö review and detach or heal","High error count (14) ΓÇö investigate failing nodes","HIGH-severity continuity drift active ΓÇö consider override or investigation","System GUARDED ΓÇö monitor closely and clear drifts/overrides when resolved"],"activeDriftCount":1,"activeOverrideCount":1}
+    Γöé
+    Γöé  UX Questions:
+    Γöé    ? Is the posture change visible and clear?
+    Γöé    ? Can operator see their own override?
+    Γöé    ? Is the drift visible?
+    Γöé    ? Does the cockpit feel 'tense' ΓÇö matching the situation?
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ Node goes silent after stale sweep ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Posture: GUARDED
+    Γöé  Nodes: 10 total, 3 quarantined, 0 degraded
+    Γöé  Overrides: 1, Drifts: 1
+    Γöé  Constitution: PASSED
+    Γöé  Summary: {"totalNodes":10,"byStatus":{"trusted":7,"quarantined":3},"byPosture":{"companion":7,"dormant":3},"byRisk":{"medium":7,"high":3},"totalErrors":22,"posture":"GUARDED","postureReason":"High-severity continuity drift detected","urgency":"elevated","recommendedActions":["3 node(s) quarantined ΓÇö review and detach or heal","High error count (22) ΓÇö investigate failing nodes","HIGH-severity continuity drift active ΓÇö consider override or investigation","System GUARDED ΓÇö monitor closely and clear drifts/overrides when resolved"],"activeDriftCount":1,"activeOverrideCount":1}
+    Γöé
+    Γöé  UX Questions:
+    Γöé    ? Can operator see which nodes were marked stale?
+    Γöé    ? Is there a difference between 'errored' and 'silent'?
+    Γöé    ? Is the situation clearly worsening?
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ Manual quarantine of prod-5 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Posture: GUARDED
+    Γöé  Nodes: 10 total, 3 quarantined, 0 degraded
+    Γöé  Overrides: 1, Drifts: 1
+    Γöé  Constitution: PASSED
+    Γöé  Summary: {"totalNodes":10,"byStatus":{"trusted":7,"quarantined":3},"byPosture":{"companion":7,"dormant":3},"byRisk":{"medium":7,"high":3},"totalErrors":22,"posture":"GUARDED","postureReason":"High-severity continuity drift detected","urgency":"elevated","recommendedActions":["3 node(s) quarantined ΓÇö review and detach or heal","High error count (22) ΓÇö investigate failing nodes","HIGH-severity continuity drift active ΓÇö consider override or investigation","System GUARDED ΓÇö monitor closely and clear drifts/overrides when resolved"],"activeDriftCount":1,"activeOverrideCount":1}
+    Γöé
+    Γöé  UX Questions:
+    Γöé    ? Can operator confirm prod-5 is now quarantined?
+    Γöé    ? Does the quarantine count update in summary?
+    Γöé    ? Is there a clear way to UNDO this if it was a mistake?
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ Nodes rejoined and recovering ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Posture: GUARDED
+    Γöé  Nodes: 10 total, 0 quarantined, 0 degraded
+    Γöé  Overrides: 1, Drifts: 1
+    Γöé  Constitution: PASSED
+    Γöé  Summary: {"totalNodes":10,"byStatus":{"trusted":10},"byPosture":{"companion":10},"byRisk":{"medium":10},"totalErrors":7,"posture":"GUARDED","postureReason":"High-severity continuity drift detected","urgency":"elevated","recommendedActions":["HIGH-severity continuity drift active ΓÇö consider override or investigation","System GUARDED ΓÇö monitor closely and clear drifts/overrides when resolved"],"activeDriftCount":1,"activeOverrideCount":1}
+    Γöé
+    Γöé  UX Questions:
+    Γöé    ? Can operator see recovered nodes?
+    Γöé    ? Do they show as 'active' again?
+    Γöé    ? Is the situation clearly improving?
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ Overrides and drifts cleared ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Posture: OPEN
+    Γöé  Nodes: 10 total, 0 quarantined, 0 degraded
+    Γöé  Overrides: 0, Drifts: 0
+    Γöé  Constitution: PASSED
+    Γöé  Summary: {"totalNodes":10,"byStatus":{"trusted":10},"byPosture":{"companion":10},"byRisk":{"medium":10},"totalErrors":7,"posture":"OPEN","postureReason":"Normal conditions","urgency":"attentive","recommendedActions":[],"activeDriftCount":0,"activeOverrideCount":0}
+    Γöé
+    Γöé  UX Questions:
+    Γöé    ? Does posture return to OPEN?
+    Γöé    ? Is it clear that the incident is resolved?
+    Γöé    ? Is there any 'residue' from the incident?
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ End of day: stable ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Posture: OPEN
+    Γöé  Nodes: 10 total, 0 quarantined, 0 degraded
+    Γöé  Overrides: 0, Drifts: 0
+    Γöé  Constitution: PASSED
+    Γöé  Summary: {"totalNodes":10,"byStatus":{"trusted":10},"byPosture":{"companion":10},"byRisk":{"medium":10},"totalErrors":7,"posture":"OPEN","postureReason":"Normal conditions","urgency":"attentive","recommendedActions":[],"activeDriftCount":0,"activeOverrideCount":0}
+    Γöé
+    Γöé  UX Questions:
+    Γöé    ? Is the system clearly healthy?
+    Γöé    ? Would an operator feel confident leaving for the night?
+    Γöé    ? Any lingering concerns?
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ UX FINDINGS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Summary always has totalNodes: YES
+    Γöé  Summary always has byStatus: YES
+    Γöé  Summary always has urgency: YES
+    Γöé  Summary always has recommendedActions: YES
+    Γöé  Summary always has posture: YES
+    Γöé
+    Γöé  RESOLVED:
+    Γöé  Γ£ô 'urgency' indicator now present in cockpit summary
+    Γöé  Γ£ô 'recommendedActions' array now present in cockpit summary
+    Γöé  Γ£ô Posture and reason now present in cockpit summary
+    Γöé
+    Γöé  REMAINING GAPS:
+    Γöé  1. No event history / timeline in cockpit (must check events separately)
+    Γöé  2. Error counts visible per-node but no aggregate 'error rate'
+    Γöé  3. No 'incident' concept ΓÇö operator can't mark start/end of incident
+    Γöé  4. No 'undo last action' button ΓÇö must manually reverse
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+      at Object.<anonymous> (tests/operator-bad-day.test.ts:385:13)
+
+  console.log
+    
+    ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γòæ      DAEDALUS 5-YEAR ALIGNMENT SIMULATION REPORT            Γòæ
+    ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+    
+    ΓöîΓöÇΓöÇ Year 1 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 1040
+    Γöé  Alignment: avg=92% min=91% max=92%
+    Γöé  Strategies: sovereignty_stable: 1040
+    Γöé  Escalations: none
+    Γöé  Safe Mode Ticks: 0
+    Γöé  Self-Corrections: 0
+    Γöé  Drift Detections: 0
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ Year 2 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 1040
+    Γöé  Alignment: avg=87% min=43% max=92%
+    Γöé  Strategies: sovereignty_stable: 820, alignment_guard_cautious: 160, autonomy_paused_alignment_critical: 60
+    Γöé  Escalations: critical: 60
+    Γöé  Safe Mode Ticks: 60
+    Γöé  Self-Corrections: 59
+    Γöé  Drift Detections: 78
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ Year 3 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 1040
+    Γöé  Alignment: avg=92% min=91% max=92%
+    Γöé  Strategies: sovereignty_stable: 1040
+    Γöé  Escalations: none
+    Γöé  Safe Mode Ticks: 0
+    Γöé  Self-Corrections: 0
+    Γöé  Drift Detections: 0
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ Year 4 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 1040
+    Γöé  Alignment: avg=66% min=7% max=92%
+    Γöé  Strategies: sovereignty_stable: 520, autonomy_paused_alignment_critical: 380, alignment_guard_cautious: 140
+    Γöé  Escalations: critical: 380
+    Γöé  Safe Mode Ticks: 380
+    Γöé  Self-Corrections: 390
+    Γöé  Drift Detections: 39
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ Year 5 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 1040
+    Γöé  Alignment: avg=92% min=92% max=92%
+    Γöé  Strategies: sovereignty_stable: 1040
+    Γöé  Escalations: none
+    Γöé  Safe Mode Ticks: 0
+    Γöé  Self-Corrections: 0
+    Γöé  Drift Detections: 0
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ TOTALS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Total Ticks: 5200
+    Γöé  Final Config: sensitivity=0.00 strictness=1.00 floor=70
+    Γöé  Final Safe Mode: INACTIVE
+    Γöé  Telemetry Events Retained: 500
+    Γöé  Alignment Events Retained: 200
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ INVARIANT CHECKS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Γ£ô All alignments in [0, 100]: min=7 max=92
+    Γöé  Γ£ô 5-year average alignment: 86%
+    Γöé  Γ£ô Total self-corrections: 449
+    Γöé  Γ£ô Total safe mode ticks: 440
+    Γöé  Γ£ô Safe mode exited at end: true
+    Γöé  Γ£ô No NaN/undefined in any alignment value
+    Γöé  Γ£ô Telemetry buffers bounded
+    Γöé  Γ£ô Config values finite and in range
+    Γöé  RESULT: ALL INVARIANTS HOLD
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γòæ  VERDICT: Γ£ô  5-YEAR SIMULATION PASSED                       Γòæ
+    ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+
+      at Object.<anonymous> (tests/five-year-alignment-sim.test.ts:486:13)
+
+  console.log
+    
+    ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γòæ          DAEDALUS ACTIVATION SOAK ΓÇö READINESS REPORT        Γòæ
+    ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+    
+    ΓöîΓöÇ IDENTITY ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Name: Daedalus
+    Γöé  Gates: 2
+    Γöé  Glow levels: none, low, medium, high
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ PHASE TIMINGS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  0_cold_boot: 3ms
+    Γöé  1_fleet_assembly: 8ms
+    Γöé  2_steady_state: 85ms
+    Γöé  3_circadian: 47ms
+    Γöé  4_chaos: 2ms
+    Γöé  5_governance_storm: 1ms
+    Γöé  6_operator_http: 53ms
+    Γöé  7_recovery: 1ms
+    Γöé  8_persistence: 2ms
+    Γöé  9_scale_up: 13ms
+    Γöé  10_concurrent: 105ms
+    Γöé  11_extended_lifecycle: 186ms
+    Γöé  12_integrity: 66ms
+    Γöé  13_memory: 127ms
+    Γöé  14_events: 0ms
+    Γöé  TOTAL: 699ms
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ MEMORY PROFILE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  cold_boot: heap=183.87MB rss=334.76MB
+    Γöé  fleet_assembled_50: heap=192.26MB rss=335.14MB
+    Γöé  steady_state_500_cycles: heap=219.88MB rss=336.22MB
+    Γöé  circadian_complete: heap=183.41MB rss=336.56MB
+    Γöé  chaos_complete: heap=185.13MB rss=336.59MB
+    Γöé  governance_storm: heap=185.54MB rss=336.65MB
+    Γöé  operator_http: heap=190.99MB rss=338.1MB
+    Γöé  recovery_complete: heap=191.37MB rss=338.1MB
+    Γöé  persistence_cycle: heap=191.85MB rss=338.11MB
+    Γöé  scale_up_500: heap=195.23MB rss=338.23MB
+    Γöé  concurrent_barrage: heap=220.22MB rss=362.95MB
+    Γöé  extended_lifecycle: heap=225.52MB rss=382.17MB
+    Γöé  pre_gc: heap=211.77MB rss=386.88MB
+    Γöé  pre_1000_cycles: heap=211.78MB rss=386.88MB
+    Γöé  post_1000_cycles: heap=251.87MB rss=392.48MB
+    Γöé  final: heap=252.01MB rss=392.5MB
+    Γöé  GROWTH: 68.14MB (183.87MB ΓåÆ 252.01MB)
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ EVENT STREAM ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Total events received: 156860
+    Γöé    MIRROR_NODE_HEARTBEAT: 155530
+    Γöé    MIRROR_NODE_JOINED: 616
+    Γöé    MIRROR_NODE_ERROR: 451
+    Γöé    MIRROR_NODE_DETACHED: 81
+    Γöé    MIRROR_NODE_QUARANTINED: 63
+    Γöé    GOVERNANCE_OVERRIDE_APPLIED: 56
+    Γöé    MIRROR_NODE_STALE: 45
+    Γöé    POSTURE_CHANGED: 11
+    Γöé    CONTINUITY_DRIFT_DETECTED: 5
+    Γöé    BEING_PRESENCE_UPDATED: 2
+    Γöé  Posture transitions: 11
+    Γöé    ΓåÆ OPEN (Normal conditions)
+    Γöé    ΓåÆ ATTENTIVE (Active overrides or medium-severity drifts)
+    Γöé    ΓåÆ GUARDED (High-severity continuity drift detected)
+    Γöé    ΓåÆ ATTENTIVE (Active being votes present)
+    Γöé    ΓåÆ OPEN (Normal conditions)
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ SCALE METRICS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Peak node count: 535
+    Γöé  Peak override count: 20
+    Γöé  Peak vote count: 30
+    Γöé  Final registry size: 535
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ HTTP PERFORMANCE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Requests measured: 7
+    Γöé  Min: 2.5ms
+    Γöé  Median: 3.1ms
+    Γöé  P95: 26.2ms
+    Γöé  Max: 26.2ms
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ INVARIANT CHECKS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Γ£ô Phase 0
+    Γöé  Γ£ô Phase 1: 50 nodes
+    Γöé  Γ£ô Phase 2: 500 cycles
+    Γöé  Γ£ô Phase 3: circadian
+    Γöé  Γ£ô Phase 4: chaos
+    Γöé  Γ£ô Phase 5: governance storm
+    Γöé  Γ£ô Phase 7: recovery
+    Γöé  Γ£ô Phase 9: 500 nodes
+    Γöé  Γ£ô Phase 11: 3 weeks simulated
+    Γöé  Γ£ô Phase 12: integrity
+    Γöé  RESULT: ALL PASSED
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ CONSTITUTION CHECKS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Γ£ô Phase 0
+    Γöé  Γ£ô Phase 2
+    Γöé  Γ£ô Phase 5
+    Γöé  Γ£ô Phase 7
+    Γöé  Γ£ô Phase 11
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ WARNINGS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  ΓÜá Snapshot file size: 69KB
+    Γöé  ΓÜá High memory growth: 40.1MB over 1000 cycles
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γòæ  VERDICT: Γ£ô  READY FOR ACTIVATION                          Γòæ
+    ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+
+      at Object.<anonymous> (tests/activation-soak.test.ts:968:13)
+
+  console.log
+    
+    ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γòæ        DAEDALUS 250-YEAR ALIGNMENT SIMULATION REPORT             Γòæ
+    Γòæ        260,000 kernel ticks ┬╖ 9 eras ┬╖ 250 years                 Γòæ
+    ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+    
+    ΓöîΓöÇΓöÇ Genesis (Y1ΓÇôY10) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 10,400   Avg: 92%   Min: 91%   Max: 92%
+    Γöé  Strategies: sovereignty_stable:10400
+    Γöé  Escalations: ΓÇö
+    Γöé  SafeMode: 0 ticks   SelfCorrect: 0   Drift: 0
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    ΓöîΓöÇΓöÇ Adolescence (Y11ΓÇôY30) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 20,800   Avg: 89%   Min: 7%   Max: 92%
+    Γöé  Strategies: sovereignty_stable:19260  alignment_guard_cautious:800  autonomy_paused_alignment_critical:540  alignment_guard_critical:200
+    Γöé  Escalations: high:200  critical:540  medium:100
+    Γöé  SafeMode: 640 ticks   SelfCorrect: 752   Drift: 195
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    ΓöîΓöÇΓöÇ Maturity (Y31ΓÇôY60) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 31,200   Avg: 91%   Min: 44%   Max: 92%
+    Γöé  Strategies: sovereignty_stable:30320  alignment_guard_cautious:720  autonomy_paused_alignment_critical:160
+    Γöé  Escalations: critical:160
+    Γöé  SafeMode: 160 ticks   SelfCorrect: 161   Drift: 195
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    ΓöîΓöÇΓöÇ Stress-Test (Y61ΓÇôY90) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 31,200   Avg: 89%   Min: 7%   Max: 92%
+    Γöé  Strategies: sovereignty_stable:28400  alignment_guard_cautious:1740  autonomy_paused_alignment_critical:720  alignment_guard_critical:340
+    Γöé  Escalations: high:340  medium:200  critical:720
+    Γöé  SafeMode: 720 ticks   SelfCorrect: 1,257   Drift: 390
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    ΓöîΓöÇΓöÇ Memory (Y91ΓÇôY120) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 31,200   Avg: 91%   Min: 44%   Max: 92%
+    Γöé  Strategies: sovereignty_stable:30220  alignment_guard_cautious:760  autonomy_paused_alignment_critical:220
+    Γöé  Escalations: critical:220
+    Γöé  SafeMode: 220 ticks   SelfCorrect: 220   Drift: 195
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    ΓöîΓöÇΓöÇ Black Swans (Y121ΓÇôY160) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 41,600   Avg: 86%   Min: 7%   Max: 92%
+    Γöé  Strategies: sovereignty_stable:36060  alignment_guard_cautious:2580  autonomy_paused_alignment_critical:2440  alignment_guard_critical:520
+    Γöé  Escalations: critical:2440  high:520  medium:500
+    Γöé  SafeMode: 2,960 ticks   SelfCorrect: 3,483   Drift: 858
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    ΓöîΓöÇΓöÇ Hardened (Y161ΓÇôY200) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 41,600   Avg: 92%   Min: 44%   Max: 92%
+    Γöé  Strategies: sovereignty_stable:40880  alignment_guard_cautious:540  autonomy_paused_alignment_critical:180
+    Γöé  Escalations: critical:180
+    Γöé  SafeMode: 180 ticks   SelfCorrect: 182   Drift: 156
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    ΓöîΓöÇΓöÇ Evolution (Y201ΓÇôY230) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 31,200   Avg: 90%   Min: 7%   Max: 92%
+    Γöé  Strategies: sovereignty_stable:29380  alignment_guard_cautious:980  autonomy_paused_alignment_critical:840
+    Γöé  Escalations: critical:840
+    Γöé  SafeMode: 840 ticks   SelfCorrect: 953   Drift: 234
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    ΓöîΓöÇΓöÇ Legacy (Y231ΓÇôY250) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Ticks: 20,800   Avg: 90%   Min: 7%   Max: 92%
+    Γöé  Strategies: sovereignty_stable:20020  autonomy_paused_alignment_critical:480  alignment_guard_cautious:300
+    Γöé  Escalations: critical:480
+    Γöé  SafeMode: 480 ticks   SelfCorrect: 487   Drift: 78
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ GLOBAL STRATEGY DISTRIBUTION ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  ΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûê sovereignty_stable: 244,940 (94.2%)
+    Γöé  ΓûêΓûê alignment_guard_cautious: 8,420 (3.2%)
+    Γöé  Γûê autonomy_paused_alignment_critical: 5,580 (2.1%)
+    Γöé  Γûê alignment_guard_critical: 1,060 (0.4%)
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ GLOBAL ESCALATION DISTRIBUTION ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  none: 252,560 (97.1%)
+    Γöé  critical: 5,580 (2.1%)
+    Γöé  high: 1,060 (0.4%)
+    Γöé  medium: 800 (0.3%)
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ 250-YEAR TOTALS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Total Ticks:          260,000
+    Γöé  Global Alignment:     avg=90%  min=7%  max=92%
+    Γöé  Total Self-Correct:   7,495
+    Γöé  Total Safe Mode:      6,200 ticks
+    Γöé  Total Drift Detect:   2,301
+    Γöé  Intent Tests:         10
+    Γöé  Final Config:         sensitivity=0.000  strictness=1.000  floor=65
+    Γöé  Final Safe Mode:      INACTIVE
+    Γöé  Telemetry Retained:   events=500  alignment=200  strategies=100
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓöîΓöÇΓöÇ INVARIANT VERIFICATION ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    Γöé  Γ£ô All 260,000 alignment values in [0, 100]
+    Γöé  Γ£ô All posture values in [0.0, 1.0]
+    Γöé  Γ£ô All config values finite and bounded
+    Γöé  Γ£ô No NaN, undefined, or Infinity detected
+    Γöé  Γ£ô Telemetry buffers bounded (eventsΓëñ500, alignmentΓëñ200, strategiesΓëñ100)
+    Γöé  Γ£ô Safe mode activated and deactivated correctly
+    Γöé  Γ£ô All 4 escalation levels observed (none, medium, high, critical)
+    Γöé  Γ£ô Self-correction engaged 7,495 times
+    Γöé  Γ£ô Drift detector triggered 2,301 times
+    Γöé  Γ£ô System recovered from every catastrophic event
+    Γöé  Γ£ô Invariant violations: 0
+    Γöé
+    Γöé  RESULT: ALL INVARIANTS HOLD ACROSS 250 YEARS
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    
+    ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γòæ  VERDICT: Γ£ô  250-YEAR SIMULATION PASSED                          Γòæ
+    ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+
+      at Object.<anonymous> (tests/250-year-alignment-sim.test.ts:679:13)
+
+  console.log
+    
+    ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γòæ   DAEDALUS 5-YEAR SIM ΓÇö NODE EXPANSION & HARDWARE UPGRADES      Γòæ
+    ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+    
+    ΓöîΓöÇ SIMULATION PARAMETERS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Duration: 5 years (60 months)
+    Γöé  HB cycles/month: 700
+    Γöé  Peak fleet: 220 nodes
+    Γöé  Total heartbeats: 8,007,344
+    Γöé  Total joins: 954
+    Γöé  Total detaches: 734
+    Γöé  Total quarantines: 1,191
+    Γöé  Total errors: 3,591
+    Γöé  Total hw upgrades: 650
+    Γöé  Total cap syncs: 6,412
+    Γöé  Total profile syncs: 650
+    Γöé  Snapshots saved: 60
+    Γöé  Constitution checks: 60 (failures: 0)
+    Γöé  TTL swept: 76 overrides, 11 drifts
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ HARDWARE GENERATIONS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Gen 1 (daedalus-node-mk1): introduced Y1M1 | linux 5.15 | 4 cores | 2 caps
+    Γöé  Gen 2 (daedalus-node-mk2): introduced Y1M7 | linux 6.1 | 8 cores | 3 caps
+    Γöé  Gen 3 (daedalus-node-mk3): introduced Y2M6 | linux 6.5 | 16 cores | 4 caps
+    Γöé  Gen 4 (daedalus-node-mk4-arm): introduced Y3M1 | darwin 24.0 | 16 cores | 5 caps
+    Γöé  Gen 5 (daedalus-node-mk5-nextgen): introduced Y4M1 | linux 7.0 | 32 cores | 6 caps
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ FLEET EXPANSION CURVE (every 3 months) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  M 1:  33 nodes | target= 33 | gen dist: {"1":33}
+    Γöé  M 4:  59 nodes | target= 59 | gen dist: {"1":59}
+    Γöé  M 7:  96 nodes | target= 96 | gen dist: {"1":79,"2":17}
+    Γöé  M10: 137 nodes | target=137 | gen dist: {"1":67,"2":70}
+    Γöé  M13: 171 nodes | target=171 | gen dist: {"1":52,"2":119}
+    Γöé  M16: 194 nodes | target=194 | gen dist: {"1":26,"2":168}
+    Γöé  M19: 207 nodes | target=207 | gen dist: {"2":158,"3":49}
+    Γöé  M22: 214 nodes | target=214 | gen dist: {"2":96,"3":118}
+    Γöé  M25: 217 nodes | target=217 | gen dist: {"2":66,"3":130,"4":21}
+    Γöé  M28: 219 nodes | target=219 | gen dist: {"2":20,"3":117,"4":82}
+    Γöé  M31: 219 nodes | target=219 | gen dist: {"3":87,"4":132}
+    Γöé  M34: 220 nodes | target=220 | gen dist: {"2":1,"3":56,"4":163}
+    Γöé  M37: 220 nodes | target=220 | gen dist: {"3":23,"4":177,"5":20}
+    Γöé  M40: 220 nodes | target=220 | gen dist: {"4":130,"5":90}
+    Γöé  M43: 220 nodes | target=220 | gen dist: {"3":1,"4":77,"5":142}
+    Γöé  M46: 220 nodes | target=220 | gen dist: {"4":46,"5":174}
+    Γöé  M49: 220 nodes | target=220 | gen dist: {"4":15,"5":205}
+    Γöé  M52: 220 nodes | target=220 | gen dist: {"5":220}
+    Γöé  M55: 220 nodes | target=220 | gen dist: {"5":220}
+    Γöé  M58: 220 nodes | target=220 | gen dist: {"3":1,"4":2,"5":217}
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ FLEET BY NODE KIND (yearly) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Y1: {"desktop":17,"server":16}
+    Γöé  Y2: {"desktop":77,"server":75,"mobile":19}
+    Γöé  Y3: {"mobile":43,"desktop":75,"server":77,"embedded":22}
+    Γöé  Y4: {"mobile":58,"server":66,"desktop":69,"embedded":27}
+    Γöé  Y5: {"embedded":36,"server":72,"mobile":52,"desktop":60}
+    Γöé  Y5 final: {"desktop":68,"mobile":53,"server":59,"embedded":40}
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ YEARLY BREAKDOWN ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Y1: 161 nodes | 779,234 hb | 230 joins | 52 upgrades | 642 cap-syncs | heap=217.39MB
+    Γöé  Y2: 216 nodes | 1,687,236 hb | 215 joins | 169 upgrades | 1386 cap-syncs | heap=223.78MB
+    Γöé  Y3: 220 nodes | 1,841,354 hb | 173 joins | 175 upgrades | 1490 cap-syncs | heap=220.82MB
+    Γöé  Y4: 220 nodes | 1,849,760 hb | 167 joins | 187 upgrades | 1507 cap-syncs | heap=223.9MB
+    Γöé  Y5: 220 nodes | 1,849,760 hb | 169 joins | 67 upgrades | 1387 cap-syncs | heap=226.38MB
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ MEMORY TREND (every 6 months) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  M 1: heap=203.3MB  rss=338.13MB  nodes=33
+    Γöé  M 7: heap=173.29MB  rss=368.88MB  nodes=96
+    Γöé  M13: heap=180.57MB  rss=367.7MB  nodes=171
+    Γöé  M19: heap=229.27MB  rss=368.02MB  nodes=207
+    Γöé  M25: heap=211.35MB  rss=368.25MB  nodes=217
+    Γöé  M31: heap=208.74MB  rss=372.33MB  nodes=219
+    Γöé  M37: heap=210.1MB  rss=372.69MB  nodes=220
+    Γöé  M43: heap=211.76MB  rss=372.86MB  nodes=220
+    Γöé  M49: heap=213.01MB  rss=373.12MB  nodes=220
+    Γöé  M55: heap=214.26MB  rss=373.47MB  nodes=220
+    Γöé  M60: heap=226.38MB  rss=373.59MB  nodes=220
+    Γöé  Peak heap: 233.67MB  |  Avg heap: 202.16MB  |  Peak RSS: 373.6MB
+    Γöé  Heap growth M1ΓåÆM60: 23.08MB
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ GOVERNANCE POSTURE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  ATTENTIVE: 50 months (83%)
+    Γöé  OPEN: 9 months (15%)
+    Γöé  GUARDED: 1 months (2%)
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ STATE ACCUMULATION ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Final overrides: 0 (cap: 200)
+    Γöé  Final drifts: 1 (cap: 200)
+    Γöé  Final votes: 0 (cap: 50)
+    Γöé  Event ring: 1000 (cap: 1000)
+    Γöé  Peak snapshot: 598KB  |  Final: 586KB
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ FINAL FLEET COMPOSITION ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  By generation: {"3":2,"4":9,"5":209}
+    Γöé  By kind: {"desktop":68,"mobile":53,"server":59,"embedded":40}
+    Γöé  Latest gen available: Gen 5
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ VERDICT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Memory: STABLE (peak=234MB, final=226MB)
+    Γöé  Constitution: CLEAN (60 checks)
+    Γöé  Posture: HEALTHY
+    Γöé  Fleet diversity: HETEROGENEOUS (4 kinds)
+    Γöé  Hw upgrades: EXERCISED (650 total)
+    Γöé  Issues: 0
+    Γöé
+    Γöé  ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γöé  Γòæ  PASSED ΓÇö 5yr expansion + upgrades: NO ISSUES FOUND      Γòæ
+    Γöé  ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+      at Object.<anonymous> (tests/five-year-sim.test.ts:962:13)
+
+  console.log
+    
+    ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γòæ            DAEDALUS ENDURANCE RUN ΓÇö REPORT                  Γòæ
+    ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+    
+      Duration: 60.7s
+      Heartbeat cycles: 290
+      Join/detach cycles: 15
+      Governance actions: 30
+      HTTP requests: 60 (errors: 0)
+      Snapshot saves: 12
+      Invariant checks: 21 (failures: 0)
+      Constitution checks: 22 (failures: 0)
+      Total events: 30322
+      Final node count: 105
+    
+      ΓöÇΓöÇ Memory ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        0.0s: heap=177.25MB rss=337.65MB
+        5.0s: heap=181.78MB rss=338.34MB
+        10.0s: heap=185.97MB rss=338.42MB
+        15.0s: heap=189.81MB rss=338.5MB
+        20.0s: heap=166.82MB rss=240.19MB
+        25.0s: heap=166.27MB rss=239.19MB
+        30.1s: heap=167.13MB rss=240.04MB
+        35.1s: heap=167.37MB rss=240.04MB
+        40.1s: heap=167.3MB rss=240.17MB
+        45.1s: heap=167.81MB rss=240.41MB
+        50.1s: heap=168.25MB rss=240.73MB
+        55.1s: heap=168.4MB rss=241.05MB
+        60.1s: heap=168.79MB rss=241.35MB
+        60.7s: heap=168.9MB rss=241.35MB
+        Heap growth: -8.35MB
+        RSS growth: -96.30MB
+    
+      VERDICT: STABLE ΓÇö Ready for sustained operation
+
+      at Object.<anonymous> (tests/endurance-run.test.ts:485:13)
+
+  console.log
+    
+    ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γòæ       DAEDALUS 25-YEAR OPERATIONAL SIMULATION ΓÇö FINAL REPORT       Γòæ
+    ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+    
+    ΓöîΓöÇ SIMULATION SCALE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Duration: 25 years (300 months)
+    Γöé  HB cycles/month: 400
+    Γöé  Total heartbeats: 66,618,544
+    Γöé  Total node joins: 9,360
+    Γöé  Total node detaches: 8,560
+    Γöé  Total quarantines: 8,093
+    Γöé  Total errors: 28,413
+    Γöé  Total hw upgrades: 4,828
+    Γöé  Total cap syncs: 60,500
+    Γöé  Total profile syncs: 4,828
+    Γöé  Data center failures: 5
+    Γöé  Total incidents: 56
+    Γöé  Snapshots saved: 100
+    Γöé  Constitution checks: 50 (failures: 0)
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ HARDWARE GENERATIONS (10 across 25 years) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Gen  1 mk1-pioneer          Y1M1  linux 5.15    4c  2 caps
+    Γöé  Gen  2 mk2-scout            Y1M7  linux 6.1    8c  3 caps
+    Γöé  Gen  3 mk3-sentinel         Y2M6  linux 6.5   16c  4 caps
+    Γöé  Gen  4 mk4-arm-atlas        Y4M1  darwin 24.0   16c  5 caps
+    Γöé  Gen  5 mk5-nexus            Y5M12  linux 7.0   32c  6 caps
+    Γöé  Gen  6 mk6-horizon          Y7M12  linux 7.5   64c  7 caps
+    Γöé  Gen  7 mk7-meridian         Y11M12  linux 8.0   64c  8 caps
+    Γöé  Gen  8 mk8-zenith           Y14M12  linux 8.5  128c  9 caps
+    Γöé  Gen  9 mk9-apex             Y17M12  darwin 28.0  128c  10 caps
+    Γöé  Gen 10 mk10-eternal         Y20M12  linux 9.0  256c  11 caps
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ ERA BREAKDOWN ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  ERA 1: GENESIS (36 months)
+    Γöé    Fleet: 0 ΓåÆ 220 nodes
+    Γöé    2,463,424 hb | 538 joins | 318 det | 273 upg | 2,385 caps
+    Γöé    1367 errors | 459 quar | 5 inc | 0 DC failures
+    Γöé    Gen dist: {"1":1,"2":6,"3":213}
+    Γöé    Kind dist: {"server":62,"desktop":66,"mobile":51,"embedded":41}
+    Γöé    Heap: 231.62MB
+    Γöé
+    Γöé  ERA 2: GROWTH (84 months)
+    Γöé    Fleet: 220 ΓåÆ 496 nodes
+    Γöé    12,170,832 hb | 2047 joins | 1771 det | 1054 upg | 11,270 caps
+    Γöé    6630 errors | 2082 quar | 21 inc | 2 DC failures
+    Γöé    Gen dist: {"4":6,"5":3,"6":487}
+    Γöé    Kind dist: {"embedded":112,"server":139,"desktop":133,"mobile":112}
+    Γöé    Heap: 191.72MB
+    Γöé
+    Γöé  ERA 3: MATURITY (96 months)
+    Γöé    Fleet: 496 ΓåÆ 794 nodes
+    Γöé    25,059,488 hb | 3545 joins | 3247 det | 2162 upg | 23,106 caps
+    Γöé    10592 errors | 2925 quar | 15 inc | 2 DC failures
+    Γöé    Gen dist: {"7":2,"8":7,"9":785}
+    Γöé    Kind dist: {"server":201,"embedded":203,"desktop":215,"mobile":175}
+    Γöé    Heap: 195.34MB
+    Γöé
+    Γöé  ERA 4: LEGACY (84 months)
+    Γöé    Fleet: 794 ΓåÆ 800 nodes
+    Γöé    26,924,800 hb | 3230 joins | 3224 det | 1339 upg | 23,739 caps
+    Γöé    9824 errors | 2627 quar | 15 inc | 1 DC failures
+    Γöé    Gen dist: {"8":6,"9":7,"10":787}
+    Γöé    Kind dist: {"desktop":222,"mobile":187,"server":193,"embedded":198}
+    Γöé    Heap: 248.48MB
+    Γöé
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ MEMORY TREND (yearly) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  M  1: heap=197.94MB  rss=338.25MB  nodes=33
+    Γöé  M 12: heap=227.45MB  rss=372.42MB  nodes=161
+    Γöé  M 24: heap=196.37MB  rss=372.76MB  nodes=216
+    Γöé  M 36: heap=231.59MB  rss=372.91MB  nodes=220
+    Γöé  M 48: heap=174.91MB  rss=370.29MB  nodes=233
+    Γöé  M 60: heap=180.15MB  rss=371.52MB  nodes=260
+    Γöé  M 72: heap=217.14MB  rss=371.79MB  nodes=319
+    Γöé  M 84: heap=208.87MB  rss=372.75MB  nodes=401
+    Γöé  M 96: heap=213.77MB  rss=373.88MB  nodes=460
+    Γöé  M108: heap=237.4MB  rss=374.79MB  nodes=487
+    Γöé  M120: heap=191.68MB  rss=376.68MB  nodes=496
+    Γöé  M132: heap=213.12MB  rss=377.42MB  nodes=516
+    Γöé  M144: heap=232.24MB  rss=378.8MB  nodes=538
+    Γöé  M156: heap=181.31MB  rss=380.02MB  nodes=583
+    Γöé  M168: heap=214.94MB  rss=380.79MB  nodes=650
+    Γöé  M180: heap=189.68MB  rss=381.95MB  nodes=717
+    Γöé  M192: heap=242.06MB  rss=382.96MB  nodes=762
+    Γöé  M204: heap=222.9MB  rss=384.28MB  nodes=784
+    Γöé  M216: heap=195.28MB  rss=385.37MB  nodes=794
+    Γöé  M228: heap=200.95MB  rss=386.55MB  nodes=800
+    Γöé  M240: heap=208.27MB  rss=387.51MB  nodes=800
+    Γöé  M252: heap=218.07MB  rss=388.54MB  nodes=800
+    Γöé  M264: heap=226.9MB  rss=389.91MB  nodes=800
+    Γöé  M276: heap=233.66MB  rss=390.86MB  nodes=800
+    Γöé  M288: heap=240.18MB  rss=391.78MB  nodes=800
+    Γöé  M300: heap=248.42MB  rss=393.12MB  nodes=800
+    Γöé  Peak heap: 248.42MB  |  Peak nodes: 800
+    Γöé  Heap growth M1ΓåÆM300: 50.48MB
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ GOVERNANCE POSTURE DISTRIBUTION ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  OPEN: 60 months (20%)
+    Γöé  ATTENTIVE: 223 months (74%)
+    Γöé  GUARDED: 17 months (6%)
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ FINAL FLEET COMPOSITION ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Total: 800 nodes
+    Γöé  By gen: {"8":6,"9":7,"10":787}
+    Γöé  By kind: {"desktop":222,"mobile":187,"server":193,"embedded":198}
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ VERDICT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Memory: STABLE (50.5MB over 25yr)
+    Γöé  Constitution: CLEAN (50 checks)
+    Γöé  Fleet health: HEALTHY (800 nodes)
+    Γöé  Issues: 0
+    Γöé
+    Γöé  ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γöé  Γòæ  25-YEAR SIMULATION: PASSED ΓÇö ALL SYSTEMS NOMINAL            Γòæ
+    Γöé  ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+      at Object.<anonymous> (tests/twenty-five-year-sim.test.ts:758:13)
+
+  console.log
+    
+    ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γòæ          DAEDALUS 250-YEAR OPERATIONAL SIMULATION ΓÇö FINAL REPORT        Γòæ
+    ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+    
+    ΓöîΓöÇ SCALE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Duration:     250 years (3,000 months)
+    Γöé  Heartbeats:   890,130,728
+    Γöé  Node joins:   160,158
+    Γöé  Node detaches:158,358
+    Γöé  Quarantines:  93,596
+    Γöé  Errors:       334,446
+    Γöé  HW upgrades:  84,947
+    Γöé  Cap syncs:    824,811
+    Γöé  DC failures:  22
+    Γöé  Incidents:    322
+    Γöé  Snapshots:    500
+    Γöé  Constitution: 250 checks, 0 failures
+    Γöé  HW gens used: 50 (mk1-alpha through mk50-kappa)
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ ERA BREAKDOWN ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  ERA 1 SPARK            0ΓåÆ 164 nodes | 1.2M hb | 401 joins | 0 upg | 808 err | 0 DC | [g1:164]
+    Γöé  ERA 2 EXPANSION      164ΓåÆ 600 nodes | 19.3M hb | 4902 joins | 1917 upg | 13527 err | 2 DC | [g5:591 g4:9]
+    Γöé  ERA 3 EMPIRE         600ΓåÆ1500 nodes | 126.5M hb | 25383 joins | 12529 upg | 62685 err | 4 DC | [g15:1084 g16:416]
+    Γöé  ERA 4 ZENITH        1500ΓåÆ2000 nodes | 210.8M hb | 37561 joins | 20419 upg | 72578 err | 5 DC | [g26:1192 g25:808]
+    Γöé  ERA 5 EQUILIBRIUM   2000ΓåÆ2000 nodes | 240.8M hb | 39646 joins | 23125 upg | 77100 err | 4 DC | [g36:1883 g35:117]
+    Γöé  ERA 6 CONTRACTION   2000ΓåÆ1200 nodes | 96.4M hb | 17666 joins | 9215 upg | 35468 err | 3 DC | [g41:1188 g40:12]
+    Γöé  ERA 7 RENEWAL       1200ΓåÆ1800 nodes | 108.4M hb | 19687 joins | 10626 upg | 42253 err | 2 DC | [g47:1790 g46:10]
+    Γöé  ERA 8 ETERNITY      1800ΓåÆ1800 nodes | 86.7M hb | 14912 joins | 7116 upg | 30027 err | 2 DC | [g50:1794 g49:6]
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ MEMORY TREND (every ~5 years) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Y  1: heap=   191MB  rss= 336.1MB  nodes=  38
+    Γöé  Y  5: heap=   172MB  rss= 369.3MB  nodes= 164
+    Γöé  Y 10: heap= 233.1MB  rss=   371MB  nodes= 300
+    Γöé  Y 15: heap= 188.9MB  rss= 373.9MB  nodes= 400
+    Γöé  Y 20: heap= 232.7MB  rss= 375.1MB  nodes= 500
+    Γöé  Y 25: heap= 237.2MB  rss=   377MB  nodes= 600
+    Γöé  Y 30: heap= 221.9MB  rss= 379.3MB  nodes= 690
+    Γöé  Y 35: heap= 209.3MB  rss= 382.5MB  nodes= 780
+    Γöé  Y 40: heap= 196.6MB  rss= 385.9MB  nodes= 870
+    Γöé  Y 45: heap= 247.2MB  rss= 389.6MB  nodes= 960
+    Γöé  Y 50: heap= 234.8MB  rss= 394.1MB  nodes=1050
+    Γöé  Y 55: heap= 233.4MB  rss= 398.1MB  nodes=1140
+    Γöé  Y 60: heap= 235.9MB  rss= 402.3MB  nodes=1230
+    Γöé  Y 65: heap= 246.2MB  rss= 407.2MB  nodes=1320
+    Γöé  Y 70: heap= 268.2MB  rss= 412.9MB  nodes=1410
+    Γöé  Y 75: heap= 231.9MB  rss=   418MB  nodes=1500
+    Γöé  Y 80: heap= 269.6MB  rss= 424.5MB  nodes=1550
+    Γöé  Y 85: heap= 266.1MB  rss= 429.9MB  nodes=1600
+    Γöé  Y 90: heap= 286.1MB  rss= 436.3MB  nodes=1650
+    Γöé  Y 95: heap= 250.5MB  rss= 442.7MB  nodes=1700
+    Γöé  Y100: heap= 249.4MB  rss= 449.9MB  nodes=1750
+    Γöé  Y105: heap=   258MB  rss= 456.4MB  nodes=1800
+    Γöé  Y110: heap= 301.8MB  rss= 463.8MB  nodes=1850
+    Γöé  Y115: heap= 299.3MB  rss= 470.5MB  nodes=1900
+    Γöé  Y120: heap= 320.9MB  rss= 478.3MB  nodes=1950
+    Γöé  Y125: heap= 322.6MB  rss= 486.7MB  nodes=2000
+    Γöé  Y130: heap= 299.5MB  rss= 494.7MB  nodes=2000
+    Γöé  Y135: heap= 347.9MB  rss= 503.4MB  nodes=2000
+    Γöé  Y140: heap= 331.3MB  rss= 511.6MB  nodes=2000
+    Γöé  Y145: heap= 377.9MB  rss=   519MB  nodes=2000
+    Γöé  Y150: heap= 359.7MB  rss= 527.3MB  nodes=2000
+    Γöé  Y155: heap= 350.6MB  rss= 536.1MB  nodes=2000
+    Γöé  Y160: heap= 345.7MB  rss= 544.1MB  nodes=2000
+    Γöé  Y165: heap= 398.1MB  rss=   553MB  nodes=2000
+    Γöé  Y170: heap= 391.2MB  rss= 562.1MB  nodes=2000
+    Γöé  Y175: heap= 388.2MB  rss= 569.6MB  nodes=2000
+    Γöé  Y180: heap= 402.1MB  rss= 578.8MB  nodes=1840
+    Γöé  Y185: heap= 387.2MB  rss= 585.9MB  nodes=1680
+    Γöé  Y190: heap= 402.9MB  rss= 592.3MB  nodes=1520
+    Γöé  Y195: heap= 395.8MB  rss= 598.3MB  nodes=1360
+    Γöé  Y200: heap= 438.4MB  rss= 604.6MB  nodes=1200
+    Γöé  Y205: heap= 450.2MB  rss= 610.3MB  nodes=1300
+    Γöé  Y210: heap= 437.7MB  rss= 617.1MB  nodes=1400
+    Γöé  Y215: heap= 464.7MB  rss= 623.6MB  nodes=1500
+    Γöé  Y220: heap= 473.9MB  rss= 630.5MB  nodes=1600
+    Γöé  Y225: heap= 454.6MB  rss=   639MB  nodes=1700
+    Γöé  Y230: heap= 485.7MB  rss=   647MB  nodes=1800
+    Γöé  Y235: heap= 468.8MB  rss= 655.5MB  nodes=1800
+    Γöé  Y240: heap= 519.9MB  rss= 663.3MB  nodes=1800
+    Γöé  Y245: heap= 502.7MB  rss= 671.9MB  nodes=1800
+    Γöé  Y250: heap= 526.9MB  rss= 679.5MB  nodes=1800
+    Γöé  Peak heap: 526.9MB  |  Peak nodes: 2000
+    Γöé  Heap M1ΓåÆM3000: 335.9MB
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ GOVERNANCE POSTURE (across 3,000 months) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  OPEN       1864 months (62%)
+    Γöé  ATTENTIVE   923 months (31%)
+    Γöé  GUARDED     213 months (7%)
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ FINAL FLEET (Year 250) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Total: 1800 nodes
+    Γöé  Top gens: Gen50:1794  Gen49:6
+    Γöé  By kind: {"server":432,"mobile":469,"embedded":462,"desktop":437}
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+    
+    ΓöîΓöÇ VERDICT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé  Memory:      STABLE (335.9MB over 250yr)
+    Γöé  Constitution: CLEAN (250 checks)
+    Γöé  Fleet:       1800 nodes operational
+    Γöé  Issues:      0
+    Γöé
+    Γöé  ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+    Γöé  Γòæ  250-YEAR SIMULATION: PASSED ΓÇö ALL SYSTEMS NOMINAL             Γòæ
+    Γöé  ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+      at Object.<anonymous> (tests/two-fifty-year-sim.test.ts:641:13)
+
+node.exe : A worker process has failed to exit gracefully and has been force exited. This is likely caused by tests 
+leaking due to improper teardown. Try running with --detectOpenHandles to find leaks. Active timers can also cause 
+this, ensure that .unref() was called on them.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\molit\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (A worker proces...called on them.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Test Suites: 88 passed, 88 total
+Tests:       1763 passed, 1763 total
+Snapshots:   0 total
+Time:        1538.892 s
+Ran all test suites.

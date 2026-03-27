@@ -215,6 +215,7 @@ def _submit_canonization_proposal(deviation: Dict[str, Any]) -> Dict[str, Any]:
             tier_requested=3,
             subsystem="entropy.drift_court",
             risk_level="low",
+            priority="normal",
             drift_context={
                 "drift_level": "observed_deviation",
                 "deviation_name": deviation.get("name"),
@@ -241,7 +242,17 @@ def _submit_canonization_proposal(deviation: Dict[str, Any]) -> Dict[str, Any]:
                 "target": "canonical_template",
                 "invariant_name": deviation.get("name"),
             }],
-            expected_impact="Stabilizes the canonical template by incorporating a proven pattern",
+            expected_impact={
+                "stability_delta": 0.02,
+                "risk_delta": -0.01,
+                "trust_delta": 0.01,
+                "confidence": 0.8,
+                "description": "Stabilizes the canonical template by incorporating a proven pattern",
+            },
+            sandbox_preview={
+                "status": "not_applicable",
+                "notes": "Canonization is a template metadata change, no sandbox needed.",
+            },
         )
         return {
             "proposal_id": proposal.get("id"),

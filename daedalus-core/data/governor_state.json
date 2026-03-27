@@ -1,0 +1,21 @@
+{
+  "autonomy_mode": "normal",
+  "locked": false,
+  "current_tier": 1,
+  "drift": {},
+  "stability": {},
+  "patch_history": {
+    "total_cycles": 0,
+    "successful_patches": 0,
+    "failed_patches": 0,
+    "reverted_patches": 0,
+    "failed_high_level_cycles": 0,
+    "failed_tier2_cycles": 0,
+    "recent_failures": []
+  },
+  "escalation": {},
+  "proposals": {
+    "pending": [],
+    "recent_decisions": []
+  }
+}
