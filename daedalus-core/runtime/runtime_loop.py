@@ -55,8 +55,13 @@ class RuntimeLoop:
         """Execute a single governed runtime cycle."""
         self._cycle_counter += 1
         cycle_id = f"rt-{uuid.uuid4().hex[:12]}"
+        cycle_result: Dict[str, Any] = {"status": "error", "error": "cycle_not_started"}
 
-        hem_maybe_enter(trigger_reason="runtime_cycle")
+        try:
+            hem_maybe_enter(trigger_reason="runtime_cycle")
+        except Exception:
+            pass
+
         try:
             state = self.fetch_state_fn()
             drift = state.get("drift", {})
@@ -71,6 +76,8 @@ class RuntimeLoop:
                 stability=stability,
                 patch_history=patch_history,
             )
+        except Exception as exc:
+            cycle_result = {"status": "error", "error": str(exc)}
         finally:
             try:
                 hem_transition_to_postcheck()
@@ -81,11 +88,21 @@ class RuntimeLoop:
             except Exception:
                 pass
 
-        return {
+        result = {
             "cycle_id": cycle_id,
             "cycle_counter": self._cycle_counter,
             "cycle_result": cycle_result,
         }
+
+        if self.needs_maintenance:
+            try:
+                from runtime.scheduler import scheduler_tick
+                from governor.singleton import governor as _gov
+                result["scheduler"] = scheduler_tick(_gov)
+            except Exception as exc:
+                result["scheduler"] = {"status": "error", "error": str(exc)}
+
+        return result
 
     @property
     def needs_maintenance(self) -> bool:

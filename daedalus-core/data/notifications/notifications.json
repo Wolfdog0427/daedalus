@@ -128,5 +128,2057 @@
       "mode": "normal"
     },
     "read": false
+  },
+  {
+    "id": "note-12",
+    "timestamp": "2026-03-28T17:11:10.439083+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-13",
+    "timestamp": "2026-03-28T17:11:10.457484+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-14",
+    "timestamp": "2026-03-28T17:11:10.474208+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-15",
+    "timestamp": "2026-03-28T17:11:10.489795+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-16",
+    "timestamp": "2026-03-28T17:11:10.500918+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-17",
+    "timestamp": "2026-03-28T17:11:10.511917+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-18",
+    "timestamp": "2026-03-28T17:11:10.522801+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-19",
+    "timestamp": "2026-03-28T17:11:10.534253+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-20",
+    "timestamp": "2026-03-28T17:11:10.547960+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-21",
+    "timestamp": "2026-03-28T17:11:10.562928+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-22",
+    "timestamp": "2026-03-28T17:11:10.579161+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-23",
+    "timestamp": "2026-03-28T17:11:10.596574+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-24",
+    "timestamp": "2026-03-28T17:13:06.181092+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-25",
+    "timestamp": "2026-03-28T17:13:06.214998+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-26",
+    "timestamp": "2026-03-28T17:13:06.230490+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-27",
+    "timestamp": "2026-03-28T17:13:06.252584+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-28",
+    "timestamp": "2026-03-28T17:13:06.263720+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-29",
+    "timestamp": "2026-03-28T17:13:06.289508+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-30",
+    "timestamp": "2026-03-28T17:13:06.310900+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-31",
+    "timestamp": "2026-03-28T17:13:06.335931+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-32",
+    "timestamp": "2026-03-28T17:13:06.353631+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-33",
+    "timestamp": "2026-03-28T17:13:06.365688+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-34",
+    "timestamp": "2026-03-28T17:13:06.377366+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-35",
+    "timestamp": "2026-03-28T17:13:06.388748+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-36",
+    "timestamp": "2026-03-28T17:13:21.403317+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-37",
+    "timestamp": "2026-03-28T17:13:21.424018+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-38",
+    "timestamp": "2026-03-28T17:13:21.440086+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-39",
+    "timestamp": "2026-03-28T17:13:21.454717+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-40",
+    "timestamp": "2026-03-28T17:13:21.472408+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-41",
+    "timestamp": "2026-03-28T17:13:21.491707+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-42",
+    "timestamp": "2026-03-28T17:13:21.512396+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-43",
+    "timestamp": "2026-03-28T17:13:21.532021+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-44",
+    "timestamp": "2026-03-28T17:13:21.545215+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-45",
+    "timestamp": "2026-03-28T17:13:21.562553+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-46",
+    "timestamp": "2026-03-28T17:13:21.578589+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-47",
+    "timestamp": "2026-03-28T17:13:21.596122+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-48",
+    "timestamp": "2026-03-28T17:14:33.206294+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-49",
+    "timestamp": "2026-03-28T17:14:33.223991+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-50",
+    "timestamp": "2026-03-28T17:14:33.238848+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-51",
+    "timestamp": "2026-03-28T17:14:33.253500+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-52",
+    "timestamp": "2026-03-28T17:14:33.273710+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-53",
+    "timestamp": "2026-03-28T17:14:33.288459+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-54",
+    "timestamp": "2026-03-28T17:14:33.300220+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-55",
+    "timestamp": "2026-03-28T17:14:33.322889+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-56",
+    "timestamp": "2026-03-28T17:14:33.329246+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-57",
+    "timestamp": "2026-03-28T17:14:33.344890+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-58",
+    "timestamp": "2026-03-28T17:14:33.361569+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-59",
+    "timestamp": "2026-03-28T17:14:33.377080+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-60",
+    "timestamp": "2026-03-28T17:14:45.553904+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-61",
+    "timestamp": "2026-03-28T17:14:45.576620+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-62",
+    "timestamp": "2026-03-28T17:14:45.594827+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-63",
+    "timestamp": "2026-03-28T17:14:45.610124+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-64",
+    "timestamp": "2026-03-28T17:14:45.622360+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-65",
+    "timestamp": "2026-03-28T17:14:45.633535+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-66",
+    "timestamp": "2026-03-28T17:14:45.644502+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-67",
+    "timestamp": "2026-03-28T17:14:45.658186+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-68",
+    "timestamp": "2026-03-28T17:14:45.671272+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-69",
+    "timestamp": "2026-03-28T17:14:45.686931+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-70",
+    "timestamp": "2026-03-28T17:14:45.703027+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-71",
+    "timestamp": "2026-03-28T17:14:45.719434+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-72",
+    "timestamp": "2026-03-28T17:20:27.444546+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-73",
+    "timestamp": "2026-03-28T17:20:27.467036+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-74",
+    "timestamp": "2026-03-28T17:20:27.482328+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-75",
+    "timestamp": "2026-03-28T17:20:27.505223+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-76",
+    "timestamp": "2026-03-28T17:20:27.518997+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-77",
+    "timestamp": "2026-03-28T17:20:27.539646+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-78",
+    "timestamp": "2026-03-28T17:20:27.553701+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-79",
+    "timestamp": "2026-03-28T17:20:27.568000+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-80",
+    "timestamp": "2026-03-28T17:20:27.583198+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-81",
+    "timestamp": "2026-03-28T17:20:27.597742+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-82",
+    "timestamp": "2026-03-28T17:20:27.608273+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-83",
+    "timestamp": "2026-03-28T17:20:27.618480+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-84",
+    "timestamp": "2026-03-28T17:20:41.386910+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-85",
+    "timestamp": "2026-03-28T17:20:41.403962+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-86",
+    "timestamp": "2026-03-28T17:20:41.420468+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-87",
+    "timestamp": "2026-03-28T17:20:41.436401+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-88",
+    "timestamp": "2026-03-28T17:20:41.458475+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-89",
+    "timestamp": "2026-03-28T17:20:41.474882+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-90",
+    "timestamp": "2026-03-28T17:20:41.486668+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-91",
+    "timestamp": "2026-03-28T17:20:41.501461+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-92",
+    "timestamp": "2026-03-28T17:20:41.519619+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-93",
+    "timestamp": "2026-03-28T17:20:41.542520+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-94",
+    "timestamp": "2026-03-28T17:20:41.564898+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-95",
+    "timestamp": "2026-03-28T17:20:41.582180+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-96",
+    "timestamp": "2026-03-28T17:20:52.314506+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-97",
+    "timestamp": "2026-03-28T17:20:52.332430+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-98",
+    "timestamp": "2026-03-28T17:20:52.349299+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-99",
+    "timestamp": "2026-03-28T17:20:52.364998+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-100",
+    "timestamp": "2026-03-28T17:20:52.375744+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-101",
+    "timestamp": "2026-03-28T17:20:52.397224+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-102",
+    "timestamp": "2026-03-28T17:20:52.411159+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-103",
+    "timestamp": "2026-03-28T17:20:52.425496+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-104",
+    "timestamp": "2026-03-28T17:20:52.435997+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-105",
+    "timestamp": "2026-03-28T17:20:52.449683+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-106",
+    "timestamp": "2026-03-28T17:20:52.470741+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-107",
+    "timestamp": "2026-03-28T17:20:52.486953+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-108",
+    "timestamp": "2026-03-28T17:33:20.848794+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-109",
+    "timestamp": "2026-03-28T17:33:20.866166+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-110",
+    "timestamp": "2026-03-28T17:33:20.896401+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-111",
+    "timestamp": "2026-03-28T17:33:20.914472+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-112",
+    "timestamp": "2026-03-28T17:33:20.934839+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-113",
+    "timestamp": "2026-03-28T17:33:20.951465+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-114",
+    "timestamp": "2026-03-28T17:33:20.969167+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-115",
+    "timestamp": "2026-03-28T17:33:20.991923+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-116",
+    "timestamp": "2026-03-28T17:33:21.009709+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-117",
+    "timestamp": "2026-03-28T17:33:21.026278+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-118",
+    "timestamp": "2026-03-28T17:33:21.039587+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-119",
+    "timestamp": "2026-03-28T17:33:21.050893+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-120",
+    "timestamp": "2026-03-28T17:34:44.443111+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-121",
+    "timestamp": "2026-03-28T17:34:44.461542+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-122",
+    "timestamp": "2026-03-28T17:34:44.488376+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-123",
+    "timestamp": "2026-03-28T17:34:44.506953+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-124",
+    "timestamp": "2026-03-28T17:34:44.526905+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-125",
+    "timestamp": "2026-03-28T17:34:44.546270+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-126",
+    "timestamp": "2026-03-28T17:34:44.573512+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-127",
+    "timestamp": "2026-03-28T17:34:44.590316+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-128",
+    "timestamp": "2026-03-28T17:34:44.607062+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-129",
+    "timestamp": "2026-03-28T17:34:44.624733+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-130",
+    "timestamp": "2026-03-28T17:34:44.644711+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-131",
+    "timestamp": "2026-03-28T17:34:44.662304+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-132",
+    "timestamp": "2026-03-28T17:36:32.094715+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-133",
+    "timestamp": "2026-03-28T17:36:32.110156+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-134",
+    "timestamp": "2026-03-28T17:36:32.126519+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-135",
+    "timestamp": "2026-03-28T17:36:32.144565+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-136",
+    "timestamp": "2026-03-28T17:36:32.165354+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-137",
+    "timestamp": "2026-03-28T17:36:32.182703+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-138",
+    "timestamp": "2026-03-28T17:36:32.197382+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-139",
+    "timestamp": "2026-03-28T17:36:32.213933+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-140",
+    "timestamp": "2026-03-28T17:36:32.229571+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-141",
+    "timestamp": "2026-03-28T17:36:32.249872+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-142",
+    "timestamp": "2026-03-28T17:36:32.264909+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-143",
+    "timestamp": "2026-03-28T17:36:32.283375+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-144",
+    "timestamp": "2026-03-28T17:41:58.532602+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-145",
+    "timestamp": "2026-03-28T17:41:58.551745+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-146",
+    "timestamp": "2026-03-28T17:41:58.577550+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-147",
+    "timestamp": "2026-03-28T17:41:58.602847+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-148",
+    "timestamp": "2026-03-28T17:41:58.629230+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-149",
+    "timestamp": "2026-03-28T17:41:58.645309+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-150",
+    "timestamp": "2026-03-28T17:41:58.660015+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-151",
+    "timestamp": "2026-03-28T17:41:58.674954+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-152",
+    "timestamp": "2026-03-28T17:41:58.688889+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-153",
+    "timestamp": "2026-03-28T17:41:58.702050+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-154",
+    "timestamp": "2026-03-28T17:41:58.718022+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-155",
+    "timestamp": "2026-03-28T17:41:58.739481+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-156",
+    "timestamp": "2026-03-28T17:46:50.457466+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-157",
+    "timestamp": "2026-03-28T17:46:50.476579+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-158",
+    "timestamp": "2026-03-28T17:46:50.501219+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-159",
+    "timestamp": "2026-03-28T17:46:50.514917+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-160",
+    "timestamp": "2026-03-28T17:46:50.529623+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-161",
+    "timestamp": "2026-03-28T17:46:50.542471+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-162",
+    "timestamp": "2026-03-28T17:46:50.555517+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-163",
+    "timestamp": "2026-03-28T17:46:50.573723+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-164",
+    "timestamp": "2026-03-28T17:46:50.609275+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-165",
+    "timestamp": "2026-03-28T17:46:50.627513+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-166",
+    "timestamp": "2026-03-28T17:46:50.646886+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-167",
+    "timestamp": "2026-03-28T17:46:50.664137+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-168",
+    "timestamp": "2026-03-28T17:47:17.667402+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-169",
+    "timestamp": "2026-03-28T17:47:17.685155+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-170",
+    "timestamp": "2026-03-28T17:47:17.711050+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-171",
+    "timestamp": "2026-03-28T17:47:17.729735+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-172",
+    "timestamp": "2026-03-28T17:47:17.747611+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-173",
+    "timestamp": "2026-03-28T17:47:17.765075+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-174",
+    "timestamp": "2026-03-28T17:47:17.778531+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-175",
+    "timestamp": "2026-03-28T17:47:17.799327+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-176",
+    "timestamp": "2026-03-28T17:47:17.817844+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-177",
+    "timestamp": "2026-03-28T17:47:17.834720+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-178",
+    "timestamp": "2026-03-28T17:47:17.859815+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-179",
+    "timestamp": "2026-03-28T17:47:17.877322+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-180",
+    "timestamp": "2026-03-28T17:47:43.693995+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-181",
+    "timestamp": "2026-03-28T17:47:43.714914+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-182",
+    "timestamp": "2026-03-28T17:47:43.747614+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-183",
+    "timestamp": "2026-03-28T17:47:43.770878+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-184",
+    "timestamp": "2026-03-28T17:47:43.787907+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-185",
+    "timestamp": "2026-03-28T17:47:43.807624+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-186",
+    "timestamp": "2026-03-28T17:47:43.829913+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-187",
+    "timestamp": "2026-03-28T17:47:43.850083+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-188",
+    "timestamp": "2026-03-28T17:47:43.870775+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-189",
+    "timestamp": "2026-03-28T17:47:43.890137+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-190",
+    "timestamp": "2026-03-28T17:47:43.911571+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-191",
+    "timestamp": "2026-03-28T17:47:43.931248+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-192",
+    "timestamp": "2026-03-28T17:48:52.959563+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-193",
+    "timestamp": "2026-03-28T17:48:52.977819+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-194",
+    "timestamp": "2026-03-28T17:48:52.997517+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-195",
+    "timestamp": "2026-03-28T17:48:53.017269+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-196",
+    "timestamp": "2026-03-28T17:48:53.039363+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-197",
+    "timestamp": "2026-03-28T17:48:53.057118+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-198",
+    "timestamp": "2026-03-28T17:48:53.070861+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-199",
+    "timestamp": "2026-03-28T17:48:53.087508+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-200",
+    "timestamp": "2026-03-28T17:48:53.103704+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-201",
+    "timestamp": "2026-03-28T17:48:53.122202+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-202",
+    "timestamp": "2026-03-28T17:48:53.136200+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-203",
+    "timestamp": "2026-03-28T17:48:53.148655+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-204",
+    "timestamp": "2026-03-28T18:19:15.712679+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-205",
+    "timestamp": "2026-03-28T18:19:15.732026+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-206",
+    "timestamp": "2026-03-28T18:19:15.758122+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-207",
+    "timestamp": "2026-03-28T18:19:15.777515+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-208",
+    "timestamp": "2026-03-28T18:19:15.794160+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-209",
+    "timestamp": "2026-03-28T18:19:15.816742+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-210",
+    "timestamp": "2026-03-28T18:19:15.837939+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-211",
+    "timestamp": "2026-03-28T18:19:15.858360+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-212",
+    "timestamp": "2026-03-28T18:19:15.878335+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-213",
+    "timestamp": "2026-03-28T18:19:15.895818+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-214",
+    "timestamp": "2026-03-28T18:19:15.915603+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-215",
+    "timestamp": "2026-03-28T18:19:15.933325+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-216",
+    "timestamp": "2026-03-28T18:31:11.257964+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-217",
+    "timestamp": "2026-03-28T18:31:11.273884+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-218",
+    "timestamp": "2026-03-28T18:31:11.303243+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-219",
+    "timestamp": "2026-03-28T18:31:11.325827+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-220",
+    "timestamp": "2026-03-28T18:31:11.347740+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-221",
+    "timestamp": "2026-03-28T18:31:11.371206+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-222",
+    "timestamp": "2026-03-28T18:31:11.389794+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-223",
+    "timestamp": "2026-03-28T18:31:11.413530+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-224",
+    "timestamp": "2026-03-28T18:31:11.433528+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-225",
+    "timestamp": "2026-03-28T18:31:11.453387+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-226",
+    "timestamp": "2026-03-28T18:31:11.473693+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-227",
+    "timestamp": "2026-03-28T18:31:11.492765+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-228",
+    "timestamp": "2026-03-28T18:43:54.427897+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-229",
+    "timestamp": "2026-03-28T18:43:54.445680+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-230",
+    "timestamp": "2026-03-28T18:43:54.478437+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "GOVERNANCE CIRCUIT BREAKER TRIPPED — score 10/100. All changes are paused until operator resets the breaker.\n\nSuggested recovery path (CAVEAT: system is in degraded state — verify suggestions independently before acting):\nNo specific degradation source identified. Try resetting the circuit breaker with 'reset circuit breaker' and monitor.\nFinal step: Reset the circuit breaker with 'reset circuit breaker' once root cause is addressed.\n\nTo reset: use 'reset circuit breaker' command."
+    },
+    "read": false
+  },
+  {
+    "id": "note-231",
+    "timestamp": "2026-03-28T18:43:54.494824+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-232",
+    "timestamp": "2026-03-28T18:43:54.510452+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-233",
+    "timestamp": "2026-03-28T18:43:54.533522+00:00",
+    "category": "lock",
+    "message": "System has been UNLOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-234",
+    "timestamp": "2026-03-28T18:43:54.554897+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-235",
+    "timestamp": "2026-03-28T18:43:54.577996+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-236",
+    "timestamp": "2026-03-28T18:43:54.600971+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-237",
+    "timestamp": "2026-03-28T18:43:54.622845+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
+  },
+  {
+    "id": "note-238",
+    "timestamp": "2026-03-28T18:43:54.649227+00:00",
+    "category": "lock",
+    "message": "System has been LOCKED.",
+    "metadata": {},
+    "read": false
+  },
+  {
+    "id": "note-239",
+    "timestamp": "2026-03-28T18:43:54.670509+00:00",
+    "category": "escalation",
+    "message": "Escalation to Tier 3 recommended.",
+    "metadata": {
+      "reason": "KILL SWITCH ACTIVATED — reason: test. All changes are blocked. Deactivate with 'deactivate kill switch' when safe."
+    },
+    "read": false
   }
 ]

@@ -47,7 +47,7 @@ def update_cycle_state(event: str, metadata: Dict[str, Any] | None = None) -> Di
     now = time.time()
     try:
         from runtime.posture_state import get_current_posture
-        pid = get_current_posture()["posture_id"]
+        pid = get_current_posture().get("posture_id", COMPANION)
     except Exception:
         pid = COMPANION
 
@@ -173,7 +173,7 @@ def shape_interaction(
     if posture_id is None:
         try:
             from runtime.posture_state import get_current_posture
-            posture_id = get_current_posture()["posture_id"]
+            posture_id = get_current_posture().get("posture_id", COMPANION)
         except Exception:
             posture_id = COMPANION
 

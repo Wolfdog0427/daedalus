@@ -19,6 +19,7 @@ This is the beginning of a knowledge graph layer.
 
 from __future__ import annotations
 
+import itertools
 import re
 from collections import defaultdict, Counter
 from typing import Dict, Any, List, Tuple
@@ -84,8 +85,7 @@ def extract_patterns(limit: int = 500) -> Dict[str, Any]:
     keyword_counter = Counter()
     relations = []
 
-    items = list(_iter_items())
-    items = items[:limit]  # safety cap
+    items = list(itertools.islice(_iter_items(), limit))
 
     for item in items:
         text = item.get("text", "")
@@ -145,8 +145,7 @@ def build_knowledge_graph(limit: int = 500) -> Dict[str, List[str]]:
     """
     graph = defaultdict(list)
 
-    items = list(_iter_items())
-    items = items[:limit]
+    items = list(itertools.islice(_iter_items(), limit))
 
     for item in items:
         text = item.get("text", "")

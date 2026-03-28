@@ -156,6 +156,8 @@ def search(
 
     index = _load_index()
     q = query.lower().strip()
+    if not q:
+        return []
     results: List[RetrievedItem] = []
 
     for item in _iter_items():

@@ -76,7 +76,9 @@ _DEFAULT_PROFILE: Dict[str, Any] = {
 def _get_posture_id() -> str:
     try:
         from runtime.posture_state import get_current_posture
-        return get_current_posture()["posture_id"]
+        return get_current_posture().get("posture_id", COMPANION)
+    except ImportError:
+        return COMPANION
     except Exception:
         return COMPANION
 
@@ -143,5 +145,7 @@ def is_action_allowed(
     try:
         from runtime.autonomy_engine import can_perform
         return can_perform(action_type, context)
-    except Exception:
+    except ImportError:
         return _is_posture_allowed(action_type, context)
+    except Exception:
+        return False, f"autonomy check failed for '{action_type}' — fail-closed"

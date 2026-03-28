@@ -72,6 +72,7 @@ from runtime.semantic_firewall import SemanticFirewall
 from runtime.self_test import run_background_self_test
 from runtime.watch_monitor import analyze_last_action_for_watch_anomalies
 from runtime.fallback_manager import is_enabled
+from runtime.feature_flags import is_enabled as feature_flag_enabled
 
 # --- Command System ---
 from runtime.command_router import (
@@ -370,8 +371,11 @@ def _run_pipeline(
     cockpit_debug: bool = False,
 ) -> Tuple[str, str, str]:
 
-    # Snapshot before for cockpit / state delta
-    state_before = copy.deepcopy(state)
+    # Snapshot domain-relevant state before (skip history to avoid quadratic growth)
+    state_before = copy.deepcopy({
+        k: v for k, v in state.items()
+        if k not in ("history",) and not k.startswith("_")
+    })
 
     clean_text, sanitize_report, hostility_score = InputGateway.sanitize(user_input)
     lower = clean_text.lower().strip()
@@ -485,19 +489,54 @@ def _run_pipeline(
     if result is None:
         result = ""
 
+    # Compute watchpoint changes before recording
+    watch_changes = None
+    try:
+        watchpoints = state.get("watchpoints", [])
+        if watchpoints:
+            watch_changes = []
+            for wp in watchpoints:
+                before_val = state_before.get(wp)
+                after_val = state.get(wp)
+                if before_val != after_val:
+                    watch_changes.append({
+                        "path": wp,
+                        "before": copy.deepcopy(before_val),
+                        "after": copy.deepcopy(after_val),
+                    })
+            if not watch_changes:
+                watch_changes = None
+    except Exception:
+        watch_changes = None
+
+    # Save debug state for introspection commands
+    state["last_nlu_cmd"] = copy.deepcopy(raw_cmd) if raw_cmd else {}
+    ctx_trace = contextual_resolver.get_last_trace() if contextual_resolver else []
+    state["contextual_trace"] = copy.deepcopy(ctx_trace) if ctx_trace else []
+    state["_before_last_cmd"] = copy.deepcopy(firewall_cmd or raw_cmd or {})
+    state["_after_last_cmd"] = copy.deepcopy(final_cmd or resolved_cmd or {})
+
     # Record action even on failure (best-effort)
     try:
-        store.record_action(
+        entry = store.record_action(
             user_input,
             final_cmd or resolved_cmd or firewall_cmd or raw_cmd or {},
             result,
+            context_trace=ctx_trace,
+            nlu_cmd=raw_cmd,
+            command_before=state_before,
+            state=state,
+            watch_changes=watch_changes,
         )
-        store.save()
+        # Sync a lightweight summary into the live state dict (skip state snapshot)
+        summary = {k: v for k, v in entry.items() if k != "state"}
+        state.setdefault("history", []).append(summary)
+        store.save(state)
     except Exception:
-        # Do not let logging failures break the REPL
         pass
 
-    run_background_self_test()
+    if feature_flag_enabled("background_self_test"):
+        run_background_self_test()
     analyze_last_action_for_watch_anomalies(store)
 
     # Snapshot after for cockpit / state delta
@@ -672,6 +711,21 @@ def _process_line(
         except Exception as exc:
             print(f"⚠ Could not load notifications: {exc}")
         return plan_mode, dashboard_sort, dashboard_filter
+
+    # NL SHORTCUTS (undo, redo, checkpoints, navigation — fast path)
+    try:
+        from runtime.shortcuts import resolve_shortcut
+        shortcut = resolve_shortcut(user_input)
+        if shortcut is not None:
+            return _run_pipeline(
+                shortcut.get("intent", user_input),
+                state, execution, goal_manager,
+                context_resolver, contextual_resolver,
+                debug_state, store, plan_renderer, dashboard,
+                plan_mode, dashboard_sort, dashboard_filter,
+            )
+    except ImportError:
+        pass
 
     # COMMAND REGISTRY
     dispatched = dispatch_command(user_input)

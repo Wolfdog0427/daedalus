@@ -33,10 +33,9 @@ DECISION_DIR = os.path.join("data", "cockpit")
 def _list_decision_files() -> List[str]:
     if not os.path.exists(DECISION_DIR):
         return []
-    return sorted(
-        [f for f in os.listdir(DECISION_DIR) if f.startswith("decision-")],
-        reverse=True,
-    )
+    files = [f for f in os.listdir(DECISION_DIR) if f.startswith("decision-")]
+    files.sort(key=lambda f: os.path.getmtime(os.path.join(DECISION_DIR, f)), reverse=True)
+    return files
 
 
 def load_recent_decisions(limit: int = 10) -> List[Dict[str, Any]]:
@@ -55,7 +54,7 @@ def load_recent_decisions(limit: int = 10) -> List[Dict[str, Any]]:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 decisions.append(json.load(f))
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             # Corrupt or partial file: skip but continue
             continue
     return decisions

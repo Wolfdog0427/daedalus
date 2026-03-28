@@ -130,7 +130,7 @@ def detect_frontier_gaps() -> List[Dict[str, Any]]:
         for candidate, score in missing:
             if score >= FRONTIER_LINK_THRESHOLD:
                 info = get_entity_info(candidate)
-                if info is None or info["occurrences"] < 2:
+                if info is None or info.get("occurrences", 0) < 2:
                     frontier_domains[candidate] += score
 
     gaps = []
@@ -299,7 +299,7 @@ def _llm_assisted_plan(goal: KnowledgeGoal) -> List[Dict[str, Any]]:
 
     if result.get("available") and result.get("phases"):
         phases = []
-        for i, phase in enumerate(result["phases"]):
+        for i, phase in enumerate(result.get("phases", [])):
             verification = "deep" if i == 0 else "standard"
             phases.append({
                 "name": phase.get("name", f"Phase {i+1}"),
@@ -362,9 +362,10 @@ def run_quality_gate(goal: KnowledgeGoal) -> Dict[str, Any]:
     """
     current_model = update_self_model()
 
-    coherence_now = current_model["confidence"]["graph_coherence"]
-    consistency_now = current_model["confidence"]["consistency"]
-    quality_now = current_model["confidence"]["knowledge_quality"]
+    _conf = current_model.get("confidence", {})
+    coherence_now = _conf.get("graph_coherence", 0.0)
+    consistency_now = _conf.get("consistency", 0.0)
+    quality_now = _conf.get("knowledge_quality", 0.0)
 
     before = goal.quality_before or {}
     coherence_before = before.get("graph_coherence", coherence_now)
@@ -489,7 +490,7 @@ def run_curiosity_cycle(
                 blind_spots=blind_spots,
             )
             if assessment.get("available"):
-                llm_relevance = assessment["relevance"]
+                llm_relevance = assessment.get("relevance", 0.5)
                 goal.priority = goal.priority * 0.6 + llm_relevance * 0.4
                 goal.metadata["llm_relevance"] = llm_relevance
                 goal.metadata["llm_rationale"] = assessment.get("rationale", "")
@@ -525,9 +526,9 @@ def approve_and_plan(goal_id: str) -> Dict[str, Any]:
 
     current_model = get_self_model()
     goal.quality_before = {
-        "graph_coherence": current_model["confidence"]["graph_coherence"],
-        "consistency": current_model["confidence"]["consistency"],
-        "knowledge_quality": current_model["confidence"]["knowledge_quality"],
+        "graph_coherence": current_model.get("confidence", {}).get("graph_coherence", 0.0),
+        "consistency": current_model.get("confidence", {}).get("consistency", 0.0),
+        "knowledge_quality": current_model.get("confidence", {}).get("knowledge_quality", 0.0),
     }
 
     goal.phases = create_acquisition_plan(goal)

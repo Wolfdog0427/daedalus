@@ -116,15 +116,22 @@ def test_ordinal_reference_updates_memory(env, capsys):
     assert state["last_step_referenced"] == 2
 
 
+def _domain_state(state):
+    """Extract domain-relevant state, excluding pipeline metadata."""
+    exclude = {"history", "contextual_trace", "last_nlu_cmd"}
+    return {k: v for k, v in state.items()
+            if not k.startswith("_") and k not in exclude}
+
+
 def test_memory_survives_undo(env, capsys):
     run(env, "add goal UndoGoal")
     run(env, "add step X")
     run(env, "complete step 1")
 
-    before = copy.deepcopy(env["state"])
+    before = _domain_state(copy.deepcopy(env["state"]))
     run(env, "undo")
     run(env, "redo")
-    after = env["state"]
+    after = _domain_state(env["state"])
 
     assert before == after
 

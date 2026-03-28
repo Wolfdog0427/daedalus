@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections import deque
 from typing import Any, Dict, List, Optional
 
 _TIER3_PLAN_REGISTRY: List[Dict[str, Any]] = []
@@ -55,11 +56,11 @@ def _topological_sort(
             adj[dep].append(pid)
             in_degree[pid] += 1
 
-    queue = [pid for pid in proposal_ids if in_degree[pid] == 0]
+    queue = deque(pid for pid in proposal_ids if in_degree[pid] == 0)
     result: List[str] = []
 
     while queue:
-        node = queue.pop(0)
+        node = queue.popleft()
         result.append(node)
         for neighbour in adj[node]:
             in_degree[neighbour] -= 1

@@ -132,9 +132,10 @@ def generate_executive_report() -> Dict[str, Any]:
         "risk_tier": risk_tier,
         "timestamp": ts,
     })
+    sla_label = "PASS" if sla_pass is True else "FAIL" if sla_pass is False else "?"
     _add_insight(
         "executive_report",
-        f"executive report: grade={grade}, SLA={'PASS' if sla_pass else 'FAIL'}, "
+        f"executive report: grade={grade}, SLA={sla_label}, "
         f"risk={risk_tier}",
         {"grade": grade, "sla_pass": sla_pass, "risk_tier": risk_tier},
     )

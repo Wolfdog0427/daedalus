@@ -1,5 +1,7 @@
 import copy
 
+_MAX_UNDO_DEPTH = 200
+
 
 class UndoRedoManager:
     """
@@ -19,6 +21,8 @@ class UndoRedoManager:
 
     def push(self, state):
         self._undo_stack.append(copy.deepcopy(state))
+        if len(self._undo_stack) > _MAX_UNDO_DEPTH:
+            self._undo_stack = self._undo_stack[-_MAX_UNDO_DEPTH:]
         self._redo_stack.clear()
 
     def undo(self):

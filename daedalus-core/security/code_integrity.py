@@ -97,12 +97,20 @@ class CodeIntegrity:
         if not os.path.exists(self.index_path):
             self.records = {}
             return
-        with open(self.index_path, "r", encoding="utf-8") as f:
-            raw = json.load(f)
-        self.records = {
-            path: FileIntegrityRecord(**rec)
-            for path, rec in raw.items()
-        }
+        try:
+            with open(self.index_path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+            if not isinstance(raw, dict):
+                self.records = {}
+                return
+            self.records = {}
+            for path, rec in raw.items():
+                try:
+                    self.records[path] = FileIntegrityRecord(**rec)
+                except (TypeError, KeyError):
+                    continue
+        except (json.JSONDecodeError, OSError, ValueError):
+            self.records = {}
 
     def _save_index(self) -> None:
         raw = {

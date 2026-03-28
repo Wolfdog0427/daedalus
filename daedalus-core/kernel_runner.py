@@ -36,8 +36,13 @@ def _wrap_result(result: Any) -> Dict[str, Any]:
     """Inspect result and set ok based on common failure indicators."""
     if result is None:
         return {"ok": False, "error": "operation_returned_none", "result": result}
-    if isinstance(result, dict) and result.get("error"):
-        return {"ok": False, "result": result}
+    if isinstance(result, dict):
+        if result.get("error"):
+            return {"ok": False, "result": result}
+        inner_keys = {"execution", "rollback", "restoration", "snapshot", "snapshot_id", "approved", "rejected", "validation", "integrity_score"}
+        for k in inner_keys:
+            if k in result and result[k] is None:
+                return {"ok": False, "error": "operation_failed", "result": result}
     return {"ok": True, "result": result}
 
 
@@ -49,13 +54,13 @@ async def dispatch_kernel_command(command: str, payload: Dict[str, Any]) -> Dict
 
     if command == "approve_proposal":
         pid = payload.get("proposal_id")
-        if not pid:
+        if pid is None:
             return {"ok": False, "error": "Missing proposal_id"}
         return _wrap_result(command_console.approve_proposal(pid))
 
     if command == "reject_proposal":
         pid = payload.get("proposal_id")
-        if not pid:
+        if pid is None:
             return {"ok": False, "error": "Missing proposal_id"}
         return _wrap_result(command_console.reject_proposal(pid))
 
@@ -68,7 +73,7 @@ async def dispatch_kernel_command(command: str, payload: Dict[str, Any]) -> Dict
 
     if command == "rollback":
         pid = payload.get("proposal_id")
-        if not pid:
+        if pid is None:
             return {"ok": False, "error": "Missing proposal_id"}
         return _wrap_result(command_console.rollback(pid))
 
@@ -81,8 +86,10 @@ async def dispatch_kernel_command(command: str, payload: Dict[str, Any]) -> Dict
     if command == "restore_snapshot":
         sid = payload.get("snapshot_id")
         keys = payload.get("keys")
-        if not sid:
+        if sid is None:
             return {"ok": False, "error": "Missing snapshot_id"}
+        if keys is not None and not isinstance(keys, list):
+            return {"ok": False, "error": "keys must be a list of strings or null"}
         return _wrap_result(command_console.restore(sid, keys))
 
     # -- Validation / Integrity --
@@ -99,7 +106,11 @@ async def dispatch_kernel_command(command: str, payload: Dict[str, Any]) -> Dict
         tier = payload.get("tier")
         if tier is None:
             return {"ok": False, "error": "Missing tier"}
-        return _wrap_result(command_console.set_governor_tier(int(tier)))
+        try:
+            tier_int = int(tier)
+        except (TypeError, ValueError):
+            return {"ok": False, "error": f"Invalid tier value: {tier!r}"}
+        return _wrap_result(command_console.set_governor_tier(tier_int))
 
     if command == "enable_strict_mode":
         return _wrap_result(command_console.enable_strict_mode())
@@ -124,6 +135,15 @@ async def dispatch_kernel_command(command: str, payload: Dict[str, Any]) -> Dict
     if command == "clear_integrity_score_history":
         return _wrap_result(command_console.clear_integrity_score_history())
 
+    if command == "get_patches":
+        try:
+            from governance.patch_lifecycle import get_patches
+            return {"ok": True, "patches": get_patches()}
+        except ImportError:
+            return {"ok": True, "patches": []}
+        except Exception:
+            return {"ok": False, "error": "patch_retrieval_failed", "patches": []}
+
     return {"ok": False, "error": f"Unknown command: {command}"}
 
 
@@ -146,7 +166,14 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
     except asyncio.IncompleteReadError:
         pass
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError):
+        try:
+            error_bytes = json.dumps({"ok": False, "error": "Kernel error"}).encode()
+            writer.write(_frame_message(error_bytes))
+            await writer.drain()
+        except Exception:
+            pass
+    except Exception:
         try:
             error_bytes = json.dumps({"ok": False, "error": "Kernel error"}).encode()
             writer.write(_frame_message(error_bytes))
@@ -172,7 +199,7 @@ async def main():
         try:
             loop.add_signal_handler(sig, _shutdown_handler)
         except NotImplementedError:
-            signal.signal(sig, lambda s, f: _shutdown_handler())
+            signal.signal(sig, lambda s, f: loop.call_soon_threadsafe(_shutdown_handler))
 
     async with server:
         await server.serve_forever()

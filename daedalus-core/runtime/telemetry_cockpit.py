@@ -5316,7 +5316,7 @@ def resonance_profile_cmd(posture_id: str | None = None) -> str:
     if posture_id is None:
         try:
             from runtime.posture_state import get_current_posture
-            posture_id = get_current_posture()["posture_id"]
+            posture_id = get_current_posture().get("posture_id", "COMPANION")
         except Exception:
             posture_id = "COMPANION"
 
@@ -5449,7 +5449,7 @@ def coherence_state_cmd() -> str:
     op_ctx: dict = {}
     try:
         from runtime.posture_state import get_current_posture
-        pid = get_current_posture()["posture_id"]
+        pid = get_current_posture().get("posture_id", "COMPANION")
     except Exception:
         pass
     try:
@@ -5486,7 +5486,7 @@ def coherence_mismatches_cmd() -> str:
     op_ctx: dict = {}
     try:
         from runtime.posture_state import get_current_posture
-        pid = get_current_posture()["posture_id"]
+        pid = get_current_posture().get("posture_id", "COMPANION")
     except Exception:
         pass
     try:
@@ -5726,7 +5726,7 @@ def autonomy_explain() -> str:
 def expression_profile(posture_id: str | None = None) -> str:
     if posture_id is None:
         from runtime.posture_state import get_current_posture
-        posture_id = get_current_posture()["posture_id"]
+        posture_id = get_current_posture().get("posture_id", "COMPANION")
 
     from runtime.expression_profiles import get_profile
 

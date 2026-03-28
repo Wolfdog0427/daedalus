@@ -106,11 +106,13 @@ def push_notification(
 
 
 def list_unread() -> List[Dict[str, Any]]:
-    return [n for n in load_notifications() if not n.get("read")]
+    with _notify_lock:
+        return [n for n in load_notifications() if not n.get("read")]
 
 
 def list_all() -> List[Dict[str, Any]]:
-    return load_notifications()
+    with _notify_lock:
+        return load_notifications()
 
 
 def mark_read(notification_id: str) -> bool:

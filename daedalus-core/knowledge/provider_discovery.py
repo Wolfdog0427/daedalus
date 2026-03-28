@@ -30,6 +30,7 @@ Governance:
 
 from __future__ import annotations
 
+import threading
 import time
 import hashlib
 from dataclasses import dataclass, field, asdict
@@ -102,6 +103,7 @@ class ProviderRegistry:
     """
 
     def __init__(self) -> None:
+        self._lock = threading.RLock()
         self._providers: Dict[str, DiscoveredProvider] = {}
         self._task_assignments: Dict[str, str] = {}
         self._notifications: List[Dict[str, Any]] = []
@@ -118,20 +120,21 @@ class ProviderRegistry:
         source: str = "fabric",
     ) -> DiscoveredProvider:
         """Register a newly discovered provider in quarantine."""
-        provider_id = _generate_provider_id(name, capabilities.endpoint)
-        provider = DiscoveredProvider(
-            id=provider_id,
-            name=name,
-            status=ProviderStatus.DISCOVERED,
-            capabilities=capabilities,
-        )
-        self._providers[provider_id] = provider
-        self._add_notification(
-            "provider_discovered",
-            f"New provider '{name}' discovered via {source}",
-            {"provider_id": provider_id, "model": capabilities.model_name},
-        )
-        return provider
+        with self._lock:
+            provider_id = _generate_provider_id(name, capabilities.endpoint)
+            provider = DiscoveredProvider(
+                id=provider_id,
+                name=name,
+                status=ProviderStatus.DISCOVERED,
+                capabilities=capabilities,
+            )
+            self._providers[provider_id] = provider
+            self._add_notification(
+                "provider_discovered",
+                f"New provider '{name}' discovered via {source}",
+                {"provider_id": provider_id, "model": capabilities.model_name},
+            )
+            return provider
 
     def register_operator_provider(
         self,
@@ -139,65 +142,69 @@ class ProviderRegistry:
         capabilities: ProviderCapabilities,
     ) -> DiscoveredProvider:
         """Operator-registered provider: skip quarantine, go active."""
-        provider_id = _generate_provider_id(name, capabilities.endpoint)
-        provider = DiscoveredProvider(
-            id=provider_id,
-            name=name,
-            status=ProviderStatus.ACTIVE,
-            capabilities=capabilities,
-            operator_registered=True,
-        )
-        self._providers[provider_id] = provider
-        return provider
+        with self._lock:
+            provider_id = _generate_provider_id(name, capabilities.endpoint)
+            provider = DiscoveredProvider(
+                id=provider_id,
+                name=name,
+                status=ProviderStatus.ACTIVE,
+                capabilities=capabilities,
+                operator_registered=True,
+            )
+            self._providers[provider_id] = provider
+            return provider
 
     # --------------------------------------------------------
     # Probing
     # --------------------------------------------------------
 
     def mark_probe_success(self, provider_id: str, latency_ms: float = 0.0) -> None:
-        p = self._providers.get(provider_id)
-        if not p:
-            return
-        p.last_probe_at = time.time()
-        p.probe_failures = 0
-        if p.status in (ProviderStatus.DISCOVERED, ProviderStatus.QUARANTINED):
-            p.status = ProviderStatus.ACTIVE
-            self._add_notification(
-                "provider_activated",
-                f"Provider '{p.name}' passed probe and is now active",
-                {"provider_id": provider_id, "latency_ms": latency_ms},
-            )
+        with self._lock:
+            p = self._providers.get(provider_id)
+            if not p:
+                return
+            p.last_probe_at = time.time()
+            p.probe_failures = 0
+            if p.status in (ProviderStatus.DISCOVERED, ProviderStatus.QUARANTINED, ProviderStatus.DEGRADED):
+                p.status = ProviderStatus.ACTIVE
+                self._add_notification(
+                    "provider_activated",
+                    f"Provider '{p.name}' passed probe and is now active",
+                    {"provider_id": provider_id, "latency_ms": latency_ms},
+                )
 
     def mark_probe_failure(self, provider_id: str, error: str = "") -> None:
-        p = self._providers.get(provider_id)
-        if not p:
-            return
-        p.probe_failures += 1
-        p.last_probe_at = time.time()
-        if p.probe_failures >= 3:
-            p.status = ProviderStatus.QUARANTINED
-            self._add_notification(
-                "provider_quarantined",
-                f"Provider '{p.name}' quarantined after {p.probe_failures} probe failures",
-                {"provider_id": provider_id, "error": error},
-            )
-        elif p.status == ProviderStatus.ACTIVE:
-            p.status = ProviderStatus.DEGRADED
-            self._add_notification(
-                "provider_degraded",
-                f"Provider '{p.name}' degraded: {error}",
-                {"provider_id": provider_id},
-            )
+        with self._lock:
+            p = self._providers.get(provider_id)
+            if not p:
+                return
+            p.probe_failures += 1
+            p.last_probe_at = time.time()
+            if p.probe_failures >= 3:
+                p.status = ProviderStatus.QUARANTINED
+                self._add_notification(
+                    "provider_quarantined",
+                    f"Provider '{p.name}' quarantined after {p.probe_failures} probe failures",
+                    {"provider_id": provider_id, "error": error},
+                )
+            elif p.status == ProviderStatus.ACTIVE:
+                p.status = ProviderStatus.DEGRADED
+                self._add_notification(
+                    "provider_degraded",
+                    f"Provider '{p.name}' degraded: {error}",
+                    {"provider_id": provider_id},
+                )
 
     def mark_offline(self, provider_id: str) -> None:
-        p = self._providers.get(provider_id)
-        if p:
-            p.status = ProviderStatus.OFFLINE
-            self._add_notification(
-                "provider_offline",
-                f"Provider '{p.name}' is offline",
-                {"provider_id": provider_id},
-            )
+        with self._lock:
+            p = self._providers.get(provider_id)
+            if p:
+                p.status = ProviderStatus.OFFLINE
+                self._add_notification(
+                    "provider_offline",
+                    f"Provider '{p.name}' is offline",
+                    {"provider_id": provider_id},
+                )
 
     # --------------------------------------------------------
     # Fitness Scoring + Task Assignment
@@ -209,6 +216,10 @@ class ProviderRegistry:
         Sim-fix M1: cascade failure detection — 5 consecutive failures
         triggers auto-degradation.
         """
+        with self._lock:
+            self._record_call_outcome_inner(provider_id, success, latency_ms)
+
+    def _record_call_outcome_inner(self, provider_id: str, success: bool, latency_ms: float = 0.0) -> None:
         p = self._providers.get(provider_id)
         if not p:
             return
@@ -234,15 +245,16 @@ class ProviderRegistry:
 
     def get_reliability(self, provider_id: str) -> float:
         """Compute reliability ratio (0.0-1.0) for a provider."""
-        p = self._providers.get(provider_id)
-        if not p:
-            return 0.0
-        successes = getattr(p, "_call_successes", 0)
-        failures = getattr(p, "_call_failures", 0)
-        total = successes + failures
-        if total < 5:
-            return 0.5  # insufficient data, assume neutral
-        return successes / total
+        with self._lock:
+            p = self._providers.get(provider_id)
+            if not p:
+                return 0.0
+            successes = getattr(p, "_call_successes", 0)
+            failures = getattr(p, "_call_failures", 0)
+            total = successes + failures
+            if total < 5:
+                return 0.5
+            return successes / total
 
     def compute_fitness(self, provider_id: str) -> Dict[str, float]:
         """
@@ -251,6 +263,10 @@ class ProviderRegistry:
         reliability are penalized, and a minimum reliability floor
         gates task selection entirely.
         """
+        with self._lock:
+            return self._compute_fitness_inner(provider_id)
+
+    def _compute_fitness_inner(self, provider_id: str) -> Dict[str, float]:
         p = self._providers.get(provider_id)
         if not p or p.status not in (ProviderStatus.ACTIVE, ProviderStatus.DEGRADED):
             return {}
@@ -319,32 +335,33 @@ class ProviderRegistry:
         Select the best active provider for a given task type.
         Returns provider_id or None.
         """
-        # Check if there's an explicit assignment
-        if task.value in self._task_assignments:
-            assigned = self._task_assignments[task.value]
-            p = self._providers.get(assigned)
-            if p and p.status == ProviderStatus.ACTIVE:
-                return assigned
+        with self._lock:
+            if task.value in self._task_assignments:
+                assigned = self._task_assignments[task.value]
+                p = self._providers.get(assigned)
+                if p and p.status == ProviderStatus.ACTIVE:
+                    return assigned
 
-        best_id = None
-        best_score = -1.0
+            best_id = None
+            best_score = -1.0
 
-        for pid, p in self._providers.items():
-            if p.status not in (ProviderStatus.ACTIVE, ProviderStatus.DEGRADED):
-                continue
-            fitness = p.fitness_scores.get(task.value, 0.0)
-            if fitness > best_score:
-                best_score = fitness
-                best_id = pid
+            for pid, p in self._providers.items():
+                if p.status not in (ProviderStatus.ACTIVE, ProviderStatus.DEGRADED):
+                    continue
+                fitness = p.fitness_scores.get(task.value, 0.0)
+                if fitness > best_score:
+                    best_score = fitness
+                    best_id = pid
 
-        return best_id
+            return best_id
 
     def assign_task(self, task: TaskType, provider_id: str) -> bool:
         """Operator-directed task assignment."""
-        if provider_id not in self._providers:
-            return False
-        self._task_assignments[task.value] = provider_id
-        return True
+        with self._lock:
+            if provider_id not in self._providers:
+                return False
+            self._task_assignments[task.value] = provider_id
+            return True
 
     # --------------------------------------------------------
     # Migration
@@ -359,6 +376,10 @@ class ProviderRegistry:
         Recommend migrating from one provider to another.
         If same API type: can auto-migrate. Otherwise: notify operator.
         """
+        with self._lock:
+            return self._recommend_migration_inner(old_provider_id, new_provider_id)
+
+    def _recommend_migration_inner(self, old_provider_id: str, new_provider_id: str) -> Dict[str, Any]:
         old_p = self._providers.get(old_provider_id)
         new_p = self._providers.get(new_provider_id)
 
@@ -406,6 +427,10 @@ class ProviderRegistry:
         Execute a provider migration. Updates task assignments and
         marks the old provider as migrated.
         """
+        with self._lock:
+            return self._execute_migration_inner(old_id, new_id)
+
+    def _execute_migration_inner(self, old_id: str, new_id: str) -> Dict[str, Any]:
         old_p = self._providers.get(old_id)
         new_p = self._providers.get(new_id)
 
@@ -488,21 +513,24 @@ class ProviderRegistry:
     # --------------------------------------------------------
 
     def list_providers(self, status: Optional[ProviderStatus] = None) -> List[Dict[str, Any]]:
-        result = []
-        for p in self._providers.values():
-            if status and p.status != status:
-                continue
-            result.append(asdict(p))
-        return result
+        with self._lock:
+            result = []
+            for p in self._providers.values():
+                if status and p.status != status:
+                    continue
+                result.append(asdict(p))
+            return result
 
     def get_provider(self, provider_id: str) -> Optional[DiscoveredProvider]:
-        return self._providers.get(provider_id)
+        with self._lock:
+            return self._providers.get(provider_id)
 
     def get_active_count(self) -> int:
-        return sum(
-            1 for p in self._providers.values()
-            if p.status == ProviderStatus.ACTIVE
-        )
+        with self._lock:
+            return sum(
+                1 for p in self._providers.values()
+                if p.status == ProviderStatus.ACTIVE
+            )
 
 
 # ------------------------------------------------------------
@@ -626,8 +654,9 @@ def run_discovery_cycle(
                     try:
                         mig = registry.execute_migration(current, pid)
                         report.setdefault("migrations_executed", []).append(mig)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        report.setdefault("migration_errors", []).append(
+                            f"{current}->{pid}: {exc}")
                     report["migrations_recommended"] += 1
                     break
                 elif rec.get("action") == "notify_operator":

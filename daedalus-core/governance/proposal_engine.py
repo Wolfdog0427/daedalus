@@ -36,11 +36,14 @@ def generate_proposal(
     """
     pid = f"GOV-{next(_proposal_counter):04d}"
 
+    safe_flags = list(flags) if flags else []
+    safe_meta = dict(metadata) if metadata else {}
+
     change_request = {
-        **(metadata or {}),
+        **safe_meta,
         "type": change_type,
         "target": target,
-        "flags": flags or [],
+        "flags": safe_flags,
         "reversible": True,
     }
 
@@ -54,12 +57,12 @@ def generate_proposal(
         "description": description,
         "change_type": change_type,
         "target": target,
-        "flags": flags or [],
+        "flags": list(safe_flags),
         "risk_score": risk,
         "risk_class": classification,
         "needs_approval": needs_approval,
         "status": "pending",
-        "metadata": metadata or {},
+        "metadata": dict(safe_meta),
         "created_at": time.time(),
     }
 
@@ -119,7 +122,8 @@ def require_approval(
     try:
         from governance.envelopes import compute_envelope
         env = compute_envelope()
-        if env.get("patch_approval_threshold") in ("operator_required", "blocked"):
+        threshold = env.get("patch_approval_threshold")
+        if threshold in ("operator_required", "blocked", "operator_for_medium_and_above"):
             return True
     except Exception:
         return True
@@ -128,10 +132,12 @@ def require_approval(
 
 
 def get_proposals(status: str | None = None, limit: int = 20) -> List[Dict[str, Any]]:
+    n = max(0, int(limit))
     with _proposal_lock:
         if status:
-            return [dict(p) for p in _PROPOSALS if p["status"] == status][-limit:]
-        return [dict(p) for p in _PROPOSALS[-limit:]]
+            matches = [dict(p) for p in _PROPOSALS if p["status"] == status]
+            return matches[-n:] if n > 0 else []
+        return [dict(p) for p in _PROPOSALS[-n:]] if n > 0 else []
 
 
 def get_proposal(proposal_id: str) -> Optional[Dict[str, Any]]:

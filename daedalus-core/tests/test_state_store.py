@@ -30,7 +30,9 @@ class TestStateStore(unittest.TestCase):
         self.store.save(self.sample_state)
         loaded = self.store.load()
 
-        self.assertEqual(loaded, self.sample_state)
+        expected = dict(self.sample_state)
+        expected.setdefault("history", [])
+        self.assertEqual(loaded, expected)
 
     # ------------------------------------------------------------
     # IMMUTABILITY GUARANTEE

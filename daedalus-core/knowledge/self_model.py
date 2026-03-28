@@ -301,7 +301,7 @@ def _identify_frontier_domains() -> List[str]:
     for entity, _ in centrality[:20]:
         neighbor_edges = get_neighbors(entity)
         for edge in neighbor_edges:
-            neighbor = edge["object"]
+            neighbor = edge.get("object", "")
             if neighbor not in central_set:
                 info = _load_entities_raw(neighbor)
                 if info and info.get("occurrences", 0) < 2:
@@ -468,18 +468,20 @@ def summarize_self_model() -> Dict[str, Any]:
     Thread-safe — reads from a snapshot under lock.
     """
     sm = get_self_model()
+    conf = sm.get("confidence", {})
+    cov = sm.get("coverage", {})
     return {
-        "knowledge_quality": sm["confidence"]["knowledge_quality"],
-        "graph_coherence": sm["confidence"]["graph_coherence"],
-        "consistency": sm["confidence"]["consistency"],
-        "entity_count": sm["coverage"]["entity_count"],
-        "relation_count": sm["coverage"]["relation_count"],
-        "topic_clusters": sm["coverage"]["topic_clusters"],
-        "shallow_clusters": sm["coverage"]["shallow_clusters"],
-        "frontier_domains": sm["coverage"]["frontier_domains"],
-        "blind_spots": sm["blind_spots"][:10],
-        "coverage_gaps": len(sm["coverage_gaps"]),
-        "frontier_domain_list": sm["frontier_domains"][:10],
-        "storage_used": sm["storage"].get("used_bytes"),
-        "storage_ratio": sm["storage"].get("ratio"),
+        "knowledge_quality": conf.get("knowledge_quality", 0.0),
+        "graph_coherence": conf.get("graph_coherence", 0.0),
+        "consistency": conf.get("consistency", 0.0),
+        "entity_count": cov.get("entity_count", 0),
+        "relation_count": cov.get("relation_count", 0),
+        "topic_clusters": cov.get("topic_clusters", 0),
+        "shallow_clusters": cov.get("shallow_clusters", 0),
+        "frontier_domains": cov.get("frontier_domains", []),
+        "blind_spots": sm.get("blind_spots", [])[:10],
+        "coverage_gaps": len(sm.get("coverage_gaps", [])),
+        "frontier_domain_list": sm.get("frontier_domains", [])[:10],
+        "storage_used": sm.get("storage", {}).get("used_bytes"),
+        "storage_ratio": sm.get("storage", {}).get("ratio"),
     }

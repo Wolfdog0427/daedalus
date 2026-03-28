@@ -11,10 +11,11 @@ _trace_lock = threading.Lock()
 
 
 def record_governor_event(event_type: str, details: Dict[str, Any]) -> None:
+    import copy
     entry = {
         "timestamp": time.time(),
         "event_type": event_type,
-        "details": details,
+        "details": copy.deepcopy(details),
     }
     with _trace_lock:
         _trace_log.append(entry)
@@ -23,5 +24,7 @@ def record_governor_event(event_type: str, details: Dict[str, Any]) -> None:
 
 
 def get_governor_trace(limit: int = 50) -> List[Dict[str, Any]]:
+    import copy
+    n = max(0, int(limit))
     with _trace_lock:
-        return list(_trace_log[-limit:])
+        return [copy.deepcopy(e) for e in _trace_log[-n:]] if n > 0 else []

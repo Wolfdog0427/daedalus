@@ -139,7 +139,8 @@ class TrustMomentum:
 
     def get_stats(self, source: str) -> Optional[Dict[str, Any]]:
         with self._lock:
-            return self._history.get(source)
+            entry = self._history.get(source)
+            return dict(entry) if entry is not None else None
 
     def summary(self) -> Dict[str, Any]:
         with self._lock:
@@ -255,7 +256,7 @@ def _get_integrity_modifier(source: str, text: str, meta: Dict[str, Any]) -> flo
             return -1.0
         return report.get("trust_modifier", 0.0)
     except Exception:
-        return 0.0
+        return -0.2
 
 
 # ------------------------------------------------------------
@@ -290,7 +291,7 @@ class EpistemicConfidence:
         corroboration = self._corroboration_score(text)
         consistency = self._neighborhood_consistency(text)
         depth = self._verification_depth(meta)
-        recency = self._recency_score(meta)
+        recency = self._recency_score(meta, item_created_at=item.get("created_at"))
 
         weighted = (
             corroboration * self.CORROBORATION_WEIGHT
@@ -354,16 +355,26 @@ class EpistemicConfidence:
             "verified": 1.0,
             "light_verified": 0.7,
             "provisional": 0.4,
+            "unverified": 0.25,
             "unknown": 0.3,
             "flagged": 0.1,
         }
         return depth_map.get(status, 0.3)
 
-    def _recency_score(self, meta: Dict[str, Any]) -> float:
+    def _recency_score(self, meta: Dict[str, Any], item_created_at: Any = None) -> float:
         """More recently verified items get higher confidence."""
-        ts = meta.get("timestamp") or meta.get("ingested_at", 0)
-        if not ts:
+        ts = meta.get("timestamp")
+        if ts is None:
+            ts = meta.get("ingested_at")
+        if ts is None:
+            ts = item_created_at
+        if ts is None:
             return 0.3
+        if not isinstance(ts, (int, float)):
+            try:
+                ts = float(ts)
+            except (TypeError, ValueError):
+                return 0.3
         age_sec = time.time() - ts
         age_days = age_sec / 86400
         if age_days < 7:

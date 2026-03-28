@@ -10,7 +10,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 
+from fastapi.responses import JSONResponse as FastJSONResponse
+
 from api.ui_gateway import handle_request
+
+
+def _map_response(result: Dict[str, Any]):
+    """Return a JSONResponse with the correct HTTP status for logical errors."""
+    if isinstance(result, dict) and result.get("ok") is False:
+        return FastJSONResponse(content=result, status_code=409)
+    return result
 
 _API_KEY_HEADER = APIKeyHeader(name="X-Daedalus-Key", auto_error=False)
 _OPERATOR_KEY = os.environ.get("DAEDALUS_API_KEY", "")
@@ -50,8 +59,8 @@ class UIRequest(BaseModel):
 # ------------------------------------------------------------
 
 @app.post("/ui")
-def ui_endpoint(req: UIRequest, _key: str = Depends(_require_api_key)) -> Dict[str, Any]:
-    return handle_request({"command": req.command, "args": req.args or {}})
+def ui_endpoint(req: UIRequest, _key: str = Depends(_require_api_key)):
+    return _map_response(handle_request({"command": req.command, "args": req.args or {}}))
 
 
 # ------------------------------------------------------------
@@ -59,28 +68,28 @@ def ui_endpoint(req: UIRequest, _key: str = Depends(_require_api_key)) -> Dict[s
 # ------------------------------------------------------------
 
 @app.get("/status")
-def status_endpoint():
-    return handle_request({"command": "status", "args": {}})
+def status_endpoint(_key: str = Depends(_require_api_key)):
+    return _map_response(handle_request({"command": "status", "args": {}}))
 
 
 @app.get("/health")
-def health_endpoint():
-    return handle_request({"command": "health", "args": {}})
+def health_endpoint(_key: str = Depends(_require_api_key)):
+    return _map_response(handle_request({"command": "health", "args": {}}))
 
 
 @app.get("/readiness")
-def readiness_endpoint():
-    return handle_request({"command": "readiness", "args": {}})
+def readiness_endpoint(_key: str = Depends(_require_api_key)):
+    return _map_response(handle_request({"command": "readiness", "args": {}}))
 
 
 @app.get("/governor/trace")
-def governor_trace_endpoint():
-    return handle_request({"command": "governor_trace", "args": {}})
+def governor_trace_endpoint(_key: str = Depends(_require_api_key)):
+    return _map_response(handle_request({"command": "governor_trace", "args": {}}))
 
 
 @app.get("/governor/thresholds")
-def governor_thresholds_endpoint():
-    return handle_request({"command": "governor_thresholds", "args": {}})
+def governor_thresholds_endpoint(_key: str = Depends(_require_api_key)):
+    return _map_response(handle_request({"command": "governor_thresholds", "args": {}}))
 
 
 # ------------------------------------------------------------
@@ -93,19 +102,19 @@ def governor_set_thresholds_endpoint(
     _key: str = Depends(_require_api_key),
 ):
     args = req.get("args", {})
-    return handle_request({"command": "governor_set_thresholds", "args": args})
+    return _map_response(handle_request({"command": "governor_set_thresholds", "args": args}))
 
 
 @app.post("/governor/thresholds/save")
 def governor_save_thresholds_endpoint(_key: str = Depends(_require_api_key)):
-    return handle_request({"command": "governor_save_thresholds", "args": {}})
+    return _map_response(handle_request({"command": "governor_save_thresholds", "args": {}}))
 
 
 @app.post("/governor/thresholds/load")
 def governor_load_thresholds_endpoint(_key: str = Depends(_require_api_key)):
-    return handle_request({"command": "governor_load_thresholds", "args": {}})
+    return _map_response(handle_request({"command": "governor_load_thresholds", "args": {}}))
 
 
 @app.post("/governor/thresholds/reset")
 def governor_reset_thresholds_endpoint(_key: str = Depends(_require_api_key)):
-    return handle_request({"command": "governor_reset_thresholds", "args": {}})
+    return _map_response(handle_request({"command": "governor_reset_thresholds", "args": {}}))

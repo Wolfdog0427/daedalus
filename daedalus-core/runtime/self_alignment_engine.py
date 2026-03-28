@@ -57,7 +57,7 @@ def align_identity_layers(
     if posture_id is None:
         try:
             from runtime.posture_state import get_current_posture
-            posture_id = get_current_posture()["posture_id"]
+            posture_id = get_current_posture().get("posture_id", "COMPANION")
         except Exception:
             posture_id = "COMPANION"
 

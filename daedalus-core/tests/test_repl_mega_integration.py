@@ -50,7 +50,7 @@ def env():
 
 def run(env, text):
     """Run a single REPL line through the full pipeline."""
-    return _process_line(
+    pm, ds, df = _process_line(
         text,
         env["state"],
         env["execution"],
@@ -65,6 +65,10 @@ def run(env, text):
         env["dashboard_sort"],
         env["dashboard_filter"],
     )
+    env["plan_mode"] = pm
+    env["dashboard_sort"] = ds
+    env["dashboard_filter"] = df
+    return pm, ds, df
 
 
 # ------------------------------------------------------------
@@ -97,8 +101,9 @@ def test_full_system_integration(env, capsys):
     assert len(env["state"]["goals_tree"]) == 2
 
     # --------------------------------------------------------
-    # 2. Add steps to active goal
+    # 2. Add steps to goal 1 (switch back since goal 2 is now active)
     # --------------------------------------------------------
+    run(env, "switch to goal 1")
     run(env, "add step Design the hull")
     run(env, "add step Install the engine")
     run(env, "add step Test flight systems")

@@ -9,6 +9,7 @@ Does not modify SHO decision logic; only wraps and caches last result for status
 from __future__ import annotations
 
 import json
+import threading
 import uuid
 from typing import Any, Dict, Optional
 
@@ -16,6 +17,7 @@ from governor.singleton import governor
 from orchestrator.sho_cycle_orchestrator import run_sho_cycle as _orch_run_sho_cycle
 
 _last_sho_cycle_result: Optional[Dict[str, Any]] = None
+_sho_lock = threading.Lock()
 
 
 def run_sho_cycle() -> Dict[str, Any]:
@@ -29,19 +31,20 @@ def run_sho_cycle() -> Dict[str, Any]:
     try:
         result = _orch_run_sho_cycle(governor)
         out = {"status": "ok", "cycle_id": cycle_id, "result": result}
-        _last_sho_cycle_result = out
-        return out
-    except Exception as exc:  # pragma: no cover
+    except Exception as exc:
         out = {"status": "error", "error": str(exc), "cycle_id": cycle_id}
+    with _sho_lock:
         _last_sho_cycle_result = out
-        return out
+    return out
 
 
 def get_sho_status() -> Dict[str, Any]:
     """Minimal status snapshot (last cycle + governor tier)."""
+    with _sho_lock:
+        last = dict(_last_sho_cycle_result) if _last_sho_cycle_result else None
     return {
         "status": "ok",
-        "last_cycle": _last_sho_cycle_result,
+        "last_cycle": last,
         "governor_tier": governor.tier,
     }
 

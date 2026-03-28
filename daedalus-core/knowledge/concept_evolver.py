@@ -109,29 +109,29 @@ def merge_concepts(a: str, b: str) -> Dict[str, Any]:
         redirected = 0
         for subj, edges in graph.items():
             for edge in edges:
-                if edge["object"] == b:
+                if edge.get("object") == b:
                     edge["object"] = a
                     redirected += 1
 
-        # T3: Resolve contradictions between A's and B's edge sets
-        contradictions_resolved = 0
+        # T3: Harmonize trust values between A's and B's shared edges
+        edges_harmonized = 0
         if a in graph and b in graph:
-            a_rels = {(e["relation"], e["object"]): e for e in graph.get(a, [])}
-            b_rels = {(e["relation"], e["object"]): e for e in graph.get(b, [])}
+            a_rels = {(e.get("relation", ""), e.get("object", "")): e for e in graph.get(a, [])}
+            b_rels = {(e.get("relation", ""), e.get("object", "")): e for e in graph.get(b, [])}
             for key in set(a_rels) & set(b_rels):
                 a_edge = a_rels[key]
                 b_edge = b_rels[key]
                 if a_edge.get("trust", 0) < b_edge.get("trust", 0):
                     a_edge["trust"] = b_edge["trust"]
-                contradictions_resolved += 1
+                edges_harmonized += 1
 
         # Merge entity metadata
         if b in entities:
             if a not in entities:
                 entities[a] = entities[b]
             else:
-                entities[a]["occurrences"] += entities[b]["occurrences"]
-                entities[a]["sources"].extend(entities[b]["sources"])
+                entities[a]["occurrences"] = entities[a].get("occurrences", 0) + entities[b].get("occurrences", 0)
+                entities[a].setdefault("sources", []).extend(entities[b].get("sources", []))
 
             del entities[b]
 
@@ -143,7 +143,7 @@ def merge_concepts(a: str, b: str) -> Dict[str, Any]:
         "canonical": a,
         "merged": b,
         "redirected_edges": redirected,
-        "contradictions_resolved": contradictions_resolved,
+        "edges_harmonized": edges_harmonized,
     }
 
 
@@ -231,20 +231,20 @@ def refine_relationships(entity: str) -> Dict[str, Any]:
                 break
 
         for edge in edges:
-            trust = edge["trust"]
-            relation = edge["relation"]
-            obj = edge["object"]
+            trust = edge.get("trust", 0.0)
+            relation = edge.get("relation", "")
+            obj = edge.get("object", "")
 
             if cluster_for_entity:
                 freq = sum(
                     1 for e in cluster_for_entity
-                    for r, o in [(ed["relation"], ed["object"]) for ed in graph.get(e, [])]
+                    for r, o in [(ed.get("relation", ""), ed.get("object", "")) for ed in graph.get(e, [])]
                     if r == relation and o == obj
                 )
             else:
                 freq = 1
 
-            new_strength = min(1.0, trust * 0.7 + (freq / 10) * 0.3)
+            new_strength = max(0.0, min(1.0, trust * 0.7 + (freq / 10) * 0.3))
 
             edge["trust"] = new_strength
 
@@ -324,13 +324,13 @@ def evolution_cycle(coherence: float = 0.0) -> Dict[str, Any]:
     for concept, _, _ in merges[:effective_cap]:
         refined.append(refine_relationships(concept))
 
-    # H2 + T3: real consistency benefit from contradiction-resolving merges
-    total_contradictions_resolved = sum(
-        m.get("contradictions_resolved", 0) for m in merge_results
+    # H2 + T3: consistency benefit from trust-harmonizing merges
+    total_edges_harmonized = sum(
+        m.get("edges_harmonized", 0) for m in merge_results
     )
     consistency_boost = min(
         0.15,
-        0.01 * total_contradictions_resolved
+        0.01 * total_edges_harmonized
         + 0.005 * len(merge_results)
         + 0.002 * len(refined),
     )
@@ -382,7 +382,7 @@ def scoped_evolution_cycle(target_entities: List[str]) -> Dict[str, Any]:
     for entity in target_entities[:20]:  # safety cap
         neighbors = get_neighbors(entity)
         for edge in neighbors:
-            neighbor = edge["object"]
+            neighbor = edge.get("object", "")
             if neighbor not in target_set:
                 sim = compute_entity_similarity(entity, neighbor)
                 if sim >= 0.7:  # higher threshold for cross-cluster merges

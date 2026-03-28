@@ -149,6 +149,14 @@ def _run_scheduler_unlocked() -> Dict[str, Any]:
     # 2. Maintenance
     maintenance = maintenance_scheduler.tick()
 
+    # 2b. Delta-prediction maintenance (RL weight refresh + accuracy)
+    delta_maint: Dict[str, Any] = {}
+    try:
+        from runtime.delta_maintenance import run_delta_maintenance
+        delta_maint = run_delta_maintenance()
+    except Exception:
+        delta_maint = {"error": "delta_maintenance_unavailable"}
+
     # 3. Proposal generation
     proposal = proposal_engine.tick()
 
@@ -213,4 +221,5 @@ def _run_scheduler_unlocked() -> Dict[str, Any]:
         "integrity_log": integrity_validator.get_validation_log(),
         "integrity_score": integrity_score,
         "integrity_score_history": integrity_score_engine.get_score_history(),
+        "delta_maintenance": delta_maint,
     }

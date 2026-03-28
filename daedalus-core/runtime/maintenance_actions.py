@@ -10,6 +10,7 @@ returns descriptive structures only.
 from __future__ import annotations
 
 import copy
+import threading
 from typing import Any, Dict, List
 
 
@@ -131,6 +132,7 @@ def rollback_maintenance_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
 
 _MAINTENANCE_SANDBOX: Dict[str, Any] = {}
 _SANDBOX_SNAPSHOT: Dict[str, Any] = {}
+_sandbox_lock = threading.Lock()
 
 
 def _snapshot_sandbox() -> None:
@@ -147,7 +149,8 @@ def _restore_sandbox() -> None:
 
 def get_sandbox() -> Dict[str, Any]:
     """Read-only view of the maintenance sandbox (for inspection)."""
-    return dict(_MAINTENANCE_SANDBOX)
+    with _sandbox_lock:
+        return copy.deepcopy(_MAINTENANCE_SANDBOX)
 
 
 def perform_maintenance_operation(
@@ -173,14 +176,15 @@ def perform_maintenance_operation(
             "reasons": validation["reasons"],
         }
 
-    _snapshot_sandbox()
+    with _sandbox_lock:
+        _snapshot_sandbox()
 
-    steps_done: List[Dict[str, str]] = []
-    for step_name in action.get("steps") or []:
-        _MAINTENANCE_SANDBOX[f"step:{step_name}"] = "completed"
-        steps_done.append({"step": step_name, "status": "completed"})
+        steps_done: List[Dict[str, str]] = []
+        for step_name in action.get("steps") or []:
+            _MAINTENANCE_SANDBOX[f"step:{step_name}"] = "completed"
+            steps_done.append({"step": step_name, "status": "completed"})
 
-    _MAINTENANCE_SANDBOX["_last_action"] = action.get("name", "unknown")
+        _MAINTENANCE_SANDBOX["_last_action"] = action.get("name", "unknown")
 
     return {
         "action": action,
@@ -203,7 +207,8 @@ def rollback_maintenance_operation(result: Dict[str, Any]) -> Dict[str, Any]:
             "restored_state": "no rollback available",
         }
 
-    _restore_sandbox()
+    with _sandbox_lock:
+        _restore_sandbox()
 
     return {
         "rolled_back": True,

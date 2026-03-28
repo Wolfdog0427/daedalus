@@ -8,21 +8,22 @@ from runtime.logging_manager import log_event
 
 
 def handle_request(request: Dict[str, Any]) -> Dict[str, Any]:
+    cmd = request.get("command") if isinstance(request, dict) else None
     try:
         try:
-            log_event("ui_gateway", "Incoming request", request)
+            log_event("ui_gateway", "Incoming request", {"command": cmd})
         except Exception:
             pass
         response = route(request)
         try:
-            log_event("ui_gateway", "Outgoing response", {"command": request.get("command")})
+            log_event("ui_gateway", "Outgoing response", {"command": cmd})
         except Exception:
             pass
         return response
 
     except Exception as e:
         try:
-            log_event("ui_gateway", "Gateway error", {"error": str(e), "request": request})
+            log_event("ui_gateway", "Gateway error", {"error": str(e), "command": cmd})
         except Exception:
             pass
         try:

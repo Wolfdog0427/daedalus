@@ -93,8 +93,8 @@ class SnapshotEngine:
             if sid_a not in self.snapshots or sid_b not in self.snapshots:
                 return None
 
-            a = copy.deepcopy(self.snapshots[sid_a]["state"])
-            b = copy.deepcopy(self.snapshots[sid_b]["state"])
+            a = copy.deepcopy(self.snapshots[sid_a].get("state", {}))
+            b = copy.deepcopy(self.snapshots[sid_b].get("state", {}))
 
         diff = {
             "added": {},

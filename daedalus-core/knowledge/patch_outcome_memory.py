@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import json
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 
@@ -15,7 +15,7 @@ ACTION_MEMORY = os.path.join(MEMORY_ROOT, "actions")
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _ensure(path: str) -> None:
@@ -168,24 +168,31 @@ def update_action_memory(
 def _compute_success_rate(history: List[Dict[str, Any]]) -> float:
     if not history:
         return 0.0
-    successes = sum(1 for h in history if h["patch_result"]["status"] == "success")
+    successes = sum(
+        1 for h in history
+        if isinstance(h.get("patch_result"), dict)
+        and h["patch_result"].get("status") == "success"
+    )
     return successes / len(history)
 
 
 def _compute_avg_score(history: List[Dict[str, Any]]) -> float:
     if not history:
         return 0.0
-    return sum(h["score"] for h in history) / len(history)
+    scores = [h.get("score", 0) for h in history]
+    return sum(scores) / len(scores)
 
 
 def _compute_rollback_rate(history: List[Dict[str, Any]]) -> float:
     if not history:
         return 0.0
-    rollbacks = sum(
-        1
-        for h in history
-        if h.get("patch_result", {}).get("details", {}).get("rolled_back")
-    )
+    rollbacks = 0
+    for h in history:
+        pr = h.get("patch_result")
+        if isinstance(pr, dict):
+            details = pr.get("details")
+            if isinstance(details, dict) and details.get("rolled_back"):
+                rollbacks += 1
     return rollbacks / len(history)
 
 

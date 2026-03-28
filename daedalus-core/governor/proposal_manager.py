@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 from typing import Any, Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 from .state_store import (
@@ -20,7 +20,7 @@ _MAX_PROPOSALS = 500
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 # ------------------------------------------------------------
@@ -32,10 +32,11 @@ def load_proposal_by_id(proposal_id: str) -> Optional[Dict[str, Any]]:
     Retrieve a single proposal by ID.
     Returns None if not found.
     """
-    proposals = load_proposals()
-    for p in proposals:
-        if p.get("id") == proposal_id:
-            return p
+    with _proposal_file_lock:
+        proposals = load_proposals()
+        for p in proposals:
+            if p.get("id") == proposal_id:
+                return dict(p)
     return None
 
 
@@ -130,7 +131,7 @@ def create_proposal(
         proposals.append(proposal)
         pruned_ids: set = set()
         if len(proposals) > _MAX_PROPOSALS:
-            pruned_ids = {p["id"] for p in proposals[:-_MAX_PROPOSALS]}
+            pruned_ids = {p.get("id") for p in proposals[:-_MAX_PROPOSALS] if p.get("id") is not None}
             proposals[:] = proposals[-_MAX_PROPOSALS:]
         save_proposals(proposals)
 
@@ -154,8 +155,9 @@ def list_pending_proposals() -> List[Dict[str, Any]]:
     """
     Return all proposals with status == 'pending'.
     """
-    proposals = load_proposals()
-    return [p for p in proposals if p.get("status") == "pending"]
+    with _proposal_file_lock:
+        proposals = load_proposals()
+        return [dict(p) for p in proposals if p.get("status") == "pending"]
 
 
 # ------------------------------------------------------------
@@ -177,6 +179,8 @@ def update_proposal_status(
 
         for p in proposals:
             if p.get("id") == proposal_id:
+                if p.get("status") == status:
+                    return dict(p)
                 p["status"] = status
                 p["decision"] = {
                     "decided_by": decided_by,

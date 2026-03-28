@@ -191,7 +191,7 @@ class IntegrityScoreEngine:
 
     def get_last_score(self) -> Optional[Dict[str, Any]]:
         with self._lock:
-            return self.last_score
+            return dict(self.last_score) if self.last_score else None
 
     def get_score_history(self):
         with self._lock:

@@ -138,8 +138,13 @@ def _llm_hypotheses(
                 "explanation": response.strip()[:500],
                 "recommendation": recommendation,
             }]
-    except Exception:
-        pass
+    except Exception as exc:
+        return [{
+            "type": "llm_analysis",
+            "confidence": 0.0,
+            "explanation": f"LLM contradiction analysis failed: {exc}",
+            "recommendation": "review",
+        }]
 
     return []
 
@@ -156,12 +161,14 @@ def test_hypothesis(
     Evaluate a hypothesis against available evidence from the
     knowledge graph. Returns a confidence-adjusted result.
     """
-    base_confidence = hypothesis.get("confidence") or 0.5
+    _raw_conf = hypothesis.get("confidence")
+    base_confidence = _raw_conf if _raw_conf is not None else 0.5
     evidence_support = 0.0
 
     if evidence:
         for item in evidence:
-            trust = item.get("trust") or 0.5
+            _raw_trust = item.get("trust")
+            trust = _raw_trust if _raw_trust is not None else 0.5
             evidence_support += trust * 0.1
 
     adjusted_confidence = min(1.0, base_confidence + evidence_support)
@@ -216,39 +223,6 @@ def resolve_contradiction(
         "hypotheses_tested": len(tested),
         "timestamp": time.time(),
     }
-
-
-# ------------------------------------------------------------
-# DISAMBIGUATION
-# ------------------------------------------------------------
-
-def formulate_disambiguation_query(text_a: str, text_b: str) -> str:
-    """
-    Generate a query that would disambiguate the contradiction.
-    Useful for active learning — the system can go find the answer.
-    """
-    try:
-        from knowledge.llm_adapter import llm_adapter
-        if llm_adapter.is_available():
-            prompt = (
-                f"Two facts contradict each other:\n"
-                f"A: {text_a[:300]}\n"
-                f"B: {text_b[:300]}\n\n"
-                f"Generate a single search query that would help determine "
-                f"which is correct. Just the query, nothing else."
-            )
-            result = llm_adapter.complete(prompt, max_tokens=64, temperature=0.3)
-            if result.strip():
-                return result.strip()
-    except ImportError:
-        pass
-
-    a_words = set(text_a.lower().split())
-    b_words = set(text_b.lower().split())
-    unique_a = a_words - b_words
-    unique_b = b_words - a_words
-    key_terms = list(unique_a | unique_b)[:5]
-    return " ".join(key_terms) if key_terms else text_a[:100]
 
 
 # ------------------------------------------------------------

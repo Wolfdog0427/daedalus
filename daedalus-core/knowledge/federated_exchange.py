@@ -27,11 +27,14 @@ import json
 import time
 import hmac
 import hashlib
-import secrets
+
+import threading
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 from knowledge._atomic_io import atomic_write_json
+
+_peers_lock = threading.Lock()
 
 
 # ------------------------------------------------------------
@@ -67,8 +70,9 @@ def _ensure_storage():
 def _load_peers() -> Dict[str, Dict[str, Any]]:
     _ensure_storage()
     try:
-        return json.loads(PEERS_FILE.read_text(encoding="utf-8"))
-    except Exception:
+        data = json.loads(PEERS_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, OSError):
         return {}
 
 
@@ -77,61 +81,12 @@ def _save_peers(peers: Dict[str, Dict[str, Any]]) -> None:
     atomic_write_json(PEERS_FILE, peers)
 
 
-def get_peer_registry() -> List[Dict[str, Any]]:
-    """List known peers and their trust levels."""
-    peers = _load_peers()
-    return [
-        {
-            "peer_id": k,
-            "trust": v.get("trust", INITIAL_PEER_TRUST),
-            "items_received": v.get("items_received", 0),
-            "items_sent": v.get("items_sent", 0),
-            "last_sync": v.get("last_sync", 0),
-            "first_contact": v.get("first_contact", 0),
-        }
-        for k, v in peers.items()
-    ]
-
-
-# ------------------------------------------------------------
-# PEER KEY MANAGEMENT
-# ------------------------------------------------------------
-
-def register_peer(peer_id: str) -> str:
-    """Register a new peer and generate a shared secret key.
-
-    Returns the hex-encoded key that must be given to the peer
-    out-of-band (operator action).  The key is stored locally.
-    """
-    peers = _load_peers()
-    key = secrets.token_hex(32)
-    peers[peer_id] = {
-        "trust": INITIAL_PEER_TRUST,
-        "first_contact": time.time(),
-        "items_received": 0, "items_sent": 0,
-        "items_accepted": 0, "items_rejected": 0,
-        "last_sync": 0,
-        "shared_key": key,
-    }
-    _save_peers(peers)
-    return key
-
-
 def _get_peer_key(peer_id: str) -> Optional[str]:
     peers = _load_peers()
     peer = peers.get(peer_id)
     if peer is None:
         return None
     return peer.get("shared_key")
-
-
-def sign_bundle(items: List[Dict[str, Any]], peer_id: str) -> str:
-    """Produce an HMAC-SHA256 signature over a JSON-serialised bundle."""
-    key = _get_peer_key(peer_id)
-    if not key:
-        raise ValueError(f"No shared key for peer '{peer_id}'")
-    payload = json.dumps(items, sort_keys=True, ensure_ascii=False).encode()
-    return hmac.new(key.encode(), payload, hashlib.sha256).hexdigest()
 
 
 def verify_signature(
@@ -154,35 +109,37 @@ def negotiate_trust(
     Establish or update trust level with a peer instance.
     Trust starts low and builds through successful exchanges.
     """
-    peers = _load_peers()
-    peer = peers.get(peer_id)
+    with _peers_lock:
+        peers = _load_peers()
+        peer = peers.get(peer_id)
 
-    if peer is None:
-        peer = {
-            "trust": INITIAL_PEER_TRUST,
-            "first_contact": time.time(),
-            "items_received": 0,
-            "items_sent": 0,
-            "items_accepted": 0,
-            "items_rejected": 0,
-            "last_sync": 0,
-        }
+        if peer is None:
+            peer = {
+                "trust": INITIAL_PEER_TRUST,
+                "first_contact": time.time(),
+                "items_received": 0,
+                "items_sent": 0,
+                "items_accepted": 0,
+                "items_rejected": 0,
+                "last_sync": 0,
+            }
+            peers[peer_id] = peer
+            _save_peers(peers)
+            return INITIAL_PEER_TRUST
+
+        accepted = peer.get("items_accepted", 0)
+        rejected = peer.get("items_rejected", 0)
+        quarantined_count = peer.get("items_quarantined", 0)
+        total = accepted + rejected + quarantined_count
+
+        if total > 0:
+            success_rate = accepted / total
+            trust_adjustment = (success_rate - 0.5) * PEER_TRUST_INCREMENT * total
+            peer["trust"] = max(0.1, min(0.9, peer["trust"] + trust_adjustment))
+
         peers[peer_id] = peer
         _save_peers(peers)
-        return INITIAL_PEER_TRUST
-
-    accepted = peer.get("items_accepted", 0)
-    rejected = peer.get("items_rejected", 0)
-    total = accepted + rejected
-
-    if total > 0:
-        success_rate = accepted / total
-        trust_adjustment = (success_rate - 0.5) * PEER_TRUST_INCREMENT * total
-        peer["trust"] = max(0.1, min(0.9, peer["trust"] + trust_adjustment))
-
-    peers[peer_id] = peer
-    _save_peers(peers)
-    return peer["trust"]
+        return peer["trust"]
 
 
 # ------------------------------------------------------------
@@ -333,12 +290,16 @@ def import_items(
         except ImportError:
             rejected += 1
 
-    peer["items_received"] = peer.get("items_received", 0) + len(items)
-    peer["items_accepted"] = peer.get("items_accepted", 0) + accepted
-    peer["items_rejected"] = peer.get("items_rejected", 0) + rejected
-    peer["last_sync"] = time.time()
-    peers[peer_id] = peer
-    _save_peers(peers)
+    with _peers_lock:
+        peers = _load_peers()
+        peer = peers.get(peer_id, peer)
+        peer["items_received"] = peer.get("items_received", 0) + len(items)
+        peer["items_accepted"] = peer.get("items_accepted", 0) + accepted
+        peer["items_rejected"] = peer.get("items_rejected", 0) + rejected
+        peer["items_quarantined"] = peer.get("items_quarantined", 0) + quarantined
+        peer["last_sync"] = time.time()
+        peers[peer_id] = peer
+        _save_peers(peers)
 
     negotiate_trust(peer_id)
 
@@ -414,11 +375,12 @@ def sync_protocol(
     }
 
     if outgoing_items is not None:
-        peers = _load_peers()
-        peer = peers.get(peer_id, {})
-        peer["items_sent"] = peer.get("items_sent", 0) + len(outgoing_items)
-        peers[peer_id] = peer
-        _save_peers(peers)
+        with _peers_lock:
+            peers = _load_peers()
+            peer = peers.get(peer_id, {})
+            peer["items_sent"] = peer.get("items_sent", 0) + len(outgoing_items)
+            peers[peer_id] = peer
+            _save_peers(peers)
 
         result["export"] = {
             "items_sent": len(outgoing_items),
@@ -457,5 +419,8 @@ def _log_exchange(
     try:
         with EXCHANGE_LOG.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "federated exchange audit log write failed: %s", exc,
+        )

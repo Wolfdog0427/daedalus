@@ -17,6 +17,7 @@ It orchestrates other modules safely.
 
 from __future__ import annotations
 
+import math
 import time
 from typing import Dict, Any, List
 from collections import deque
@@ -102,11 +103,12 @@ class QualityRegressionDetector:
         self._regression_count: int = 0
 
     def record_snapshot(self, sm: Dict[str, Any]) -> None:
+        conf = sm.get("confidence", {})
         self._history.append({
             "timestamp": time.time(),
-            "quality": sm["confidence"]["knowledge_quality"],
-            "consistency": sm["confidence"]["consistency"],
-            "coherence": sm["confidence"]["graph_coherence"],
+            "quality": conf.get("knowledge_quality", 0.0),
+            "consistency": conf.get("consistency", 0.0),
+            "coherence": conf.get("graph_coherence", 0.0),
         })
 
     def check_regression(self) -> Dict[str, Any]:
@@ -191,17 +193,19 @@ class StabilityTrendTracker:
         self._review_count: int = 0
 
     def record(self, sm: Dict[str, Any]) -> None:
-        composite = (
-            sm["confidence"]["knowledge_quality"] * 0.3
-            + sm["confidence"]["consistency"] * 0.4
-            + sm["confidence"]["graph_coherence"] * 0.3
-        )
+        conf = sm.get("confidence", {})
+        kq = conf.get("knowledge_quality", 0.0)
+        cs = conf.get("consistency", 0.0)
+        gc = conf.get("graph_coherence", 0.0)
+        composite = kq * 0.3 + cs * 0.4 + gc * 0.3
+        if not math.isfinite(composite):
+            return
         self._snapshots.append({
             "timestamp": time.time(),
             "composite": composite,
-            "quality": sm["confidence"]["knowledge_quality"],
-            "consistency": sm["confidence"]["consistency"],
-            "coherence": sm["confidence"]["graph_coherence"],
+            "quality": kq,
+            "consistency": cs,
+            "coherence": gc,
         })
 
     def detect_long_decline(self) -> Dict[str, Any]:
@@ -218,7 +222,7 @@ class StabilityTrendTracker:
         old_avg = sum(s["composite"] for s in list(self._snapshots)[:quarter]) / quarter
         new_avg = sum(s["composite"] for s in list(self._snapshots)[-quarter:]) / quarter
 
-        if old_avg <= 0:
+        if old_avg <= 0 or not math.isfinite(old_avg) or not math.isfinite(new_avg):
             return {"decline_detected": False}
 
         decline_pct = (old_avg - new_avg) / old_avg
@@ -430,18 +434,19 @@ def get_defensive_coordinator() -> DefensiveCoordinator:
 # ------------------------------------------------------------
 
 def _needs_concept_evolution(self_model: Dict[str, Any]) -> bool:
-    coherence = self_model["confidence"]["graph_coherence"]
-    clusters = self_model["coverage"]["topic_clusters"]
+    conf = self_model.get("confidence", {})
+    coherence = conf.get("graph_coherence", 0.0)
+    clusters = self_model.get("coverage", {}).get("topic_clusters", 0)
     return coherence < 0.45 or clusters > 50
 
 
 def _needs_consistency_repair(self_model: Dict[str, Any]) -> bool:
-    consistency = self_model["confidence"]["consistency"]
+    consistency = self_model.get("confidence", {}).get("consistency", 0.0)
     return consistency < 0.5
 
 
 def _needs_storage_maintenance(self_model: Dict[str, Any]) -> bool:
-    storage = self_model["storage"]
+    storage = self_model.get("storage", {})
     return storage.get("ratio", 0) > 0.85
 
 
@@ -464,7 +469,7 @@ def _needs_knowledge_expansion(self_model: Dict[str, Any]) -> bool:
     blind_spots = self_model.get("blind_spots", [])
     coverage_gaps = self_model.get("coverage_gaps", [])
     frontier_domains = self_model.get("frontier_domains", [])
-    coherence = self_model["confidence"]["graph_coherence"]
+    coherence = self_model.get("confidence", {}).get("graph_coherence", 0.0)
 
     has_blind_spots = len(blind_spots) > 5
     has_coverage_gaps = len(coverage_gaps) > 0
@@ -475,8 +480,9 @@ def _needs_knowledge_expansion(self_model: Dict[str, Any]) -> bool:
 
 
 def _needs_deferred_verification(self_model: Dict[str, Any]) -> bool:
-    consistency = self_model["confidence"]["consistency"]
-    coherence = self_model["confidence"]["graph_coherence"]
+    conf = self_model.get("confidence", {})
+    consistency = conf.get("consistency", 0.0)
+    coherence = conf.get("graph_coherence", 0.0)
     return consistency > 0.5 and coherence > 0.4
 
 
@@ -550,7 +556,7 @@ def run_meta_cycle(claim: str | None = None) -> Dict[str, Any]:
     if _FLOW_TUNER_AVAILABLE:
         _sm_interval = _flow_tuner.get_recommended_self_model_interval()
     last_model = get_self_model()
-    last_updated = last_model.get("last_updated", 0)
+    last_updated = last_model.get("last_updated") or 0
     if time.time() - last_updated >= _sm_interval:
         before = update_self_model()
     else:
@@ -574,9 +580,9 @@ def run_meta_cycle(claim: str | None = None) -> Dict[str, Any]:
 
     if _FLOW_TUNER_AVAILABLE:
         _flow_tuner.record_quality(
-            consistency=before["confidence"]["consistency"],
-            coherence=before["confidence"]["graph_coherence"],
-            quality=before["confidence"]["knowledge_quality"],
+            consistency=before.get("confidence", {}).get("consistency", 0.0),
+            coherence=before.get("confidence", {}).get("graph_coherence", 0.0),
+            quality=before.get("confidence", {}).get("knowledge_quality", 0.0),
         )
 
     # --------------------------------------------------------
@@ -644,7 +650,7 @@ def run_meta_cycle(claim: str | None = None) -> Dict[str, Any]:
         report["actions"].append({"type": "consistency_repair", "result": result})
 
     # Active consolidation (C1, C3-v3: ceiling 0.92)
-    current_consistency = before["confidence"]["consistency"]
+    current_consistency = before.get("confidence", {}).get("consistency", 0.0)
     if current_consistency < 0.92:
         result = _il.do_active_consolidation()
         report["actions"].append({"type": "active_consolidation", "result": result})
@@ -680,16 +686,18 @@ def run_meta_cycle(claim: str | None = None) -> Dict[str, Any]:
         if q_status.get("result", {}).get("pending", 0) > 0:
             result = _il.do_quarantine_review()
             report["actions"].append({"type": "quarantine_review", "result": result})
-    except Exception:
-        pass
+    except Exception as exc:
+        report["actions"].append({"type": "quarantine_review",
+                                  "result": {"error": str(exc)}})
 
     # P2+: Batch trust calibration
     try:
         result = _il.do_batch_trust_calibration(sample_cap=500)
         if result.get("result", {}).get("calibrated", 0) > 0:
             report["actions"].append({"type": "batch_trust_calibration", "result": result})
-    except Exception:
-        pass
+    except Exception as exc:
+        report["actions"].append({"type": "batch_trust_calibration",
+                                  "result": {"error": str(exc)}})
 
     # Provider discovery
     if _needs_provider_discovery(before):
@@ -719,8 +727,9 @@ def run_meta_cycle(claim: str | None = None) -> Dict[str, Any]:
             result = _il.do_delayed_poison_audit()
             if result.get("result", {}).get("flagged", 0) > 0:
                 report["actions"].append({"type": "delayed_poison_audit", "result": result})
-        except Exception:
-            pass
+        except Exception as exc:
+            report["actions"].append({"type": "delayed_poison_audit",
+                                      "result": {"error": str(exc)}})
 
     # --------------------------------------------------------
     # 2e. Capability module maintenance
@@ -745,7 +754,7 @@ def run_meta_cycle(claim: str | None = None) -> Dict[str, Any]:
         pass
 
     # LLM-powered batch hypothesis resolution (when contradictions found)
-    if before["confidence"]["consistency"] < 0.95:
+    if before.get("confidence", {}).get("consistency", 0.0) < 0.95:
         try:
             from knowledge.integration_layer import do_batch_hypothesis_resolve
             from knowledge.consistency_checker import scan_for_contradictions
@@ -787,10 +796,11 @@ def run_meta_cycle(claim: str | None = None) -> Dict[str, Any]:
                 report["actions"].append({
                     "type": "abp_learning_cycle", "result": abp_result})
 
+            _bconf = before.get("confidence", {})
             system_metrics = {
-                "coherence": before["confidence"]["graph_coherence"],
-                "stability": before["confidence"].get("stability", 0.0),
-                "quality": before["confidence"]["knowledge_quality"],
+                "coherence": _bconf.get("graph_coherence", 0.0),
+                "stability": _bconf.get("stability", 0.0),
+                "quality": _bconf.get("knowledge_quality", 0.0),
             }
             if abp.check_global_graduation(system_metrics):
                 grad_result = abp.graduate()
@@ -814,7 +824,7 @@ def run_meta_cycle(claim: str | None = None) -> Dict[str, Any]:
     if _SCHOLARLY_AVAILABLE and is_scholarly_active():
         try:
             system_state = {
-                "coherence": before["confidence"]["graph_coherence"],
+                "coherence": before.get("confidence", {}).get("graph_coherence", 0.0),
                 "stale_ratio": 0.0,
                 "gap_rate": 0.0,
                 "pending_contradictions": before.get("issues", {}).get(
@@ -913,16 +923,17 @@ def meta_status() -> Dict[str, Any]:
     """
     sm = get_self_model()
 
+    conf = sm.get("confidence", {})
     status: Dict[str, Any] = {
-        "knowledge_quality": sm["confidence"]["knowledge_quality"],
-        "graph_coherence": sm["confidence"]["graph_coherence"],
-        "consistency": sm["confidence"]["consistency"],
-        "storage_ratio": sm["storage"].get("ratio"),
-        "blind_spots": sm["blind_spots"][:10],
+        "knowledge_quality": conf.get("knowledge_quality", 0.0),
+        "graph_coherence": conf.get("graph_coherence", 0.0),
+        "consistency": conf.get("consistency", 0.0),
+        "storage_ratio": sm.get("storage", {}).get("ratio"),
+        "blind_spots": sm.get("blind_spots", [])[:10],
         "coverage_gaps": len(sm.get("coverage_gaps", [])),
         "frontier_domains": sm.get("frontier_domains", [])[:10],
         "expansion_needed": _needs_knowledge_expansion(sm),
-        "subsystem_health": sm["subsystem_health"],
+        "subsystem_health": sm.get("subsystem_health", {}),
         "regression_detector": _regression_detector.status(),
         "stability_trend": _stability_tracker.status(),
         "severity": _severity_context.status(),

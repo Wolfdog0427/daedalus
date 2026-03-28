@@ -66,7 +66,7 @@ class RestorationEngine:
             "timestamp": time.time(),
             "status": "restored_full",
             "notes": "Full system state restored symbolically.",
-            "snapshot_id": snapshot["id"],
+            "snapshot_id": snapshot.get("id"),
         }
 
     def _restore_partial(self, snapshot: Dict[str, Any], keys: list[str]) -> Dict[str, Any]:
@@ -75,14 +75,15 @@ class RestorationEngine:
         Restores only specific subsystems.
         """
 
-        restored = {k: snapshot["state"].get(k) for k in keys}
+        state = snapshot.get("state", {})
+        restored = {k: state.get(k) for k in keys}
 
         return {
             "timestamp": time.time(),
             "status": "restored_partial",
             "restored_keys": keys,
             "notes": "Partial system state restored symbolically.",
-            "snapshot_id": snapshot["id"],
+            "snapshot_id": snapshot.get("id"),
             "restored_state": restored,
         }
 
@@ -125,7 +126,7 @@ class RestorationEngine:
 
     def get_last_restoration(self) -> Optional[Dict[str, Any]]:
         with self._lock:
-            return self.last_restoration
+            return dict(self.last_restoration) if self.last_restoration else None
 
     def get_restoration_log(self):
         with self._lock:

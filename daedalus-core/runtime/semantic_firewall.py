@@ -138,6 +138,8 @@ class SemanticFirewall:
         intent = cmd.get("intent")
         if not intent:
             raise ValueError("SemanticFirewall: missing intent")
+        if not isinstance(intent, str):
+            raise ValueError(f"SemanticFirewall: intent must be a string, got {type(intent).__name__}")
 
         # Exact match allowed
         if intent not in cls.SAFE_INTENTS:

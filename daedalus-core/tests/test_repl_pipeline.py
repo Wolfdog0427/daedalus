@@ -185,7 +185,7 @@ def test_shortcut_execution(repl_env, capsys):
     # Assuming "ag" is a shortcut for "add goal"
     run_line(repl_env, "ag Test via shortcut")
     entry = repl_env["store"].history[-1]
-    assert entry["command"]["intent"] == "add_goal"
+    assert entry["command"]["intent"] == "create_goal"
 
 
 # ------------------------------------------------------------

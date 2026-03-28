@@ -19,7 +19,7 @@ from runtime.integrity_score_engine import integrity_score_engine
 from governor.singleton import governor
 
 # HEM
-from hem.hem_state_machine import hem_get_state
+from hem.hem_state_machine import hem_get_state, hem_active_count
 
 
 class DashboardAPI:
@@ -145,6 +145,7 @@ class DashboardAPI:
         """
         return {
             "current_state": hem_get_state().value,
+            "active_engagements": hem_active_count(),
         }
 
 

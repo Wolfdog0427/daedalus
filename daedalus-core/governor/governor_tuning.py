@@ -5,7 +5,7 @@ import json
 import os
 import hashlib
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from governor.governor_trace import record_governor_event
 
@@ -55,9 +55,13 @@ def _validate_thresholds(th: Dict[str, Any]) -> Optional[str]:
 
     if not isinstance(th["readiness_min_for_escalation"], (int, float)):
         return "readiness_min_for_escalation must be numeric"
+    if not (0.0 <= th["readiness_min_for_escalation"] <= 1.0):
+        return "readiness_min_for_escalation must be between 0.0 and 1.0"
 
     if not isinstance(th["readiness_min_for_autonomous"], (int, float)):
         return "readiness_min_for_autonomous must be numeric"
+    if not (0.0 <= th["readiness_min_for_autonomous"] <= 1.0):
+        return "readiness_min_for_autonomous must be between 0.0 and 1.0"
 
     return None
 
@@ -110,7 +114,7 @@ def save_thresholds() -> Dict[str, Any]:
     payload = {
         "thresholds": thresholds,
         "metadata": {
-            "saved_at": datetime.utcnow().isoformat() + "Z",
+            "saved_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "saved_by": "user",
             "version": "1.0",
         },
@@ -127,9 +131,12 @@ def save_thresholds() -> Dict[str, Any]:
     )
     try:
         with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+            tmp_fd = -1
             json.dump(payload, f, indent=2)
         os.replace(tmp_path, CONFIG_PATH)
     except BaseException:
+        if tmp_fd >= 0:
+            os.close(tmp_fd)
         try:
             os.unlink(tmp_path)
         except OSError:
@@ -227,6 +234,8 @@ def load_thresholds_silent(gov_instance=None) -> None:
             target.readiness_min_for_escalation = thresholds["readiness_min_for_escalation"]
             target.readiness_min_for_autonomous = thresholds["readiness_min_for_autonomous"]
 
+    except (json.JSONDecodeError, OSError, ValueError):
+        return
     except Exception:
         # Silent failure by design
         return

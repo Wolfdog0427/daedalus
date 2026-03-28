@@ -5,11 +5,11 @@ from __future__ import annotations
 from typing import Any, Dict, List
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _safe_name(name: str) -> str:
@@ -89,7 +89,7 @@ def live_subsystem_improvement(
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             config = {}
     else:
         config = {}
@@ -104,8 +104,19 @@ def live_subsystem_improvement(
     config["tuning"] = tuning
 
     try:
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=2)
+        import tempfile
+        dir_name = os.path.dirname(config_path) or "."
+        fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2)
+            os.replace(tmp_path, config_path)
+        except BaseException:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
     except Exception as e:
         errors.append(f"subsystem_improvement: failed to write live config: {e}")
 

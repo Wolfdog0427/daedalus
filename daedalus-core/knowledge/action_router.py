@@ -97,6 +97,30 @@ def _extract_after_colon(cmd: str) -> str:
     return ""
 
 
+def _request_autonomy_mode(mode: str) -> str:
+    """Gate autonomy mode changes through the governance kernel."""
+    try:
+        from governance.kernel import evaluate_change
+        verdict = evaluate_change({
+            "type": "governance_mode_change",
+            "target": mode,
+            "flags": [],
+            "reversible": True,
+        })
+        if not verdict.get("allowed", False) or verdict.get("needs_approval", False):
+            reason = verdict.get("reason", "operator approval required")
+            return f"[AUTONOMY] Mode change to '{mode}' blocked by governance: {reason}"
+    except ImportError:
+        pass
+    except Exception:
+        return f"[AUTONOMY] Mode change to '{mode}' blocked: governance evaluation failed"
+
+    if governor is not None and hasattr(governor, "set_autonomy_mode"):
+        result = governor.set_autonomy_mode(mode)
+        return f"[AUTONOMY] Mode set to '{mode}'. {json.dumps(result)}"
+    return "[AUTONOMY] Governor module not available."
+
+
 # -------------------------------------------------------------------
 # PUBLIC API
 # -------------------------------------------------------------------
@@ -135,7 +159,7 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
         if _INTEGRATION_AVAILABLE:
             result = do_meta_cycle()
             if result.get("allowed") and result.get("result"):
-                actions = [a["type"] for a in result["result"].get("actions", [])]
+                actions = [a.get("type", "") for a in result.get("result", {}).get("actions", [])]
                 return (
                     f"[META CYCLE] Completed.\n"
                     f"Actions taken: {', '.join(actions) if actions else 'none'}\n"
@@ -367,7 +391,6 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
         try:
             from knowledge.trust_scoring import compute_calibrated_trust, compute_epistemic_confidence
             from knowledge.retrieval import _iter_items
-            import random as _rnd
             sample = []
             for item in _iter_items():
                 sample.append(item)
@@ -417,7 +440,12 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
 
     if norm.startswith("start epoch"):
         hours_str = _extract_after_colon(cmd)
-        hours = float(hours_str) if hours_str else 48.0
+        try:
+            hours = float(hours_str) if hours_str else 48.0
+            if not (0 < hours < 1e6):
+                return "[EPOCH] Invalid duration. Must be a positive number of hours."
+        except (ValueError, TypeError):
+            return f"[EPOCH] Invalid duration: {hours_str!r}. Expected a number."
         if _INTEGRATION_AVAILABLE:
             result = do_start_epoch(duration_hours=hours)
             return f"[EPOCH STARTED]\n{json.dumps(result, indent=2, default=str)}"
@@ -500,22 +528,13 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
     # AUTONOMY GOVERNOR
     # ------------------------------------------------------------
     if norm.startswith("open up autonomy") or norm.startswith("open autonomy") or norm.startswith("permissive mode"):
-        if governor is not None and hasattr(governor, "set_autonomy_mode"):
-            result = governor.set_autonomy_mode("permissive")
-            return f"[AUTONOMY] Mode set to 'permissive'. {json.dumps(result)}"
-        return "[AUTONOMY] Governor module not available."
+        return _request_autonomy_mode("permissive")
 
     if norm.startswith("normal mode") or norm.startswith("guided mode"):
-        if governor is not None and hasattr(governor, "set_autonomy_mode"):
-            result = governor.set_autonomy_mode("normal")
-            return f"[AUTONOMY] Mode set to 'normal'. {json.dumps(result)}"
-        return "[AUTONOMY] Governor module not available."
+        return _request_autonomy_mode("normal")
 
     if norm.startswith("lock down to strict") or norm.startswith("lock down") or norm.startswith("strict mode"):
-        if governor is not None and hasattr(governor, "set_autonomy_mode"):
-            result = governor.set_autonomy_mode("strict")
-            return f"[AUTONOMY] Mode set to 'strict'. {json.dumps(result)}"
-        return "[AUTONOMY] Governor module not available."
+        return _request_autonomy_mode("strict")
 
     # ------------------------------------------------------------
     # VERIFY / EXPLAIN CLAIMS (through integration layer when available)

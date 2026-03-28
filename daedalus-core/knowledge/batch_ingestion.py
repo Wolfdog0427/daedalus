@@ -87,11 +87,6 @@ def get_source_trust(source: str) -> Optional[float]:
         return _source_trust.get(source)
 
 
-def clear_source_trust() -> None:
-    with _source_trust_lock:
-        _source_trust.clear()
-
-
 # ------------------------------------------------------------
 # VERIFICATION INTENSITY
 # ------------------------------------------------------------
@@ -241,14 +236,19 @@ def ingest_batch(
     # Quality snapshot before
     sm_before = get_self_model()
     report["quality_before"] = {
-        "coherence": sm_before["confidence"]["graph_coherence"],
-        "consistency": sm_before["confidence"]["consistency"],
-        "quality": sm_before["confidence"]["knowledge_quality"],
+        "coherence": sm_before.get("confidence", {}).get("graph_coherence", 0.0),
+        "consistency": sm_before.get("confidence", {}).get("consistency", 0.0),
+        "quality": sm_before.get("confidence", {}).get("knowledge_quality", 0.0),
     }
 
     for item_data in items:
         text = item_data.get("text", "")
         if not text.strip():
+            report["rejected"] = report.get("rejected", 0) + 1
+            report.setdefault("items", []).append({
+                "status": "skipped_empty",
+                "reason": "empty or whitespace-only text",
+            })
             continue
 
         item_source = item_data.get("source", source)
@@ -277,7 +277,7 @@ def ingest_batch(
             # P4: Quarantine items with warning/high threat instead of direct ingestion
             if integrity.get("quarantine"):
                 quarantine_item(
-                    item_id=f"pending_{hash(text[:100])}",
+                    item_id=f"pending_{__import__('hashlib').sha256(text[:100].encode('utf-8','replace')).hexdigest()[:16]}",
                     source=item_source,
                     text=text,
                     reason=f"threat_level_{integrity.get('threat_level')}",
@@ -370,9 +370,9 @@ def ingest_batch(
     # Quality snapshot after
     sm_after = get_self_model()
     report["quality_after"] = {
-        "coherence": sm_after["confidence"]["graph_coherence"],
-        "consistency": sm_after["confidence"]["consistency"],
-        "quality": sm_after["confidence"]["knowledge_quality"],
+        "coherence": sm_after.get("confidence", {}).get("graph_coherence", 0.0),
+        "consistency": sm_after.get("confidence", {}).get("consistency", 0.0),
+        "quality": sm_after.get("confidence", {}).get("knowledge_quality", 0.0),
     }
 
     # Record pipeline metrics for flow tuner
@@ -394,8 +394,11 @@ def _record_provenance_mandatory(item_id: str, source: str, path: str) -> None:
     if _INTEGRITY_AVAILABLE:
         try:
             record_provenance(item_id=item_id, source=source, verification_path=path)
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                "provenance recording failed for %s: %s", item_id, exc,
+            )
 
 
 def _record_provenance_safe(item_id: str, source: str, path: str) -> None:
@@ -408,8 +411,13 @@ def _record_trust_outcome(source: str, success: bool) -> None:
     try:
         from knowledge.trust_scoring import record_verification_outcome
         record_verification_outcome(source, success)
-    except (ImportError, Exception):
+    except ImportError:
         pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "trust outcome recording failed for %s: %s", source, exc,
+        )
 
 
 def _update_graph_for_text(text: str, item_id: str, source: str, path: str = "unknown") -> None:
@@ -425,8 +433,11 @@ def _update_graph_for_text(text: str, item_id: str, source: str, path: str = "un
             "source": source,
             "metadata": {},
         })
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "graph update failed for %s: %s", item_id, exc,
+        )
 
 
 # ------------------------------------------------------------

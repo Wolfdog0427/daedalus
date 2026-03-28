@@ -11,6 +11,7 @@ runbook, never auto-activate profiles, and never bypass governance.
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any, Dict, List, Optional
 
@@ -27,6 +28,7 @@ from runtime.tier3_runbook_templates import (
 # ------------------------------------------------------------------
 
 _SCENARIO_REGISTRY: Dict[str, Dict[str, Any]] = {}
+_scenario_lock = threading.Lock()
 
 
 def _register_scenario(
@@ -63,19 +65,20 @@ def get_scenario(name: str) -> Optional[Dict[str, Any]]:
 
 def _ensure_template(scenario: Dict[str, Any]) -> str:
     """Lazily create the backing template the first time a scenario runs."""
-    if scenario.get("template_id"):
-        t = get_template(scenario["template_id"])
-        if t is not None:
-            return scenario["template_id"]
+    with _scenario_lock:
+        if scenario.get("template_id"):
+            t = get_template(scenario["template_id"])
+            if t is not None:
+                return scenario["template_id"]
 
-    t = create_template(
-        name=scenario["template_name"],
-        description=scenario["description"],
-        parameter_schema=scenario["parameter_schema"],
-        step_blueprints=scenario["step_blueprints"],
-    )
-    scenario["template_id"] = t["template_id"]
-    return t["template_id"]
+        t = create_template(
+            name=scenario["template_name"],
+            description=scenario["description"],
+            parameter_schema=scenario["parameter_schema"],
+            step_blueprints=scenario["step_blueprints"],
+        )
+        scenario["template_id"] = t["template_id"]
+        return t["template_id"]
 
 
 def run_scenario(

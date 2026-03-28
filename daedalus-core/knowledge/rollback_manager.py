@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 
@@ -12,7 +12,7 @@ ROLLBACK_ROOT = os.path.join("data", "rollback")
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _sanitize_path_component(name: str) -> str:

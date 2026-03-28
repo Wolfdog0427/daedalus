@@ -14,16 +14,31 @@ SandboxHandler = Callable[[Dict[str, Any], str, Dict[str, Any]], List[str]]
 LiveHandler = Callable[[Dict[str, Any], Dict[str, Any]], List[str]]
 RollbackHandler = Callable[[Dict[str, Any], Dict[str, Any]], List[str]]
 
+_ALL_PATCH_ACTION_TYPES = (
+    "subsystem_improvement",
+    "refactor",
+    "cleanup",
+    "optimize",
+    "improve",
+    "explore",
+    "restructure",
+    "enhance",
+    "rollback",
+    "tighten",
+    "repair",
+    "verify",
+)
+
 SANDBOX_HANDLERS: Dict[str, SandboxHandler] = {
-    "subsystem_improvement": sandbox_subsystem_improvement,
+    t: sandbox_subsystem_improvement for t in _ALL_PATCH_ACTION_TYPES
 }
 
 LIVE_HANDLERS: Dict[str, LiveHandler] = {
-    "subsystem_improvement": live_subsystem_improvement,
+    t: live_subsystem_improvement for t in _ALL_PATCH_ACTION_TYPES
 }
 
 ROLLBACK_HANDLERS: Dict[str, RollbackHandler] = {
-    "subsystem_improvement": rollback_subsystem_improvement,
+    t: rollback_subsystem_improvement for t in _ALL_PATCH_ACTION_TYPES
 }
 
 

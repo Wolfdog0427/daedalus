@@ -179,8 +179,8 @@ def enforce_contract(change_request: Dict[str, Any]) -> Dict[str, Any]:
 def enforce_invariants() -> Dict[str, Any]:
     """Run a global invariant health check (no specific change).
 
-    Fail-closed: if the module is missing the check is skipped, but
-    if the call fails, invariants are treated as violated.
+    Fail-closed: if the module is missing or the call fails,
+    invariants are treated as violated (passed=False).
     """
     try:
         from governance.safety_invariants import enforce_invariants as _ei
@@ -469,8 +469,9 @@ def get_kernel_state() -> Dict[str, Any]:
 
 
 def get_kernel_log(limit: int = 20) -> List[Dict[str, Any]]:
+    n = max(0, int(limit))
     with _kernel_state_lock:
-        return list(_KERNEL_LOG[-limit:])
+        return [dict(e) for e in _KERNEL_LOG[-n:]] if n > 0 else []
 
 
 def reset_kernel(reason: str = "operator_reset") -> Dict[str, Any]:
@@ -482,19 +483,20 @@ def reset_kernel(reason: str = "operator_reset") -> Dict[str, Any]:
         _stabilise_mode = False
         _KERNEL_LOG.clear()
 
+    warnings = []
     try:
         from governance.personas import set_active_persona
         set_active_persona("COMPANION_GOV", reason)
-    except Exception:
-        pass
+    except Exception as exc:
+        warnings.append(f"persona_reset_failed: {exc}")
     try:
         from governance.modes import set_active_mode
         set_active_mode("ADVISORY", reason)
-    except Exception:
-        pass
+    except Exception as exc:
+        warnings.append(f"mode_reset_failed: {exc}")
 
-    _log_kernel("kernel_reset", {}, {"reason": reason})
-    return {"success": True, "reason": reason}
+    _log_kernel("kernel_reset", {}, {"reason": reason, "warnings": warnings})
+    return {"success": len(warnings) == 0, "reason": reason, "warnings": warnings}
 
 
 # ------------------------------------------------------------------

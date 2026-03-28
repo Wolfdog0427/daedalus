@@ -10,15 +10,16 @@ from hem import hem_snapshot_bridge, hem_drift_bridge
 
 def test_hem_no_reentry_from_non_normal(monkeypatch):
     from hem import hem_state_machine
-    hem_state_machine._current_state = HEMState.HEM_ACTIVE
+    hem_state_machine._set_state(HEMState.HEM_ACTIVE)
 
     hem_maybe_enter("test_reentry")
     assert hem_get_state() == HEMState.HEM_ACTIVE
+    hem_state_machine._set_state(HEMState.NORMAL_MODE)
 
 
 def test_hem_happy_path(monkeypatch):
     from hem import hem_state_machine
-    hem_state_machine._current_state = HEMState.NORMAL_MODE
+    hem_state_machine._set_state(HEMState.NORMAL_MODE)
 
     called_snapshot = {}
     def fake_take_snapshot():
@@ -53,7 +54,7 @@ def test_hem_happy_path(monkeypatch):
 
 def test_hem_drift_triggers_rollback(monkeypatch):
     from hem import hem_state_machine
-    hem_state_machine._current_state = HEMState.NORMAL_MODE
+    hem_state_machine._set_state(HEMState.NORMAL_MODE)
 
     events = {"snapshot": False, "rollback": False}
 

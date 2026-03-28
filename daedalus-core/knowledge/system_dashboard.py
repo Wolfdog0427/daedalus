@@ -15,19 +15,28 @@ def load_recent_improvement():
         return None
 
     try:
-        files = sorted(
-            [f for f in os.listdir(cockpit_dir) if f.startswith("decision-")],
-            reverse=True,
-        )
+        files = [f for f in os.listdir(cockpit_dir) if f.startswith("decision-")]
     except OSError:
         return None
 
     if not files:
         return None
 
-    latest = files[0]
+    best, best_ts = None, -1.0
+    for fname in files:
+        fpath = os.path.join(cockpit_dir, fname)
+        try:
+            mtime = os.path.getmtime(fpath)
+        except OSError:
+            continue
+        if mtime > best_ts:
+            best_ts = mtime
+            best = fpath
+
+    if best is None:
+        return None
     try:
-        with open(os.path.join(cockpit_dir, latest), "r", encoding="utf-8") as f:
+        with open(best, "r", encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError):
         return None

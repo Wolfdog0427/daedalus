@@ -94,15 +94,17 @@ class IntegrityValidator:
         for p in proposal_review.list_all():
             status = p.get("status")
 
-            if status == "executed" and p["id"] not in [
-                r["proposal_id"] for r in execution_engine.get_execution_log()
-            ]:
-                issues.append(f"Proposal {p['id']} marked executed but no execution record found")
+            pid = p.get("id", "unknown")
 
-            if status == "rolled_back" and p["id"] not in [
-                r["proposal_id"] for r in rollback_engine.get_rollback_log()
+            if status == "executed" and pid not in [
+                r.get("proposal_id") for r in execution_engine.get_execution_log()
             ]:
-                issues.append(f"Proposal {p['id']} marked rolled_back but no rollback record found")
+                issues.append(f"Proposal {pid} marked executed but no execution record found")
+
+            if status == "rolled_back" and pid not in [
+                r.get("proposal_id") for r in rollback_engine.get_rollback_log()
+            ]:
+                issues.append(f"Proposal {pid} marked rolled_back but no rollback record found")
 
         return {"valid": len(issues) == 0, "issues": issues}
 
@@ -158,7 +160,7 @@ class IntegrityValidator:
 
     def get_last_validation(self) -> Optional[Dict[str, Any]]:
         with self._lock:
-            return self.last_validation
+            return dict(self.last_validation) if self.last_validation else None
 
     def get_validation_log(self):
         with self._lock:

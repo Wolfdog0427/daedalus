@@ -143,7 +143,7 @@ class ExecutionEngine:
 
     def get_last_execution(self) -> Optional[Dict[str, Any]]:
         with self._lock:
-            return self.last_execution
+            return dict(self.last_execution) if self.last_execution else None
 
     def get_execution_log(self):
         with self._lock:

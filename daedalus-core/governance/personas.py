@@ -163,12 +163,3 @@ def set_active_persona(persona_id: str, reason: str = "") -> Dict[str, Any]:
     return {"success": True, "from": prev, "to": persona_id, "reason": reason}
 
 
-def is_operation_allowed(operation: str) -> bool:
-    """Check if an operation is allowed under the active persona."""
-    with _persona_lock:
-        pid = _active_persona
-    p = _PERSONAS.get(pid, _PERSONAS[COMPANION_GOV])
-    if operation in p.get("forbidden_operations", []):
-        return False
-    allowed = p.get("allowed_operations", [])
-    return not allowed or operation in allowed

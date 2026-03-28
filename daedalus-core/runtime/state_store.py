@@ -3,6 +3,8 @@
 import copy
 from typing import Any, Dict, List
 
+_MAX_ACTION_HISTORY = 500
+
 
 class StateStore:
     """
@@ -34,7 +36,12 @@ class StateStore:
             "active_goal_id": None,
             "next_goal_id": 1,
             "next_step_id": 1,
-            "history": [],  # REQUIRED for doctor + REPL compatibility
+            "last_step_id": None,
+            "last_goal_id": None,
+            "last_action": None,
+            "last_step_referenced": None,
+            "last_goal_referenced": None,
+            "history": [],
         }
 
     # ------------------------------------------------------------
@@ -52,17 +59,26 @@ class StateStore:
 
     def save(self, state: Dict[str, Any] = None) -> None:
         """
-        Save a deep copy of the provided state.
-        If no state is provided, save the current internal state.
+        Persist the provided (or current internal) state.
+        Copies domain keys shallowly; history is shared by reference
+        to avoid quadratic deep-copy expansion.
         """
         if state is None:
             state = self._state
 
-        state = copy.deepcopy(state)
-        if "history" not in state:
-            state["history"] = copy.deepcopy(self._history)
+        snapshot: Dict[str, Any] = {}
+        for k, v in state.items():
+            if k == "history":
+                snapshot[k] = list(v)
+            elif k.startswith("_"):
+                snapshot[k] = v
+            else:
+                snapshot[k] = copy.deepcopy(v)
 
-        self._state = state
+        if "history" not in snapshot:
+            snapshot["history"] = list(self._history)
+
+        self._state = snapshot
 
     def load(self) -> Dict[str, Any]:
         """Return a deep copy of the stored state."""
@@ -79,19 +95,20 @@ class StateStore:
         context_trace=None,
         nlu_cmd=None,
         command_before=None,
-    ) -> None:
+        state=None,
+        watch_changes=None,
+    ) -> Dict[str, Any]:
         """
         Append an action record to the in-memory history.
-        Fully compatible with the REPL's debug cockpit.
+        Returns the created entry so callers can sync it to the live state.
         """
 
-        entry = {
+        entry: Dict[str, Any] = {
             "input": user_input,
             "command": copy.deepcopy(command),
             "result": copy.deepcopy(result),
         }
 
-        # Optional debug metadata
         if context_trace is not None:
             entry["context_trace"] = copy.deepcopy(context_trace)
 
@@ -101,7 +118,20 @@ class StateStore:
         if command_before is not None:
             entry["command_before"] = copy.deepcopy(command_before)
 
+        if state is not None:
+            entry["state"] = copy.deepcopy({
+                k: v for k, v in state.items()
+                if k not in ("history",) and not k.startswith("_")
+            })
+
+        if watch_changes is not None:
+            entry["watch_changes"] = copy.deepcopy(watch_changes)
+
         self._history.append(entry)
+        if len(self._history) > _MAX_ACTION_HISTORY:
+            self._history = self._history[-_MAX_ACTION_HISTORY:]
+
+        return entry
 
     # Optional legacy accessor
     def get_history(self) -> List[Dict[str, Any]]:

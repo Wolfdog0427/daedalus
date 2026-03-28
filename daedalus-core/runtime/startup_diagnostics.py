@@ -42,7 +42,7 @@ def check_json_integrity(path: str) -> bool:
         with open(path, "r", encoding="utf-8") as f:
             json.load(f)
         return True
-    except Exception:
+    except (json.JSONDecodeError, OSError):
         return False
 
 

@@ -18,6 +18,13 @@ from knowledge.rollback_manager import (
     snapshot_file,
     write_rollback_log,
 )
+import re
+
+_SAFE_NAME_RE = re.compile(r"[^a-zA-Z0-9_\-]")
+
+
+def _safe_subsystem(name: str) -> str:
+    return _SAFE_NAME_RE.sub("_", str(name))[:128]
 
 
 def _now_iso() -> str:
@@ -36,11 +43,12 @@ def apply_patch_in_sandbox(plan: Dict[str, Any]) -> Dict[str, Any]:
     tier = plan.get("tier")
     cycle_id = plan.get("cycle_id")
     proposal_id = plan.get("proposal_id")
-    actions: List[Dict[str, Any]] = plan.get("planned_actions", [])
+    actions: List[Dict[str, Any]] = plan.get("planned_actions") if plan.get("planned_actions") is not None else plan.get("actions") or []
 
+    _safe_id = str(cycle_id or "unknown").replace("/", "_").replace("\\", "_").replace("..", "_")[:64]
     sandbox_root = os.path.join(
         tempfile.gettempdir(),
-        f"sho_sandbox_{cycle_id or 'unknown'}",
+        f"sho_sandbox_{_safe_id}",
     )
     _ensure_dir(sandbox_root)
 
@@ -96,12 +104,13 @@ def validate_patch(plan: Dict[str, Any]) -> Dict[str, Any]:
     details: Dict[str, Any] = {}
 
     # 1. Subsystem config integrity
-    for action in plan.get("planned_actions", []):
+    _val_actions = plan.get("planned_actions") if plan.get("planned_actions") is not None else plan.get("actions") or []
+    for action in _val_actions:
         subsystem = action.get("target")
         if not subsystem:
             continue
 
-        config_path = os.path.join("data", "subsystems", f"{subsystem}.json")
+        config_path = os.path.join("data", "subsystems", f"{_safe_subsystem(subsystem)}.json")
         if not os.path.exists(config_path):
             errors.append(f"{subsystem}: config missing after patch")
             continue
@@ -109,7 +118,7 @@ def validate_patch(plan: Dict[str, Any]) -> Dict[str, Any]:
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
-        except Exception as e:
+        except (json.JSONDecodeError, OSError) as e:
             errors.append(f"{subsystem}: config unreadable after patch: {e}")
             continue
 
@@ -126,7 +135,7 @@ def validate_patch(plan: Dict[str, Any]) -> Dict[str, Any]:
         "config", "scheduler", "analytics",
     })
 
-    for action in plan.get("planned_actions", []):
+    for action in _val_actions:
         subsystem = action.get("target")
         if not subsystem:
             continue
@@ -179,7 +188,7 @@ def _snapshot_subsystems_before(actions: List[Dict[str, Any]]) -> Dict[str, str]
         path = begin_transaction(subsystem)
         rollback_paths[subsystem] = path
 
-        config_path = os.path.join("data", "subsystems", f"{subsystem}.json")
+        config_path = os.path.join("data", "subsystems", f"{_safe_subsystem(subsystem)}.json")
         if os.path.exists(config_path):
             with open(config_path, "r", encoding="utf-8") as f:
                 snapshot_file(path, "before", json.load(f))
@@ -194,7 +203,7 @@ def _snapshot_subsystems_after(rollback_paths: Dict[str, str]) -> None:
     After a successful patch, snapshot the 'after' state for each subsystem.
     """
     for subsystem, path in rollback_paths.items():
-        config_path = os.path.join("data", "subsystems", f"{subsystem}.json")
+        config_path = os.path.join("data", "subsystems", f"{_safe_subsystem(subsystem)}.json")
         if os.path.exists(config_path):
             with open(config_path, "r", encoding="utf-8") as f:
                 snapshot_file(path, "after", json.load(f))
@@ -216,10 +225,12 @@ def _restore_from_snapshots(rollback_paths: Dict[str, str]) -> List[str]:
         try:
             with open(before_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            config_path = os.path.join("data", "subsystems", f"{subsystem}.json")
+            config_path = os.path.join("data", "subsystems", f"{_safe_subsystem(subsystem)}.json")
             _ensure_dir(os.path.dirname(config_path))
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
+        except (json.JSONDecodeError, OSError, ValueError) as e:
+            errors.append(f"{subsystem}: rollback failed: {e}")
         except Exception as e:
             errors.append(f"{subsystem}: rollback failed: {e}")
 
@@ -234,7 +245,7 @@ def apply_patch_live(plan: Dict[str, Any]) -> Dict[str, Any]:
     - On failure, restores snapshots and logs rollback
     - On success, snapshots post-patch state, validates, and may rollback
     """
-    actions: List[Dict[str, Any]] = plan.get("planned_actions", [])
+    actions: List[Dict[str, Any]] = plan.get("planned_actions") if plan.get("planned_actions") is not None else plan.get("actions") or []
     cycle_id = plan.get("cycle_id")
     proposal_id = plan.get("proposal_id")
 

@@ -61,7 +61,7 @@ def generate_system_heatmap() -> Dict[str, Any]:
 
     cells: List[Dict[str, Any]] = []
     for env in envs:
-        eid = env["env_id"]
+        eid = env.get("env_id", "")
         cell = _build_env_cell(eid, env.get("name", "?"))
         cells.append(cell)
 
@@ -161,7 +161,7 @@ def _build_env_cell(env_id: str, env_name: str) -> Dict[str, Any]:
         if not kpi_r.get("error"):
             kpis = kpi_r.get("kpis", {})
             drift_stability = kpis.get("drift_stability_index", 100.0)
-            dimensions["drift"] = round(100 - drift_stability, 1)
+            dimensions["drift"] = max(0.0, min(100.0, round(100 - drift_stability, 1)))
         else:
             dimensions["drift"] = 0.0
     except Exception:
@@ -177,7 +177,7 @@ def _build_env_cell(env_id: str, env_name: str) -> Dict[str, Any]:
                        or e.get("target_env_id") == env_id]
         if env_entries:
             avg = sum(e.get("readiness_score", 0) for e in env_entries) / len(env_entries)
-            readiness = round(100 - avg, 1)
+            readiness = max(0.0, min(100.0, round(100 - avg, 1)))
     except Exception:
         pass
     dimensions["readiness_gap"] = readiness
@@ -193,13 +193,13 @@ def _build_env_cell(env_id: str, env_name: str) -> Dict[str, Any]:
         pass
     dimensions["anomaly_density"] = anomaly_density
 
-    composite = round(
+    composite = max(0.0, min(100.0, round(
         risk_score * 0.4
         + dimensions["drift"] * 0.25
         + readiness * 0.20
         + anomaly_density * 0.15,
         1,
-    )
+    )))
     heat = _heat_level(composite)
 
     return {

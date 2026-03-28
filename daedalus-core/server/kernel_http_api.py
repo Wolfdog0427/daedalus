@@ -62,6 +62,8 @@ async def health(request):
 
 
 async def get_config(request):
+    if not _check_api_key(request):
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
     return JSONResponse(CURRENT_CONFIG)
 
 
@@ -104,6 +106,8 @@ async def handle_command(request):
 
     try:
         kernel_response = await send_to_kernel(command, payload)
+        if isinstance(kernel_response, dict) and kernel_response.get("ok") is False:
+            return JSONResponse(kernel_response, status_code=409)
         return JSONResponse(kernel_response)
     except Exception:
         return JSONResponse(
@@ -113,7 +117,13 @@ async def handle_command(request):
 
 
 async def get_patches(request):
-    return JSONResponse([])
+    if not _check_api_key(request):
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
+    try:
+        result = await send_to_kernel("get_patches", {})
+        return JSONResponse(result if isinstance(result, list) else result)
+    except Exception:
+        return JSONResponse({"ok": False, "error": "kernel_unavailable"}, status_code=503)
 
 
 # -----------------------------

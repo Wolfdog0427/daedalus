@@ -16,7 +16,7 @@ class PersistenceManager:
     def __init__(self, path: str = "assistant_state.json"):
         self.path = path
 
-    def save(self, state: Dict[str, Any], goals: Dict[str, Any]) -> None:
+    def save(self, state: Dict[str, Any], goals: Dict[str, Any]) -> bool:
         data = {
             "state": state,
             "goals": goals,
@@ -24,9 +24,9 @@ class PersistenceManager:
         try:
             with open(self.path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception:
-            # Silent failure; persistence is best-effort
-            pass
+            return True
+        except (OSError, TypeError, ValueError):
+            return False
 
     def load(self) -> Dict[str, Any]:
         try:
@@ -36,5 +36,7 @@ class PersistenceManager:
                 "state": data.get("state", {}),
                 "goals": data.get("goals", {}),
             }
+        except (json.JSONDecodeError, OSError, ValueError):
+            return {"state": {}, "goals": {}}
         except Exception:
             return {"state": {}, "goals": {}}

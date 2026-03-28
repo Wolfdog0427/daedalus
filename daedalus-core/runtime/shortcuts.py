@@ -2,7 +2,7 @@
 
 import copy
 import re
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Dict, Any
 
 
 # ------------------------------------------------------------
@@ -26,6 +26,12 @@ def normalize(text: str) -> str:
 #   { "intent": <intent>, "args": {...} }
 
 SHORTCUTS: list[tuple[str, Any]] = [
+
+    # --------------------------------------------------------
+    # Quick aliases
+    # --------------------------------------------------------
+    (r"^ag\s+(.+)$", lambda m: {"intent": "add goal " + m.group(1).strip()}),
+    (r"^as\s+(.+)$", lambda m: {"intent": "add step " + m.group(1).strip()}),
 
     # --------------------------------------------------------
     # Undo / Redo

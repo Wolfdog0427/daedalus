@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import json
 from typing import Any, Dict, List
@@ -20,9 +21,11 @@ def _iter_records() -> List[Dict[str, Any]]:
             if not line:
                 continue
             try:
-                records.append(json.loads(line))
-            except Exception:
+                rec = json.loads(line)
+            except (json.JSONDecodeError, ValueError):
                 continue
+            if isinstance(rec, dict):
+                records.append(rec)
     return records
 
 
@@ -56,22 +59,38 @@ def compute_delta_accuracy() -> Dict[str, Any]:
         as_ = r.get("actual_stability_delta")
 
         if pd is not None and ad is not None:
-            drift_errors.append(abs(pd - ad))
+            try:
+                err = abs(float(pd) - float(ad))
+                if not math.isnan(err):
+                    drift_errors.append(err)
+            except (TypeError, ValueError):
+                pass
         if ps is not None and as_ is not None:
-            stab_errors.append(abs(ps - as_))
+            try:
+                err = abs(float(ps) - float(as_))
+                if not math.isnan(err):
+                    stab_errors.append(err)
+            except (TypeError, ValueError):
+                pass
 
         pb = r.get("predicted_risk_delta")
         rb = r.get("risk_before")
         ra = r.get("risk_after")
         if pb is not None and rb is not None and ra is not None:
+            try:
+                pb_f = float(pb)
+            except (TypeError, ValueError):
+                continue
+            if math.isnan(pb_f):
+                continue
             ra_rank = _RISK_RANK.get(ra, 2)
             rb_rank = _RISK_RANK.get(rb, 2)
             risk_total += 1
-            if pb < 0 and ra_rank <= rb_rank:
+            if pb_f < 0 and ra_rank <= rb_rank:
                 risk_matches += 1
-            elif pb > 0 and ra_rank >= rb_rank:
+            elif pb_f > 0 and ra_rank >= rb_rank:
                 risk_matches += 1
-            elif pb == 0 and ra_rank == rb_rank:
+            elif abs(pb_f) < 1e-9 and ra_rank == rb_rank:
                 risk_matches += 1
 
     def _mae(values: List[float]) -> float | None:

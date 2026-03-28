@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import copy
 from typing import Any, Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
-from knowledge.autonomy_governor import AutonomyGovernor
+from governor.singleton import governor as _singleton_governor
 from runtime.approval_interface import ApprovalInterface
 from runtime.logging_manager import log_event
 from knowledge.patch_applier import apply_patch_in_sandbox, apply_patch_live
@@ -14,7 +14,7 @@ from knowledge.patch_outcome_memory import record_outcome
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class SHOPatchFlow:
@@ -30,7 +30,7 @@ class SHOPatchFlow:
     """
 
     def __init__(self) -> None:
-        self.gov = AutonomyGovernor()
+        self.gov = _singleton_governor
         self.approvals = ApprovalInterface()
 
     # -------------------------------------------------
@@ -89,7 +89,8 @@ class SHOPatchFlow:
         if not proposal:
             return None
 
-        tier = proposal.get("tier_requested") or proposal.get("tier")
+        _tier_req = proposal.get("tier_requested")
+        tier = _tier_req if _tier_req is not None else proposal.get("tier")
         planned_actions = proposal.get("planned_actions", [])
 
         return {

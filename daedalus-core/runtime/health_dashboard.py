@@ -1,10 +1,12 @@
 # runtime/health_dashboard.py
 
 from __future__ import annotations
+import threading
 from typing import Any, Dict, List, Optional
 
 from runtime.state_sources import fetch_state
 
+_dash_lock = threading.Lock()
 _last_watch_anomaly_lines: List[str] = []
 _last_doctor_report_lines: List[str] = []
 _last_self_test_report: Optional[Any] = None
@@ -13,19 +15,22 @@ _last_self_test_report: Optional[Any] = None
 def update_last_watch_anomalies(lines: List[str]) -> None:
     """Persist latest watch-monitor anomaly lines for dashboard / health views."""
     global _last_watch_anomaly_lines
-    _last_watch_anomaly_lines = list(lines)
+    with _dash_lock:
+        _last_watch_anomaly_lines = list(lines)
 
 
 def update_last_doctor_report(lines: List[str]) -> None:
     """Persist latest system-doctor log lines for dashboard / health views."""
     global _last_doctor_report_lines
-    _last_doctor_report_lines = list(lines)
+    with _dash_lock:
+        _last_doctor_report_lines = list(lines)
 
 
 def update_last_self_test(report: Any) -> None:
     """Persist latest background self-test result for dashboard / health views."""
     global _last_self_test_report
-    _last_self_test_report = report
+    with _dash_lock:
+        _last_self_test_report = report
 
 
 def get_health_summary() -> Dict[str, Any]:

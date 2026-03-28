@@ -40,7 +40,10 @@ class Session:
             self.goals_tree = self.state.get("goals_tree", [])
             self.storage.save_goals_tree(self.goals_tree)
             self.storage.save_state(self.state)
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                "session state persistence failed: %s", exc,
+            )
 
         return {"text": text}

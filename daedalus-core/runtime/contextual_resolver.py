@@ -25,8 +25,8 @@ class ContextualResolver:
     def _log(self, msg: str):
         self._trace.append(msg)
 
-    def get_last_trace(self) -> str:
-        return "\n".join(self._trace)
+    def get_last_trace(self) -> list:
+        return list(self._trace)
 
     # ------------------------------------------------------------
     # MAIN ENTRYPOINT
@@ -51,23 +51,27 @@ class ContextualResolver:
         last_goal   = state.get("last_goal_referenced")
 
         # ------------------------------------------------------------
-        # 1. Resolve vague step references
+        # 1. Resolve step references (modifiers take priority)
         # ------------------------------------------------------------
-        if args.get("step_number") is None and intent in (
-            "complete_step", "move_step", "delete_step", "rename_step"
-        ):
-            self._log("Resolving vague step reference...")
-
-            if last_step is not None:
-                args["step_number"] = last_step
-                self._log(f"Using last referenced step: {last_step}")
-            else:
-                active_step = state.get("active_step_number")
-                if active_step is not None:
-                    args["step_number"] = active_step
-                    self._log(f"Using active step: {active_step}")
+        if intent in ("complete_step", "move_step", "delete_step", "rename_step"):
+            if "next" in modifiers and last_step is not None:
+                args["step_number"] = last_step + 1
+                self._log(f"Using next step after last referenced: {last_step + 1}")
+            elif "previous" in modifiers and last_step is not None and last_step > 1:
+                args["step_number"] = last_step - 1
+                self._log(f"Using previous step before last referenced: {last_step - 1}")
+            elif args.get("step_number") is None:
+                self._log("Resolving vague step reference...")
+                if last_step is not None:
+                    args["step_number"] = last_step
+                    self._log(f"Using last referenced step: {last_step}")
                 else:
-                    self._log("No step reference available; leaving unresolved.")
+                    active_step = state.get("active_step_number")
+                    if active_step is not None:
+                        args["step_number"] = active_step
+                        self._log(f"Using active step: {active_step}")
+                    else:
+                        self._log("No step reference available; leaving unresolved.")
 
         # ------------------------------------------------------------
         # 2. Resolve vague goal references
@@ -85,23 +89,41 @@ class ContextualResolver:
                 self._log(f"Using active goal: {active_goal}")
 
         # ------------------------------------------------------------
-        # 3. Ordinal goal references ("next goal", "previous goal")
+        # 3. Ordinal / directional goal references
         # ------------------------------------------------------------
-        if intent == "switch_goal" and ordinal is not None:
-            self._log(f"Resolving ordinal goal reference: ordinal={ordinal}")
+        if intent == "switch_goal" and args.get("goal_id") is None:
+            goals = state.get("goals_tree", [])
 
-            goals = state.get("goals", [])
-            if active_goal is not None:
+            if ordinal is not None:
+                self._log(f"Resolving ordinal goal reference: ordinal={ordinal}")
+                if 0 < ordinal <= len(goals):
+                    args["goal_id"] = goals[ordinal - 1]["id"]
+                    self._log(f"Resolved ordinal goal → {args['goal_id']}")
+                else:
+                    self._log("Ordinal goal out of range; ignoring.")
+
+            elif active_goal is not None and goals:
+                ids = [g["id"] for g in goals]
                 try:
-                    idx = [g["id"] for g in goals].index(active_goal)
-                    target_idx = ordinal - 1
-                    if 0 <= target_idx < len(goals):
-                        args["goal_id"] = goals[target_idx]["id"]
-                        self._log(f"Resolved ordinal goal → {args['goal_id']}")
-                    else:
-                        self._log("Ordinal goal out of range; ignoring.")
+                    idx = ids.index(active_goal)
                 except ValueError:
-                    self._log("Active goal not found in goal list.")
+                    idx = None
+
+                if idx is not None and "next" in modifiers:
+                    target = idx + 1
+                    if target < len(goals):
+                        args["goal_id"] = goals[target]["id"]
+                        self._log(f"Resolved next goal → {args['goal_id']}")
+                    else:
+                        self._log("Next goal out of range; ignoring.")
+
+                elif idx is not None and "previous" in modifiers:
+                    target = idx - 1
+                    if target >= 0:
+                        args["goal_id"] = goals[target]["id"]
+                        self._log(f"Resolved previous goal → {args['goal_id']}")
+                    else:
+                        self._log("Previous goal out of range; ignoring.")
 
         # ------------------------------------------------------------
         # 4. Movement-based step operations ("move it up/down")

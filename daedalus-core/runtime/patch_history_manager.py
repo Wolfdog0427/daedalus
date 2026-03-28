@@ -19,8 +19,9 @@ Provides clean interfaces for:
 
 from __future__ import annotations
 
+import threading
 from typing import Any, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import json
 
@@ -33,6 +34,8 @@ from runtime.logging_manager import log_event
 
 HISTORY_DIR = os.path.join("data", "patch_history")
 HISTORY_PATH = os.path.join(HISTORY_DIR, "history.json")
+_MAX_RECENT_FAILURES = 200
+_history_lock = threading.Lock()
 
 
 # ------------------------------------------------------------
@@ -44,7 +47,7 @@ def _ensure_dir() -> None:
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _default_history() -> Dict[str, Any]:
@@ -78,7 +81,7 @@ def load_patch_history() -> Dict[str, Any]:
     try:
         with open(HISTORY_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except (json.JSONDecodeError, OSError):
         # Corrupt file → reset
         history = _default_history()
         save_patch_history(history)
@@ -87,8 +90,16 @@ def load_patch_history() -> Dict[str, Any]:
 
 def save_patch_history(history: Dict[str, Any]) -> None:
     _ensure_dir()
-    with open(HISTORY_PATH, "w", encoding="utf-8") as f:
-        json.dump(history, f, indent=2)
+    rf = history.get("recent_failures")
+    if isinstance(rf, list) and len(rf) > _MAX_RECENT_FAILURES:
+        history["recent_failures"] = rf[-_MAX_RECENT_FAILURES:]
+    try:
+        from knowledge._atomic_io import atomic_write_json
+        from pathlib import Path
+        atomic_write_json(Path(HISTORY_PATH), history)
+    except ImportError:
+        with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+            json.dump(history, f, indent=2)
 
 
 # ------------------------------------------------------------
@@ -108,7 +119,15 @@ def record_patch_result(
         "details": {...}
     }
     """
+    with _history_lock:
+        return _record_patch_result_unlocked(cycle_id, tier, result)
 
+
+def _record_patch_result_unlocked(
+    cycle_id: str,
+    tier: int,
+    result: Dict[str, Any],
+) -> Dict[str, Any]:
     history = load_patch_history()
     history["total_cycles"] += 1
 
@@ -181,7 +200,15 @@ def record_rollback(
     """
     Record that a patch was reverted.
     """
+    with _history_lock:
+        return _record_rollback_unlocked(cycle_id, reason, metadata)
 
+
+def _record_rollback_unlocked(
+    cycle_id: str,
+    reason: str,
+    metadata: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
     history = load_patch_history()
     history["reverted_patches"] += 1
 

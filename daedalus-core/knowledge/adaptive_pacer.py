@@ -25,6 +25,7 @@ Outputs:
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Dict, Any, List, Optional
 from collections import deque
@@ -184,6 +185,8 @@ class ConsistencyCircuitBreaker:
 # GLOBAL TRACKERS
 # ------------------------------------------------------------
 
+_pacer_lock = threading.Lock()
+
 _circuit_breaker = ConsistencyCircuitBreaker()
 _coherence_tracker = LongTermTracker()
 _consistency_tracker = LongTermTracker()
@@ -195,12 +198,13 @@ def get_circuit_breaker() -> ConsistencyCircuitBreaker:
 
 
 def get_long_term_trends() -> Dict[str, Any]:
-    return {
-        "coherence": _coherence_tracker.summary(),
-        "consistency": _consistency_tracker.summary(),
-        "quality": _quality_tracker.summary(),
-        "circuit_breaker": _circuit_breaker.status(),
-    }
+    with _pacer_lock:
+        return {
+            "coherence": _coherence_tracker.summary(),
+            "consistency": _consistency_tracker.summary(),
+            "quality": _quality_tracker.summary(),
+            "circuit_breaker": _circuit_breaker.status(),
+        }
 
 
 # ------------------------------------------------------------
@@ -271,48 +275,44 @@ def compute_pace() -> Dict[str, Any]:
     system health, recent history, AND long-term trends.
     """
     sm = get_self_model()
-    coherence = sm["confidence"]["graph_coherence"]
-    consistency = sm["confidence"]["consistency"]
-    state = _pace_state
+    conf = sm.get("confidence", {}) if isinstance(sm, dict) else {}
+    coherence = conf.get("graph_coherence", 0.0)
+    consistency = conf.get("consistency", 0.0)
 
-    # --- Circuit breaker: absolute halt ---
-    _circuit_breaker.evaluate(consistency)
-    if _circuit_breaker.is_open:
-        return _pause("circuit_breaker_open", state)
+    with _pacer_lock:
+        state = _pace_state
 
-    # Hard floor: pause if quality is critically low
-    if coherence < COHERENCE_FLOOR:
-        return _pause("coherence_critically_low", state)
+        _circuit_breaker.evaluate(consistency)
+        if _circuit_breaker.is_open:
+            return _pause("circuit_breaker_open", state)
 
-    if consistency < CONSISTENCY_FLOOR:
-        return _pause("consistency_critically_low", state)
+        if coherence < COHERENCE_FLOOR:
+            return _pause("coherence_critically_low", state)
 
-    # Consecutive degradations: decelerate or pause
-    if state.consecutive_degradations >= 3:
-        return _pause("three_consecutive_degradations", state)
+        if consistency < CONSISTENCY_FLOOR:
+            return _pause("consistency_critically_low", state)
 
-    if state.consecutive_degradations >= 2:
-        return _decelerate("two_consecutive_degradations", state)
+        if state.consecutive_degradations >= 3:
+            return _pause("three_consecutive_degradations", state)
 
-    # Long-term trend detection (F11): if short-term is declining
-    # relative to long-term, decelerate even if recent batches look OK
-    consistency_trend = _consistency_tracker.trend()
-    coherence_trend = _coherence_tracker.trend()
-    if consistency_trend == "declining" or coherence_trend == "declining":
-        return _decelerate("long_term_trend_declining", state)
+        if state.consecutive_degradations >= 2:
+            return _decelerate("two_consecutive_degradations", state)
 
-    # Consecutive improvements: accelerate only if long-term is also stable/improving
-    if state.consecutive_improvements >= 3 and coherence > 0.6 and consistency > 0.6:
-        if consistency_trend != "declining" and coherence_trend != "declining":
-            return _accelerate("stable_improvement_streak", state)
+        consistency_trend = _consistency_tracker.trend()
+        coherence_trend = _coherence_tracker.trend()
+        if consistency_trend == "declining" or coherence_trend == "declining":
+            return _decelerate("long_term_trend_declining", state)
 
-    # Consult flow tuner for batch size optimization
-    if _FLOW_TUNER_AVAILABLE:
-        recommended = _flow_tuner.get_recommended_batch_size()
-        if MIN_BATCH_SIZE <= recommended <= MAX_BATCH_SIZE:
-            state.current_batch_size = recommended
+        if state.consecutive_improvements >= 3 and coherence > 0.6 and consistency > 0.6:
+            if consistency_trend != "declining" and coherence_trend != "declining":
+                return _accelerate("stable_improvement_streak", state)
 
-    return _continue(state)
+        if _FLOW_TUNER_AVAILABLE:
+            recommended = _flow_tuner.get_recommended_batch_size()
+            if MIN_BATCH_SIZE <= recommended <= MAX_BATCH_SIZE:
+                state.current_batch_size = recommended
+
+        return _continue(state)
 
 
 def _pause(reason: str, state: PaceState) -> Dict[str, Any]:
@@ -371,11 +371,12 @@ def _continue(state: PaceState) -> Dict[str, Any]:
 
 def should_acquire_now() -> bool:
     """Check if enough time has elapsed since the last batch."""
-    state = _pace_state
-    if state.last_batch_time == 0:
-        return True
-    elapsed = time.time() - state.last_batch_time
-    return elapsed >= state.current_cooldown
+    with _pacer_lock:
+        state = _pace_state
+        if state.last_batch_time == 0:
+            return True
+        elapsed = time.time() - state.last_batch_time
+        return elapsed >= state.current_cooldown
 
 
 def record_batch_result(
@@ -383,10 +384,7 @@ def record_batch_result(
     quality_after: Dict[str, Any],
 ) -> None:
     """Record a batch result for adaptive pacing."""
-    _pace_state.record_batch(quality_before, quality_after)
+    with _pacer_lock:
+        _pace_state.record_batch(quality_before, quality_after)
 
 
-def reset_pace() -> None:
-    """Reset pace state (for testing or operator override)."""
-    global _pace_state
-    _pace_state = PaceState()

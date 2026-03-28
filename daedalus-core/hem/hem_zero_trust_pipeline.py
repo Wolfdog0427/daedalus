@@ -32,7 +32,7 @@ def hem_process_hostile_input(raw: Any) -> Any:
     if not valid:
         raise HostileInputRejected("integrity_check_failed")
 
-    if isinstance(raw, dict) and "intent" in raw:
+    if isinstance(raw, dict):
         state = raw.get("state") or {}
         try:
             validated = SemanticFirewall.firewall(raw, state)

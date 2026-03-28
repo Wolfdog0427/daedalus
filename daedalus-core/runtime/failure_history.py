@@ -2,7 +2,8 @@
 
 import json
 import os
-from datetime import datetime
+import threading
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 
@@ -20,6 +21,7 @@ class FailureHistory:
 
     def __init__(self, path: str) -> None:
         self.path = path
+        self._file_lock = threading.Lock()
         directory = os.path.dirname(path)
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
@@ -41,7 +43,7 @@ class FailureHistory:
         """
         try:
             entry: Dict[str, Any] = {
-                "ts": datetime.utcnow().isoformat() + "Z",
+                "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 "error_type": snapshot.get("error_type"),
                 "error_message": snapshot.get("error_message"),
                 "subsystem": snapshot.get("subsystem"),
@@ -73,8 +75,9 @@ class FailureHistory:
                     "change_budget_lines": getattr(plan, "change_budget_lines", None),
                 }
 
-            with open(self.path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            with self._file_lock:
+                with open(self.path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(entry, ensure_ascii=False) + "\n")
         except Exception:
             # Never break the system because of logging issues
             pass
@@ -88,16 +91,16 @@ class FailureHistory:
             return []
         entries: List[Dict[str, Any]] = []
         try:
-            with open(self.path, "r", encoding="utf-8") as f:
+            with self._file_lock, open(self.path, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
                         continue
                     try:
                         entries.append(json.loads(line))
-                    except Exception:
+                    except (json.JSONDecodeError, ValueError):
                         continue
-        except Exception:
+        except OSError:
             return []
         return entries
 

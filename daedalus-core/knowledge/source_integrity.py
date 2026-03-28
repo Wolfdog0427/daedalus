@@ -298,56 +298,64 @@ def validate_content(text: str, source: str = "") -> Dict[str, Any]:
         return report
 
     # Enter HEM if available (wraps risky content validation)
+    _hem_entered = False
     if _HEM_AVAILABLE:
         try:
             hem_maybe_enter(
                 trigger_reason="source_integrity_content_validation",
                 metadata={"source": source, "text_length": len(text)},
             )
+            _hem_entered = True
         except Exception:
             pass
 
-    # Cross-check with InputGateway hostile pattern detection
-    if _INPUT_GATEWAY_AVAILABLE:
-        try:
-            _, gw_report, hostility_score = InputGateway.sanitize(text[:2000])
-            if hostility_score >= 3:
-                _flag(report, "input_gateway_hostile", 0.5, "high")
-            for pattern in gw_report.get("matched_patterns", []):
-                _flag(report, f"gateway:{pattern}", 0.3, "warning")
-        except Exception:
-            pass
+    try:
+        # Cross-check with InputGateway hostile pattern detection
+        # NOTE: InputGateway.sanitize() has its own HEM calls but the
+        # re-entry guard prevents double-enter; we must NOT let its
+        # cleanup end our outer HEM session. Call raw pattern logic only.
+        if _INPUT_GATEWAY_AVAILABLE:
+            try:
+                _, gw_report, hostility_score = InputGateway.sanitize(text[:2000])
+                if hostility_score >= 3:
+                    _flag(report, "input_gateway_hostile", 0.5, "high")
+                for pattern in gw_report.get("matched_patterns", []):
+                    _flag(report, f"gateway:{pattern}", 0.3, "warning")
+            except Exception:
+                _flag(report, "input_gateway_error", 0.4, "warning")
 
-    # Hidden injection payloads
-    injection_flags = _detect_content_injection(text)
-    for flag_name, severity in injection_flags:
-        _flag(report, flag_name, 0.4, severity)
+        # Hidden injection payloads
+        injection_flags = _detect_content_injection(text)
+        for flag_name, severity in injection_flags:
+            _flag(report, flag_name, 0.4, severity)
 
-    # Encoding anomalies
-    encoding_flags = _detect_encoding_anomalies(text)
-    for flag_name in encoding_flags:
-        _flag(report, flag_name, 0.3, "warning")
+        # Encoding anomalies
+        encoding_flags = _detect_encoding_anomalies(text)
+        for flag_name in encoding_flags:
+            _flag(report, flag_name, 0.3, "warning")
 
-    # Repetition spam
-    if _is_repetition_spam(text):
-        _flag(report, "repetition_spam", 0.6, "high")
+        # Repetition spam
+        if _is_repetition_spam(text):
+            _flag(report, "repetition_spam", 0.6, "high")
 
-    # Extremely low information density
-    info_density = _compute_information_density(text)
-    if info_density < 0.1:
-        _flag(report, "extremely_low_information_density", 0.4, "warning")
+        # Extremely low information density
+        info_density = _compute_information_density(text)
+        if info_density < 0.1:
+            _flag(report, "extremely_low_information_density", 0.4, "warning")
 
-    # Contradiction seeding (text that contradicts itself)
-    if _has_internal_contradiction(text):
-        _flag(report, "internal_contradiction", 0.3, "warning")
-
-    # HEM phase transition + post-engagement checks
-    if _HEM_AVAILABLE:
-        try:
-            hem_transition_to_postcheck()
-            hem_run_post_engagement_checks()
-        except Exception:
-            pass
+        # Contradiction seeding (text that contradicts itself)
+        if _has_internal_contradiction(text):
+            _flag(report, "internal_contradiction", 0.3, "warning")
+    finally:
+        if _hem_entered and _HEM_AVAILABLE:
+            try:
+                hem_transition_to_postcheck()
+            except Exception:
+                pass
+            try:
+                hem_run_post_engagement_checks()
+            except Exception:
+                pass
 
     return report
 
@@ -482,7 +490,7 @@ def record_provenance(
     with _provenance_lock:
         _provenance_log.append(entry)
 
-    return entry
+    return dict(entry)
 
 
 def get_provenance(item_id: str) -> Optional[Dict[str, Any]]:
@@ -490,18 +498,21 @@ def get_provenance(item_id: str) -> Optional[Dict[str, Any]]:
         snapshot = list(_provenance_log)
     for entry in reversed(snapshot):
         if entry["item_id"] == item_id:
-            return entry
+            return dict(entry)
     return None
 
 
 def get_recent_threats(limit: int = 20) -> List[Dict[str, Any]]:
     """Return recent items that triggered integrity flags."""
+    with _provenance_lock:
+        snapshot = list(_provenance_log)
     threats = [
-        e for e in _provenance_log
+        dict(e) for e in snapshot
         if e.get("url_integrity") not in ("none", "not_checked")
         or e.get("content_integrity") not in ("none", "not_checked")
     ]
-    return threats[-limit:]
+    n = max(0, int(limit))
+    return threats[-n:] if n > 0 else []
 
 
 # ------------------------------------------------------------
@@ -543,11 +554,12 @@ def sweep_attack_window(
     Returns:
         Summary of items found, re-verified, and flagged.
     """
-    candidates = [
-        entry for entry in _provenance_log
-        if window_start <= entry.get("timestamp", 0) <= window_end
-        and not entry.get("blocked", False)
-    ]
+    with _provenance_lock:
+        candidates = [
+            dict(entry) for entry in _provenance_log
+            if window_start <= entry.get("timestamp", 0) <= window_end
+            and not entry.get("blocked", False)
+        ]
 
     report: Dict[str, Any] = {
         "window_start": window_start,
@@ -578,17 +590,18 @@ def sweep_attack_window(
             report["flagged"] += 1
             entry["post_attack_flagged"] = True
 
-    # Mark matching attack windows as swept
-    for aw in _attack_windows:
-        if aw["detected_at"] >= window_start and aw["detected_at"] <= window_end:
-            aw["swept"] = True
+    with _attack_lock:
+        for aw in _attack_windows:
+            if aw["detected_at"] >= window_start and aw["detected_at"] <= window_end:
+                aw["swept"] = True
 
     return report
 
 
 def get_unswept_attack_windows() -> List[Dict[str, Any]]:
     """Return attack events that haven't been swept yet."""
-    return [aw for aw in _attack_windows if not aw["swept"]]
+    with _attack_lock:
+        return [dict(aw) for aw in _attack_windows if not aw["swept"]]
 
 
 # ------------------------------------------------------------
@@ -617,7 +630,9 @@ def run_delayed_poison_audit(
     """
     import random
 
-    if not _provenance_log:
+    with _provenance_lock:
+        prov_snapshot = list(_provenance_log)
+    if not prov_snapshot:
         return {"action": "skipped", "reason": "no_provenance_data"}
 
     # C5: scale sample size by contamination pressure
@@ -626,12 +641,13 @@ def run_delayed_poison_audit(
 
     sample: List[Dict[str, Any]] = []
     seen_ids: Set[str] = set()
-    budget = min(effective_sample, len(_provenance_log))
+    budget = min(effective_sample, len(prov_snapshot))
 
     # Priority 1: Items near attack windows (within 1800s of any attack)
-    attack_times = [aw["detected_at"] for aw in _attack_windows]
+    with _attack_lock:
+        attack_times = [aw["detected_at"] for aw in _attack_windows]
     if attack_times:
-        for entry in _provenance_log:
+        for entry in prov_snapshot:
             if len(sample) >= budget // 2:
                 break
             ts = entry.get("timestamp", 0)
@@ -656,8 +672,8 @@ def run_delayed_poison_audit(
 
     # Priority 3: Most recent items (last 20% of provenance)
     from itertools import islice
-    recency_start = max(0, len(_provenance_log) - len(_provenance_log) // 5)
-    for entry in islice(_provenance_log, recency_start, None):
+    recency_start = max(0, len(prov_snapshot) - len(prov_snapshot) // 5)
+    for entry in islice(prov_snapshot, recency_start, None):
         if len(sample) >= budget:
             break
         item_id = entry.get("item_id", "")
@@ -668,7 +684,7 @@ def run_delayed_poison_audit(
 
     # Priority 4: Random fill
     remaining = [
-        e for e in _provenance_log
+        e for e in prov_snapshot
         if e.get("item_id") and e["item_id"] not in seen_ids and not e.get("blocked")
     ]
     fill_count = budget - len(sample)
@@ -692,9 +708,9 @@ def run_delayed_poison_audit(
             if "://" in source:
                 url_check = validate_url(source)
                 if url_check.get("blocked"):
-                    entry["delayed_poison_flagged"] = True
+                    with _provenance_lock:
+                        entry["delayed_poison_flagged"] = True
                     flagged += 1
-                    # C2: cascade taint propagation from discoveries
                     result = propagate_taint(item_id)
                     taint_propagated += result.get("propagated", 0)
                     continue
@@ -702,7 +718,8 @@ def run_delayed_poison_audit(
             if reverify_fn is not None:
                 passed = reverify_fn(item_id, source)
                 if not passed:
-                    entry["delayed_poison_flagged"] = True
+                    with _provenance_lock:
+                        entry["delayed_poison_flagged"] = True
                     flagged += 1
                     result = propagate_taint(item_id)
                     taint_propagated += result.get("propagated", 0)
@@ -825,44 +842,51 @@ def review_quarantine(
     auto_flagged = 0
     now = time.time()
 
-    pending = [q for q in _quarantine_queue if q["status"] == "pending"]
+    with _quarantine_lock:
+        pending = [q for q in _quarantine_queue if q["status"] == "pending"]
 
     for entry in pending[:max_review]:
         reviewed += 1
         age_hours = (now - entry["quarantined_at"]) / 3600
 
-        # Auto-flag items sitting in quarantine > 48 hours
         if age_hours > 48:
-            entry["status"] = "auto_flagged"
+            with _quarantine_lock:
+                entry["status"] = "auto_flagged"
             auto_flagged += 1
             continue
 
         if reverify_fn is not None:
             try:
                 passed = reverify_fn(entry["item_id"], entry["source"])
-                if passed:
-                    entry["status"] = "released"
-                    released += 1
-                else:
-                    entry["status"] = "flagged"
-                    flagged += 1
+                with _quarantine_lock:
+                    if passed:
+                        entry["status"] = "released"
+                        released += 1
+                    else:
+                        entry["status"] = "flagged"
+                        flagged += 1
             except Exception:
-                entry["status"] = "flagged"
+                with _quarantine_lock:
+                    entry["status"] = "flagged"
                 flagged += 1
         else:
-            # Without a reverify function, use source re-validation
             source = entry.get("source", "")
             if "://" in source:
                 url_check = validate_url(source)
-                if url_check.get("blocked"):
-                    entry["status"] = "flagged"
-                    flagged += 1
-                else:
-                    entry["status"] = "released"
-                    released += 1
+                with _quarantine_lock:
+                    if url_check.get("blocked"):
+                        entry["status"] = "flagged"
+                        flagged += 1
+                    else:
+                        entry["status"] = "released"
+                        released += 1
             else:
-                entry["status"] = "released"
+                with _quarantine_lock:
+                    entry["status"] = "released"
                 released += 1
+
+    with _quarantine_lock:
+        queue_pending = sum(1 for q in _quarantine_queue if q["status"] == "pending")
 
     return {
         "action": "quarantine_review",
@@ -870,16 +894,18 @@ def review_quarantine(
         "released": released,
         "flagged": flagged,
         "auto_flagged": auto_flagged,
-        "queue_size": len([q for q in _quarantine_queue if q["status"] == "pending"]),
+        "queue_size": queue_pending,
     }
 
 
 def get_quarantine_status() -> Dict[str, Any]:
-    pending = sum(1 for q in _quarantine_queue if q["status"] == "pending")
-    released = sum(1 for q in _quarantine_queue if q["status"] == "released")
-    flagged = sum(1 for q in _quarantine_queue if q["status"] in ("flagged", "auto_flagged"))
+    with _quarantine_lock:
+        pending = sum(1 for q in _quarantine_queue if q["status"] == "pending")
+        released = sum(1 for q in _quarantine_queue if q["status"] == "released")
+        flagged = sum(1 for q in _quarantine_queue if q["status"] in ("flagged", "auto_flagged"))
+        total = len(_quarantine_queue)
     return {
-        "queue_total": len(_quarantine_queue),
+        "queue_total": total,
         "pending": pending,
         "released": released,
         "flagged": flagged,
@@ -915,17 +941,21 @@ def get_uncorroborated_items(min_age: float = 86400 * 30) -> List[Dict[str, Any]
     independently corroborated and are older than min_age seconds.
     These are prime candidates for contamination."""
     now = time.time()
+    with _provenance_lock:
+        prov_snapshot = list(_provenance_log)
+    with _corroboration_lock:
+        corr_snapshot = dict(_corroboration_map)
     uncorroborated = []
-    for entry in _provenance_log:
+    for entry in prov_snapshot:
         item_id = entry.get("item_id", "")
         if not item_id or entry.get("blocked"):
             continue
         age = now - entry.get("timestamp", now)
         if age < min_age:
             continue
-        corr = _corroboration_map.get(item_id)
+        corr = corr_snapshot.get(item_id)
         if corr is None or corr["count"] == 0:
-            uncorroborated.append(entry)
+            uncorroborated.append(dict(entry))
     return uncorroborated
 
 
@@ -956,21 +986,23 @@ def propagate_taint(
     source = source_entry.get("source", "")
     ts = source_entry.get("timestamp", 0)
 
-    candidates = [
-        e for e in _provenance_log
-        if e.get("source") == source
-        and abs(e.get("timestamp", 0) - ts) < TAINT_WINDOW
-        and e.get("item_id") != discovered_item_id
-        and not e.get("blocked")
-        and not e.get("post_attack_flagged")
-        and not e.get("taint_flagged")
-    ]
+    with _provenance_lock:
+        candidates = [
+            e for e in _provenance_log
+            if e.get("source") == source
+            and abs(e.get("timestamp", 0) - ts) < TAINT_WINDOW
+            and e.get("item_id") != discovered_item_id
+            and not e.get("blocked")
+            and not e.get("post_attack_flagged")
+            and not e.get("taint_flagged")
+        ]
+        for entry in candidates:
+            entry["taint_flagged"] = True
 
     propagated = 0
     for entry in candidates:
-        entry["taint_flagged"] = True
         quarantine_item(
-            entry["item_id"],
+            entry.get("item_id", ""),
             entry.get("source", ""),
             "",
             f"taint_propagation_from:{discovered_item_id}",
@@ -1052,8 +1084,10 @@ def detect_source_anomalies(
     """
     from collections import defaultdict as _dd
 
+    with _provenance_lock:
+        prov_snapshot = list(_provenance_log)
     source_groups: Dict[str, List[Dict[str, Any]]] = _dd(list)
-    for entry in _provenance_log:
+    for entry in prov_snapshot:
         src = entry.get("source", "")
         if src and not entry.get("blocked"):
             source_groups[src].append(entry)
@@ -1147,10 +1181,14 @@ def run_provider_assisted_audit(
             )
             checked += 1
             if result.get("available") and result.get("relevance", 1.0) < 0.3:
-                entry["provider_flagged"] = True
+                with _provenance_lock:
+                    entry["provider_flagged"] = True
                 flagged += 1
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                "provider audit check failed for %s: %s", item_id, exc,
+            )
 
     return {
         "action": "provider_audit",

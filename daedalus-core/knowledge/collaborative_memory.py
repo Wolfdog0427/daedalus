@@ -64,7 +64,7 @@ def _load_profiles() -> Dict[str, Any]:
     _ensure_storage()
     try:
         return json.loads(PROFILES_FILE.read_text(encoding="utf-8"))
-    except Exception:
+    except (json.JSONDecodeError, OSError):
         return {}
 
 
@@ -135,19 +135,6 @@ def get_operator_profile(operator_id: str) -> Dict[str, Any]:
     return profiles.get(operator_id, _default_profile(operator_id))
 
 
-def list_operators() -> List[Dict[str, Any]]:
-    """List all known operators with summary stats."""
-    profiles = _load_profiles()
-    return [
-        {
-            "operator_id": k,
-            "interaction_count": v.get("interaction_count", 0),
-            "last_active": v.get("last_active", 0),
-        }
-        for k, v in profiles.items()
-    ]
-
-
 # ------------------------------------------------------------
 # INSTITUTIONAL MEMORY
 # ------------------------------------------------------------
@@ -156,7 +143,7 @@ def _load_institutional() -> Dict[str, Any]:
     _ensure_storage()
     try:
         return json.loads(INSTITUTIONAL_FILE.read_text(encoding="utf-8"))
-    except Exception:
+    except (json.JSONDecodeError, OSError):
         return {"version": 1, "patterns": [], "preferences": {},
                 "domain_expertise": {}, "workflow_templates": []}
 
@@ -164,48 +151,6 @@ def _load_institutional() -> Dict[str, Any]:
 def _save_institutional(data: Dict[str, Any]) -> None:
     _ensure_storage()
     atomic_write_json(INSTITUTIONAL_FILE, data)
-
-
-def get_institutional_memory() -> Dict[str, Any]:
-    """Get the aggregated cross-generation knowledge."""
-    return _load_institutional()
-
-
-def suggest_from_history(
-    context: str,
-    operator_id: Optional[str] = None,
-) -> List[Dict[str, Any]]:
-    """
-    Draw on past interactions to suggest relevant actions or knowledge.
-    Uses operator profile if available, plus institutional patterns.
-    """
-    suggestions = []
-    institutional = _load_institutional()
-
-    for pattern in (institutional.get("patterns") or [])[-50:]:
-        pattern_ctx = (pattern.get("context") or "").lower()
-        if any(word in context.lower() for word in pattern_ctx.split()[:3]):
-            suggestions.append({
-                "type": "institutional_pattern",
-                "suggestion": pattern.get("action") or "",
-                "source": "institutional_memory",
-                "confidence": (pattern.get("frequency") or 0) / 10.0,
-            })
-
-    if operator_id:
-        profile = get_operator_profile(operator_id)
-        prefs = profile.get("preferences", {})
-        for key, value in prefs.items():
-            if key.lower() in context.lower():
-                suggestions.append({
-                    "type": "operator_preference",
-                    "suggestion": f"{key}: {value}",
-                    "source": f"operator:{operator_id}",
-                    "confidence": 0.7,
-                })
-
-    suggestions.sort(key=lambda s: s.get("confidence", 0), reverse=True)
-    return suggestions[:10]
 
 
 # ------------------------------------------------------------
@@ -280,7 +225,7 @@ def run_memory_consolidation() -> Dict[str, Any]:
                         interactions.append(json.loads(line))
                     except json.JSONDecodeError:
                         continue
-    except Exception:
+    except OSError:
         return {"action": "memory_consolidation", "error": "read_failed"}
 
     if len(interactions) < 10:

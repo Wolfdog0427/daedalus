@@ -78,24 +78,6 @@ _READABLE_SIGNALS = [
 ]
 
 
-def describe_binding() -> Dict[str, Any]:
-    """Return a structured description of the binding contract."""
-    return {
-        "governed_change_types": sorted(_GOVERNED_CHANGE_TYPES),
-        "forbidden_change_types": sorted(_FORBIDDEN_CHANGE_TYPES),
-        "runtime_local_operations": sorted(_RUNTIME_LOCAL_OPERATIONS),
-        "readable_signals": list(_READABLE_SIGNALS),
-        "rules": {
-            "per_turn_shaping": "runtime-local, no governance review",
-            "structural_changes": "require kernel.evaluate_change()",
-            "forbidden_changes": "unconditionally blocked",
-            "signal_reading": "governance reads signals, never raw content",
-            "operator_sovereignty": "operator commands override governance "
-                                    "suggestions (except Tier-1 safety)",
-        },
-    }
-
-
 def is_known_change_type(change_type: str) -> bool:
     """Return True if a change type is in any recognized category."""
     return change_type in (
@@ -123,8 +105,19 @@ def is_governance_forbidden(
     """Return True if a change type is unconditionally forbidden."""
     if change_type in _FORBIDDEN_CHANGE_TYPES:
         return True
-    flags = set((metadata or {}).get("flags") or [])
-    return bool(flags & {"expand_autonomy", "bypass_safety",
+    raw_flags = (metadata or {}).get("flags")
+    if raw_flags is None:
+        flag_set: set[Any] = set()
+    elif isinstance(raw_flags, (list, tuple, set)):
+        flag_set = set(raw_flags)
+    elif isinstance(raw_flags, str):
+        flag_set = {raw_flags}
+    else:
+        try:
+            flag_set = set(raw_flags)
+        except TypeError:
+            flag_set = set()
+    return bool(flag_set & {"expand_autonomy", "bypass_safety",
                          "persist_personal_data", "emotional_inference",
                          "psychological_model"})
 

@@ -15,7 +15,9 @@
   },
   "escalation": {},
   "proposals": {
-    "pending": [],
+    "pending": [
+      "prop-a26307fc-455e-4be7-96dd-1acf40ea0e5a"
+    ],
     "recent_decisions": []
   }
 }

@@ -29,6 +29,7 @@ def compute_readiness_score() -> Dict[str, Any]:
         "low": 0.85,
         "medium": 0.55,
         "high": 0.25,
+        "critical": 0.1,
     }
     drift_score = drift_map.get(drift_level, 0.5)
 
@@ -37,9 +38,11 @@ def compute_readiness_score() -> Dict[str, Any]:
     # -----------------------------
     stability_risk = stability.get("risk", "medium")
     stability_map = {
+        "none": 1.0,
         "low": 1.0,
         "medium": 0.7,
         "high": 0.3,
+        "critical": 0.1,
     }
     stability_score = stability_map.get(stability_risk, 0.5)
 
@@ -55,7 +58,7 @@ def compute_readiness_score() -> Dict[str, Any]:
     diag_penalty += min(blocked * 0.05, 0.3)
     diag_penalty += min(verif_fail * 0.05, 0.3)
 
-    diagnostics_score = max(0.0, readiness_avg - diag_penalty)
+    diagnostics_score = max(0.0, min(1.0, readiness_avg - diag_penalty))
 
     # -----------------------------
     # Patch history health (0–1)
@@ -86,6 +89,8 @@ def compute_readiness_score() -> Dict[str, Any]:
         patch_score * 0.15 +
         startup_score * 0.10
     )
+
+    final_score = max(0.0, min(1.0, final_score))
 
     return {
         "readiness_score": round(final_score, 3),

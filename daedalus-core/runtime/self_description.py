@@ -193,7 +193,7 @@ def describe_expression_stack() -> Dict[str, Any]:
 def _safe_posture_id() -> str:
     try:
         from runtime.posture_state import get_current_posture
-        return get_current_posture()["posture_id"]
+        return get_current_posture().get("posture_id", "COMPANION")
     except Exception:
         return "COMPANION"
 

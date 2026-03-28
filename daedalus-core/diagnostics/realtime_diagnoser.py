@@ -37,6 +37,8 @@ class RealtimeDiagnoser:
         )
 
     def analyze_interaction(self, snapshot: Dict[str, Any]) -> Optional[FailureReport]:
+        if not isinstance(snapshot, dict):
+            return None
         failure_type = snapshot.get("error_type", "") or ""
 
         # Direct failure: just wrap the snapshot

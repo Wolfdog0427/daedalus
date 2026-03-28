@@ -85,52 +85,17 @@ def predict_missing_links(entity: str, limit: int = 10) -> List[Tuple[str, float
     second_hop = defaultdict(float)
 
     for edge in neighbors:
-        nxt = edge["object"]
+        nxt = edge.get("object", "")
         nxt_neighbors = get_neighbors(nxt)
 
         for edge2 in nxt_neighbors:
-            candidate = edge2["object"]
+            candidate = edge2.get("object", "")
             if candidate == entity:
                 continue
             second_hop[candidate] += edge.get("trust", 0.5) * 0.5 + edge2.get("trust", 0.5) * 0.5
 
     ranked = sorted(second_hop.items(), key=lambda x: x[1], reverse=True)
     return ranked[:limit]
-
-
-# ------------------------------------------------------------
-# ANALOGY DETECTION
-# ------------------------------------------------------------
-
-def find_analogies(entity: str, limit: int = 5) -> List[Dict[str, Any]]:
-    """
-    Finds entities with similar relationship patterns.
-    """
-    base_relations = get_relations_for(entity)
-    base_patterns = {(rel, obj) for rel, obj in base_relations}
-
-    analogies = []
-
-    # Compare with central entities first
-    central = compute_entity_centrality()[:200]
-
-    for other, _ in central:
-        if other == entity:
-            continue
-
-        other_relations = get_relations_for(other)
-        other_patterns = {(rel, obj) for rel, obj in other_relations}
-
-        overlap = len(base_patterns & other_patterns)
-        if overlap > 0:
-            analogies.append({
-                "entity": other,
-                "overlap": overlap,
-                "shared_relations": list(base_patterns & other_patterns),
-            })
-
-    analogies.sort(key=lambda x: x["overlap"], reverse=True)
-    return analogies[:limit]
 
 
 # ------------------------------------------------------------
@@ -214,8 +179,8 @@ def reason_over_graph(claim: str) -> Dict[str, Any]:
         if info:
             reasoning_steps.append({
                 "entity": e,
-                "occurrences": info["occurrences"],
-                "sources": info["sources"][:5],
+                "occurrences": info.get("occurrences", 0),
+                "sources": info.get("sources", [])[:5],
             })
 
     # Try to infer relationships between all pairs

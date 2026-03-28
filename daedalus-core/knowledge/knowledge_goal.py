@@ -30,7 +30,7 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 from knowledge._atomic_io import atomic_write_json
 
-_goals_lock = threading.Lock()
+_goals_lock = threading.RLock()
 
 
 # ------------------------------------------------------------
@@ -115,11 +115,12 @@ def generate_goal_id(topic: str, source: str) -> str:
 
 def _load_goals() -> List[Dict[str, Any]]:
     _ensure_storage()
-    try:
-        data = json.loads(GOALS_FILE.read_text(encoding="utf-8"))
-        return data if isinstance(data, list) else []
-    except Exception:
-        return []
+    with _goals_lock:
+        try:
+            data = json.loads(GOALS_FILE.read_text(encoding="utf-8"))
+            return data if isinstance(data, list) else []
+        except (json.JSONDecodeError, OSError):
+            return []
 
 
 def _save_goals(goals: List[Dict[str, Any]]) -> None:
@@ -168,7 +169,8 @@ def list_goals(
 _VALID_TRANSITIONS: Dict[str, set] = {
     "proposed": {"approved", "rejected", "expired"},
     "approved": {"in_progress", "rejected", "expired"},
-    "in_progress": {"completed", "rejected", "expired"},
+    "in_progress": {"completed", "rejected", "expired", "paused"},
+    "paused": {"in_progress", "rejected", "expired"},
     "completed": set(),
     "rejected": set(),
     "expired": set(),
@@ -182,7 +184,7 @@ def update_goal_status(goal_id: str, status: str) -> bool:
             if g.get("id") == goal_id:
                 current = g.get("status", "proposed")
                 allowed = _VALID_TRANSITIONS.get(current)
-                if allowed is not None and status not in allowed:
+                if allowed is None or status not in allowed:
                     return False
                 g["status"] = status
                 g["updated_at"] = time.time()
@@ -223,9 +225,9 @@ def has_active_goal_for_topic(topic: str) -> bool:
 def get_completed_topics() -> List[str]:
     """Return list of topics that have been successfully learned."""
     return [
-        g["topic"]
+        g.get("topic", "")
         for g in _load_goals()
-        if g.get("status") == "completed"
+        if g.get("status") == "completed" and g.get("topic")
     ]
 
 

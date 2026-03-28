@@ -9,6 +9,7 @@ no scheduling, no autonomous behaviour.
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any, Dict, List, Optional
 
@@ -18,6 +19,8 @@ from typing import Any, Dict, List, Optional
 
 TIER1_AUTONOMY_CADENCE: int = 5
 
+_loop_lock = threading.Lock()
+
 _autonomy_cycle_counter: int = 0
 
 _last_autonomy_result: Optional[Dict[str, Any]] = None
@@ -25,14 +28,16 @@ _last_autonomy_result: Optional[Dict[str, Any]] = None
 
 def get_last_autonomy_result() -> Optional[Dict[str, Any]]:
     """Return the most recent active autonomy cycle result (or None)."""
-    return _last_autonomy_result
+    with _loop_lock:
+        return dict(_last_autonomy_result) if _last_autonomy_result else None
 
 
 def get_cycles_until_next_autonomy() -> int:
     """Return the number of runtime loop iterations until the next autonomy pass."""
     if TIER1_AUTONOMY_CADENCE <= 0:
         return 0
-    remainder = _autonomy_cycle_counter % TIER1_AUTONOMY_CADENCE
+    with _loop_lock:
+        remainder = _autonomy_cycle_counter % TIER1_AUTONOMY_CADENCE
     return TIER1_AUTONOMY_CADENCE - remainder
 
 
@@ -58,7 +63,7 @@ def _apply_expression_shaping(cycle_result: Dict[str, Any]) -> Dict[str, Any]:
         op_ctx: dict = {}
         try:
             from runtime.posture_state import get_current_posture
-            pid = get_current_posture()["posture_id"]
+            pid = get_current_posture().get("posture_id", "COMPANION")
         except Exception:
             pass
         try:
@@ -176,14 +181,18 @@ def _posture_allows_autonomy() -> bool:
         from runtime.autonomy_engine import can_perform
         allowed, _ = can_perform("mutation")
         return allowed
-    except Exception:
+    except ImportError:
         pass
+    except Exception:
+        return False
     try:
         from runtime.posture_autonomy import is_action_allowed
         allowed, _ = is_action_allowed("mutation")
         return allowed
-    except Exception:
+    except ImportError:
         return True
+    except Exception:
+        return False
 
 
 def _run_autonomy_pass() -> Dict[str, Any]:
@@ -266,8 +275,10 @@ def run_runtime_loop(
             try:
                 from runtime.telemetry import _TELEMETRY_BUFFER
 
-                if _TELEMETRY_BUFFER:
-                    _TELEMETRY_BUFFER[-1]["duration"] = dur
+                from runtime.telemetry import _telemetry_buf_lock
+                with _telemetry_buf_lock:
+                    if _TELEMETRY_BUFFER:
+                        _TELEMETRY_BUFFER[-1]["duration"] = dur
             except Exception:
                 pass
         except Exception as exc:
@@ -275,19 +286,24 @@ def run_runtime_loop(
 
         # Phase 18: cadence-based Tier-1 autonomy pass
         # Phase 61: consult posture autonomy before executing
-        _autonomy_cycle_counter += 1
-        if _autonomy_cycle_counter % TIER1_AUTONOMY_CADENCE == 0:
+        with _loop_lock:
+            _autonomy_cycle_counter += 1
+            should_run = _autonomy_cycle_counter % TIER1_AUTONOMY_CADENCE == 0
+        if should_run:
             try:
                 if _posture_allows_autonomy():
-                    _last_autonomy_result = _run_autonomy_pass()
+                    result = _run_autonomy_pass()
                 else:
-                    _last_autonomy_result = {
+                    result = {
                         "autonomy_enabled": False,
                         "posture_blocked": True,
                         "reason": "active posture does not allow autonomy",
                     }
+                with _loop_lock:
+                    _last_autonomy_result = result
             except Exception:
-                _last_autonomy_result = None
+                with _loop_lock:
+                    _last_autonomy_result = None
                 try:
                     from runtime.autonomy_cycle_log import log_tier1_cycle
                     log_tier1_cycle(time.time(), "error", "unknown")

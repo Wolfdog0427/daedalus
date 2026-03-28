@@ -23,12 +23,13 @@ This is the backbone of conceptual reasoning.
 
 from __future__ import annotations
 
+import itertools
 import json
 import time
 import threading
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional
-from collections import defaultdict, Counter
+from collections import defaultdict, Counter, deque
 
 from knowledge.pattern_extractor import extract_entities, extract_relations
 from knowledge.retrieval import _iter_items
@@ -65,7 +66,7 @@ def _load_graph() -> Dict[str, List[Dict[str, Any]]]:
     try:
         data = json.loads(GRAPH_FILE.read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
-    except Exception:
+    except (json.JSONDecodeError, OSError):
         return {}
 
 
@@ -74,7 +75,7 @@ def _load_entities() -> Dict[str, Dict[str, Any]]:
     try:
         data = json.loads(ENTITY_FILE.read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
-    except Exception:
+    except (json.JSONDecodeError, OSError):
         return {}
 
 
@@ -111,18 +112,20 @@ def update_graph_from_item(item: Dict[str, Any]):
                 "last_seen": time.time(),
                 "sources": [],
             })
-            entities[e]["occurrences"] += 1
             entities[e]["last_seen"] = time.time()
-            sources = entities[e]["sources"]
+            sources = entities[e].get("sources", [])
+            entities[e]["sources"] = sources
             if item_id not in sources:
                 sources.append(item_id)
+                entities[e]["occurrences"] = entities[e].get("occurrences", 0) + 1
             if len(sources) > _MAX_ENTITY_SOURCES:
                 entities[e]["sources"] = sources[-_MAX_ENTITY_SOURCES:]
+                entities[e]["occurrences"] = len(entities[e]["sources"])
 
         rels = extract_relations(text)
         for subj, rel, obj in rels:
             edges = graph.setdefault(subj, [])
-            if not any(e["relation"] == rel and e["object"] == obj
+            if not any(e.get("relation") == rel and e.get("object") == obj
                        and e.get("source_item") == item_id for e in edges):
                 edges.append({
                     "relation": rel,
@@ -144,7 +147,7 @@ def rebuild_graph(limit: int = 5000) -> Dict[str, Any]:
         graph: Dict[str, list] = {}
         entities: Dict[str, Dict[str, Any]] = {}
 
-        items = list(_iter_items())[:limit]
+        items = list(itertools.islice(_iter_items(), limit))
 
         for item in items:
             text = item.get("text", "")
@@ -159,17 +162,20 @@ def rebuild_graph(limit: int = 5000) -> Dict[str, Any]:
                     "last_seen": time.time(),
                     "sources": [],
                 })
-                entities[e]["occurrences"] += 1
-                sources = entities[e]["sources"]
+                entities[e]["last_seen"] = time.time()
+                sources = entities[e].get("sources", [])
+                entities[e]["sources"] = sources
                 if item_id not in sources:
                     sources.append(item_id)
+                    entities[e]["occurrences"] = entities[e].get("occurrences", 0) + 1
                 if len(sources) > _MAX_ENTITY_SOURCES:
                     entities[e]["sources"] = sources[-_MAX_ENTITY_SOURCES:]
+                    entities[e]["occurrences"] = len(entities[e]["sources"])
 
             rels = extract_relations(text)
             for subj, rel, obj in rels:
                 edges = graph.setdefault(subj, [])
-                if not any(e["relation"] == rel and e["object"] == obj
+                if not any(e.get("relation") == rel and e.get("object") == obj
                            and e.get("source_item") == item_id for e in edges):
                     edges.append({
                         "relation": rel,
@@ -212,10 +218,10 @@ def find_path(start: str, end: str, max_depth: int = 4) -> Optional[List[str]]:
         graph = _load_graph()
 
     visited = set()
-    queue = [(start, [start])]
+    queue = deque([(start, [start])])
 
     while queue:
-        node, path = queue.pop(0)
+        node, path = queue.popleft()
         if node == end:
             return path
 
@@ -224,7 +230,7 @@ def find_path(start: str, end: str, max_depth: int = 4) -> Optional[List[str]]:
         visited.add(node)
 
         for edge in graph.get(node, []):
-            nxt = edge["object"]
+            nxt = edge.get("object", "")
             if nxt not in visited and len(path) < max_depth:
                 queue.append((nxt, path + [nxt]))
 
@@ -235,7 +241,7 @@ def get_top_entities(limit: int = 50) -> List[Tuple[str, int]]:
     """Returns the most frequently occurring entities."""
     with _graph_lock:
         entities = _load_entities()
-    counts = [(e, data["occurrences"]) for e, data in entities.items()]
+    counts = [(e, data.get("occurrences", 0)) for e, data in entities.items()]
     counts.sort(key=lambda x: x[1], reverse=True)
     return counts[:limit]
 
@@ -244,7 +250,7 @@ def get_relations_for(entity: str) -> List[Tuple[str, str]]:
     """Returns (relation, object) pairs for an entity."""
     with _graph_lock:
         graph = _load_graph()
-    return [(edge["relation"], edge["object"]) for edge in graph.get(entity, [])]
+    return [(edge.get("relation", ""), edge.get("object", "")) for edge in graph.get(entity, [])]
 
 
 # ------------------------------------------------------------
@@ -260,7 +266,7 @@ def compute_entity_centrality() -> List[Tuple[str, int]]:
     for subj, edges in graph.items():
         centrality[subj] += len(edges)
         for edge in edges:
-            centrality[edge["object"]] += 1
+            centrality[edge.get("object", "")] += 1
 
     return centrality.most_common(50)
 
@@ -285,7 +291,7 @@ def get_connected_components() -> List[List[str]]:
             visited.add(current)
             comp.append(current)
             for edge in graph.get(current, []):
-                nxt = edge["object"]
+                nxt = edge.get("object", "")
                 if nxt not in visited:
                     stack.append(nxt)
         components.append(comp)

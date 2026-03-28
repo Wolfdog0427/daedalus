@@ -42,7 +42,23 @@ def _rotate_log(path: Path) -> None:
     try:
         lines = path.read_text(encoding="utf-8").strip().split("\n")
         if len(lines) > _MAX_LOG_ENTRIES:
-            path.write_text("\n".join(lines[-_MAX_LOG_ENTRIES:]) + "\n", encoding="utf-8")
+            import tempfile, os
+            content = "\n".join(lines[-_MAX_LOG_ENTRIES:]) + "\n"
+            fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
+            closed = False
+            try:
+                os.write(fd, content.encode("utf-8"))
+                os.close(fd)
+                closed = True
+                os.replace(tmp, str(path))
+            except BaseException:
+                if not closed:
+                    os.close(fd)
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+                raise
     except Exception:
         pass
 
@@ -102,7 +118,7 @@ def get_pending_deviations() -> List[Dict[str, Any]]:
             entry = json.loads(line)
             if entry.get("id") not in adjudicated:
                 pending.append(entry)
-        except Exception:
+        except (json.JSONDecodeError, ValueError):
             continue
     return pending
 
@@ -117,7 +133,7 @@ def _load_adjudicated_ids() -> set:
         try:
             entry = json.loads(line)
             ids.add(entry.get("deviation_id"))
-        except Exception:
+        except (json.JSONDecodeError, ValueError):
             continue
     return ids
 
@@ -140,7 +156,8 @@ def classify_deviation(deviation: Dict[str, Any]) -> str:
     - Negative impact → remove (schedule for pruning)
     - High frequency + neutral/unknown → expire (wait for more data)
     """
-    freq = deviation.get("frequency") or 0.0
+    _raw_freq = deviation.get("frequency")
+    freq = _raw_freq if _raw_freq is not None else 0.0
     impact = deviation.get("impact") or "unknown"
 
     if impact == "negative":
@@ -199,7 +216,7 @@ def run_drift_court(deviations: Optional[List[Dict[str, Any]]] = None) -> Dict[s
             proposal_result = _submit_canonization_proposal(dev)
             verdict_entry["proposal"] = proposal_result
             if proposal_result.get("proposal_id"):
-                report["proposals_created"].append(proposal_result["proposal_id"])
+                report["proposals_created"].append(proposal_result.get("proposal_id", ""))
 
         elif verdict == "remove":
             report["removal_candidates"].append({
@@ -333,6 +350,8 @@ def get_court_summary() -> Dict[str, Any]:
                 v = entry.get("verdict", "unknown")
                 verdicts[v] = verdicts.get(v, 0) + 1
                 total += 1
+            except (json.JSONDecodeError, ValueError):
+                continue
             except Exception:
                 continue
 

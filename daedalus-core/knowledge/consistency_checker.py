@@ -21,6 +21,7 @@ This is the system's self-auditing layer.
 
 from __future__ import annotations
 
+import itertools
 from typing import Dict, Any, List, Tuple
 from collections import defaultdict
 
@@ -97,7 +98,7 @@ def scan_for_low_trust(threshold: float = 0.40, limit: int = 2000) -> List[Dict[
     Returns items whose trust score falls below a threshold.
     """
     low = []
-    for item in list(_iter_items())[:limit]:
+    for item in itertools.islice(_iter_items(), limit):
         item_id = item.get("id", "")
         if not item_id:
             continue
@@ -122,7 +123,7 @@ def scan_for_duplicates(limit: int = 2000) -> List[Tuple[str, str]]:
     """
     Detects near-duplicate items by comparing the first 200 characters.
     """
-    items = list(_iter_items())[:limit]
+    items = list(itertools.islice(_iter_items(), limit))
     seen = {}
     duplicates = []
 
@@ -150,7 +151,7 @@ def scan_relationship_consistency(limit: int = 2000) -> Dict[str, Any]:
     - cycles
     - entities with contradictory roles
     """
-    items = list(_iter_items())[:limit]
+    items = list(itertools.islice(_iter_items(), limit))
     relations = defaultdict(list)
 
     for item in items:
@@ -211,7 +212,7 @@ def scan_for_outdated(limit: int = 2000) -> List[Dict[str, Any]]:
     - low trust score
     - presence of newer, higher-quality neighbors
     """
-    items = list(_iter_items())[:limit]
+    items = list(itertools.islice(_iter_items(), limit))
     outdated = []
 
     for item in items:
@@ -410,21 +411,24 @@ def run_active_consolidation(consistency: float, coherence: float) -> Dict[str, 
     merged_duplicates = 0
     resolved_conflicts = 0
     removed_items = 0
+    consolidation_errors = 0
 
     # 1. Resolve contradictions: remove lower-trust item
     contradictions = scan_for_contradictions(limit=scan_limit)
     for c in contradictions[:contradiction_cap]:
         try:
-            if c["score_a"] >= c["score_b"]:
-                loser_id = c["item_b"]
+            if c.get("score_a", 0) >= c.get("score_b", 0):
+                loser_id = c.get("item_b")
             else:
-                loser_id = c["item_a"]
+                loser_id = c.get("item_a")
+            if not loser_id:
+                continue
             from knowledge.storage_manager import _mark_superseded
             _mark_superseded(loser_id)
             resolved_contradictions += 1
             removed_items += 1
-        except Exception:
-            pass
+        except (ImportError, OSError, ValueError):
+            consolidation_errors += 1
 
     # 2. Merge exact duplicates
     duplicates = scan_for_duplicates(limit=scan_limit)
@@ -434,8 +438,8 @@ def run_active_consolidation(consistency: float, coherence: float) -> Dict[str, 
             _mark_superseded(dup_b)
             merged_duplicates += 1
             removed_items += 1
-        except Exception:
-            pass
+        except (ImportError, OSError, ValueError):
+            consolidation_errors += 1
 
     # 3. Resolve relationship conflicts: remove the lower-trust edge
     relations = scan_relationship_consistency(limit=scan_limit)
@@ -443,8 +447,8 @@ def run_active_consolidation(consistency: float, coherence: float) -> Dict[str, 
         try:
             if _resolve_relationship_conflict(conflict):
                 resolved_conflicts += 1
-        except Exception:
-            pass
+        except (ImportError, OSError, ValueError):
+            consolidation_errors += 1
 
     boost_estimate = min(
         0.20,

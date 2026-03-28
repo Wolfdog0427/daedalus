@@ -29,7 +29,19 @@ from typing import Dict, Any, List, Optional
 
 from knowledge._atomic_io import atomic_write_json
 
+
+def _sanitize_for_json(obj: Any) -> Any:
+    """Recursively ensure all values are JSON-native types."""
+    if obj is None or isinstance(obj, (bool, int, float, str)):
+        return obj
+    if isinstance(obj, dict):
+        return {str(k): _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_for_json(v) for v in obj]
+    return str(obj)
+
 _epoch_lock = threading.Lock()
+_MAX_EPOCH_DEVIATIONS = 5000
 
 EPOCH_DIR = Path("data/entropy/epochs")
 CURRENT_EPOCH_FILE = EPOCH_DIR / "current.json"
@@ -62,11 +74,16 @@ def start_epoch(
                 current = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
                 if current.get("status") == "running":
                     _end_epoch_unlocked()
-            except Exception:
-                pass
+            except (json.JSONDecodeError, OSError) as exc:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "failed to end running epoch before starting new one: %s", exc,
+                )
 
         from knowledge.entropy.canonical_template import load_template
         template = load_template()
+        if not isinstance(template, dict):
+            template = {}
 
         if epoch_id is None:
             epoch_id = f"epoch-{int(time.time())}"
@@ -76,7 +93,7 @@ def start_epoch(
             "start_time": time.time(),
             "target_end_time": time.time() + (duration_hours * 3600),
             "duration_hours": duration_hours,
-            "canonical_version": template["version"],
+            "canonical_version": template.get("version", "unknown"),
             "status": "running",
             "deviations": [],
             "metrics_at_start": {},
@@ -104,7 +121,7 @@ def record_epoch_deviation(deviation: Dict[str, Any]) -> Optional[str]:
 
         try:
             epoch = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             return None
 
         if epoch.get("status") != "running":
@@ -113,11 +130,17 @@ def record_epoch_deviation(deviation: Dict[str, Any]) -> Optional[str]:
         from knowledge.entropy.drift_court import log_deviation
         dev_id = log_deviation(deviation)
 
-        epoch["deviations"].append({
+        devs = epoch.get("deviations")
+        if not isinstance(devs, list):
+            devs = []
+            epoch["deviations"] = devs
+        devs.append({
             "id": dev_id,
             "name": deviation.get("name"),
             "timestamp": time.time(),
         })
+        if len(devs) > _MAX_EPOCH_DEVIATIONS:
+            epoch["deviations"] = devs[-_MAX_EPOCH_DEVIATIONS:]
 
         atomic_write_json(CURRENT_EPOCH_FILE, epoch)
         return dev_id
@@ -132,7 +155,7 @@ def capture_epoch_metrics(metrics: Dict[str, Any], phase: str = "start") -> None
 
         try:
             epoch = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             return
 
         key = f"metrics_at_{phase}"
@@ -142,13 +165,14 @@ def capture_epoch_metrics(metrics: Dict[str, Any], phase: str = "start") -> None
 
 def is_epoch_expired() -> bool:
     """Check if the current epoch has exceeded its duration."""
-    if not CURRENT_EPOCH_FILE.exists():
-        return True
-    try:
-        epoch = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
-        return time.time() >= epoch.get("target_end_time", 0)
-    except Exception:
-        return True
+    with _epoch_lock:
+        if not CURRENT_EPOCH_FILE.exists():
+            return True
+        try:
+            epoch = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
+            return time.time() >= epoch.get("target_end_time", 0)
+        except (json.JSONDecodeError, OSError):
+            return True
 
 
 def _end_epoch_unlocked() -> Dict[str, Any]:
@@ -160,14 +184,21 @@ def _end_epoch_unlocked() -> Dict[str, Any]:
 
     try:
         epoch = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
-    except Exception as exc:
+    except (json.JSONDecodeError, OSError) as exc:
         return {"status": "error", "error": f"failed to load epoch: {exc}"}
 
+    if not isinstance(epoch, dict):
+        return {"status": "error", "error": "epoch data is not a dict"}
+
     epoch["status"] = "ending"
-    epoch["end_time"] = time.time()
+    end_t = time.time()
+    epoch["end_time"] = end_t
+    start_time = epoch.get("start_time", end_t)
     epoch["actual_duration_hours"] = round(
-        (epoch["end_time"] - epoch["start_time"]) / 3600, 2
+        (end_t - start_time) / 3600, 2
     )
+
+    _phase_errors = 0
 
     # --- Phase 1: Graph Compaction (COHERENCE FIX) ---
     try:
@@ -176,6 +207,7 @@ def _end_epoch_unlocked() -> Dict[str, Any]:
         epoch["compaction_report"] = compaction
     except Exception as exc:
         epoch["compaction_report"] = {"status": "error", "error": str(exc)}
+        _phase_errors += 1
 
     # --- Phase 2: Drift Court ---
     try:
@@ -184,6 +216,7 @@ def _end_epoch_unlocked() -> Dict[str, Any]:
         epoch["drift_court_report"] = court
     except Exception as exc:
         epoch["drift_court_report"] = {"status": "error", "error": str(exc)}
+        _phase_errors += 1
 
     # --- Phase 3: Entropy Budget Snapshot ---
     try:
@@ -196,6 +229,7 @@ def _end_epoch_unlocked() -> Dict[str, Any]:
         epoch["budget_report"] = budget
     except Exception as exc:
         epoch["budget_report"] = {"status": "error", "error": str(exc)}
+        _phase_errors += 1
 
     # --- Phase 4: Renewal ---
     try:
@@ -204,12 +238,15 @@ def _end_epoch_unlocked() -> Dict[str, Any]:
         epoch["renewal_report"] = renewal
     except Exception as exc:
         epoch["renewal_report"] = {"status": "error", "error": str(exc)}
+        _phase_errors += 1
 
     # --- Phase 5: Archive ---
-    epoch["status"] = "completed"
-    archive_path = EPOCH_ARCHIVE_DIR / f"{epoch['id']}.json"
-    atomic_write_json(archive_path, epoch, default=str)
-    atomic_write_json(CURRENT_EPOCH_FILE, epoch, default=str)
+    epoch["status"] = "completed" if _phase_errors == 0 else "completed_with_errors"
+    epoch["phase_errors"] = _phase_errors
+    epoch = _sanitize_for_json(epoch)
+    archive_path = EPOCH_ARCHIVE_DIR / f"{epoch.get('id', 'unknown')}.json"
+    atomic_write_json(archive_path, epoch)
+    atomic_write_json(CURRENT_EPOCH_FILE, epoch)
 
     return epoch
 
@@ -232,26 +269,36 @@ def end_epoch() -> Dict[str, Any]:
 
 def get_current_epoch() -> Optional[Dict[str, Any]]:
     """Return the current epoch data, or None if no epoch is running."""
-    if not CURRENT_EPOCH_FILE.exists():
-        return None
-    try:
-        return json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return None
+    with _epoch_lock:
+        if not CURRENT_EPOCH_FILE.exists():
+            return None
+        try:
+            return json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return None
 
 
 def get_epoch_status() -> Dict[str, Any]:
-    """Quick status check for meta-cognition."""
-    epoch = get_current_epoch()
-    if epoch is None:
-        return {
-            "active": False,
-            "should_start": True,
-            "reason": "no_epoch_running",
-        }
+    """Quick status check for meta-cognition (single atomic read)."""
+    with _epoch_lock:
+        if not CURRENT_EPOCH_FILE.exists():
+            return {
+                "active": False,
+                "should_start": True,
+                "reason": "no_epoch_running",
+            }
+        try:
+            epoch = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {
+                "active": False,
+                "should_start": True,
+                "reason": "epoch_file_unreadable",
+            }
 
-    elapsed_hours = (time.time() - epoch.get("start_time", time.time())) / 3600
-    expired = is_epoch_expired()
+    _st = epoch.get("start_time")
+    elapsed_hours = (time.time() - (_st if _st is not None else time.time())) / 3600
+    expired = time.time() >= epoch.get("target_end_time", 0)
     deviation_count = len(epoch.get("deviations", []))
 
     return {
@@ -267,26 +314,3 @@ def get_epoch_status() -> Dict[str, Any]:
     }
 
 
-def list_completed_epochs(limit: int = 20) -> List[Dict[str, Any]]:
-    """Return metadata from recent completed epochs."""
-    _ensure_dir()
-    archives: List[Dict[str, Any]] = []
-    if not EPOCH_ARCHIVE_DIR.exists():
-        return archives
-
-    files = sorted(EPOCH_ARCHIVE_DIR.glob("*.json"), reverse=True)[:limit]
-    for f in files:
-        try:
-            data = json.loads(f.read_text(encoding="utf-8"))
-            archives.append({
-                "id": data.get("id"),
-                "start_time": data.get("start_time"),
-                "end_time": data.get("end_time"),
-                "duration_hours": data.get("actual_duration_hours"),
-                "deviations": len(data.get("deviations", [])),
-                "canonical_version": data.get("canonical_version"),
-                "status": data.get("status"),
-            })
-        except Exception:
-            continue
-    return archives

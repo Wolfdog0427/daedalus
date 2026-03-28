@@ -164,7 +164,7 @@ def detect_environment_anomalies() -> List[Dict[str, Any]]:
             })
 
         flags = env.get("default_feature_flags", {})
-        all_false = flags and all(v is False for v in flags.values())
+        all_false = flags and all(not v for v in flags.values())
         if all_false:
             anomalies.append({
                 "anomaly_type": "env_all_flags_disabled",
@@ -241,7 +241,7 @@ def detect_pack_anomalies() -> List[Dict[str, Any]]:
             })
 
         flags = pack.get("feature_flag_overrides", {})
-        all_false = flags and all(v is False for v in flags.values())
+        all_false = flags and all(not v for v in flags.values())
         if all_false and len(flags) >= 2:
             anomalies.append({
                 "anomaly_type": "pack_all_flags_disabled",

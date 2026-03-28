@@ -112,7 +112,7 @@ class RollbackEngine:
 
     def get_last_rollback(self) -> Optional[Dict[str, Any]]:
         with self._lock:
-            return self.last_rollback
+            return dict(self.last_rollback) if self.last_rollback else None
 
     def get_rollback_log(self):
         with self._lock:

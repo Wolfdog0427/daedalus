@@ -29,7 +29,9 @@ class ProposalReviewSystem:
     # ------------------------------------------------------------
 
     def _register(self, proposal: Dict[str, Any]):
-        pid = proposal["id"]
+        pid = proposal.get("id")
+        if not pid:
+            return
         with self._lock:
             if pid not in self.proposals:
                 self.proposals[pid] = proposal
@@ -68,23 +70,33 @@ class ProposalReviewSystem:
                 if p.get("status") == "pending_review"
             ]
 
+    _TERMINAL_STATUSES = frozenset({"executed", "rolled_back"})
+    _APPROVABLE = frozenset({"pending_review"})
+    _REJECTABLE = frozenset({"pending_review", "approved"})
+
     def approve(self, pid: str) -> Optional[Dict[str, Any]]:
         """
-        Approve a proposal. Marks it as approved and ready for execution.
+        Approve a proposal. Only pending_review proposals can be approved.
         """
         with self._lock:
             if pid not in self.proposals:
                 return None
+            current = self.proposals[pid].get("status")
+            if current not in self._APPROVABLE:
+                return dict(self.proposals[pid])
             self._update_status(pid, "approved")
             return dict(self.proposals[pid])
 
     def reject(self, pid: str) -> Optional[Dict[str, Any]]:
         """
-        Reject a proposal. Marks it as rejected.
+        Reject a proposal. Pending or approved proposals can be rejected.
         """
         with self._lock:
             if pid not in self.proposals:
                 return None
+            current = self.proposals[pid].get("status")
+            if current in self._TERMINAL_STATUSES:
+                return dict(self.proposals[pid])
             self._update_status(pid, "rejected")
             return dict(self.proposals[pid])
 

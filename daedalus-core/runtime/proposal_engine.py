@@ -92,7 +92,7 @@ class ProposalEngine:
 
         # Avoid generating duplicate proposals
         if self.last_proposal and self.last_proposal.get("status") == "pending_review":
-            return self.last_proposal
+            return dict(self.last_proposal)
 
         # Build new proposal
         proposal = self._build_proposal(advisory)
@@ -101,7 +101,7 @@ class ProposalEngine:
         return proposal
 
     def get_last_proposal(self) -> Optional[Dict[str, Any]]:
-        return self.last_proposal
+        return dict(self.last_proposal) if self.last_proposal else None
 
 
 # ------------------------------------------------------------

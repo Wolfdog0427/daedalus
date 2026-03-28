@@ -61,81 +61,74 @@ class InputGateway:
 
     @classmethod
     def sanitize(cls, text: str):
-        # ------------------------------------------------------------
-        # HEM: Enter hostile engagement mode for raw user input
-        # ------------------------------------------------------------
+        if not isinstance(text, str):
+            text = str(text) if text is not None else ""
+
         hem_maybe_enter(
             trigger_reason="input_gateway_sanitize",
             metadata={"input_preview": text[:80]},
         )
 
-        report = {
-            "original_length": len(text),
-            "truncated": False,
-            "removed_zero_width": False,
-            "removed_control_chars": False,
-            "collapsed_whitespace": False,
-            "normalized_unicode": False,
-            "repeated_char_runs": [],
-            "matched_patterns": [],
-        }
+        try:
+            report = {
+                "original_length": len(text),
+                "truncated": False,
+                "removed_zero_width": False,
+                "removed_control_chars": False,
+                "collapsed_whitespace": False,
+                "normalized_unicode": False,
+                "repeated_char_runs": [],
+                "matched_patterns": [],
+            }
 
-        hostility_score = 0
+            hostility_score = 0
 
-        # 1) Normalize Unicode
-        normalized = unicodedata.normalize("NFC", text)
-        if normalized != text:
-            report["normalized_unicode"] = True
-        text = normalized
+            normalized = unicodedata.normalize("NFC", text)
+            if normalized != text:
+                report["normalized_unicode"] = True
+            text = normalized
 
-        # 2) Strip zero-width characters
-        before = text
-        for z in cls.ZERO_WIDTH_CHARS:
-            text = text.replace(z, "")
-        if text != before:
-            report["removed_zero_width"] = True
+            before = text
+            for z in cls.ZERO_WIDTH_CHARS:
+                text = text.replace(z, "")
+            if text != before:
+                report["removed_zero_width"] = True
 
-        # 3) Remove control characters
-        before = text
-        text = cls.CONTROL_CHAR_PATTERN.sub("", text)
-        if text != before:
-            report["removed_control_chars"] = True
+            before = text
+            text = cls.CONTROL_CHAR_PATTERN.sub("", text)
+            if text != before:
+                report["removed_control_chars"] = True
 
-        # 4) Collapse whitespace
-        before = text
-        text = re.sub(r"\s+", " ", text).strip()
-        if text != before:
-            report["collapsed_whitespace"] = True
+            before = text
+            text = re.sub(r"\s+", " ", text).strip()
+            if text != before:
+                report["collapsed_whitespace"] = True
 
-        # 5) Enforce max length
-        if len(text) > cls.MAX_LENGTH:
-            text = text[: cls.MAX_LENGTH]
-            report["truncated"] = True
-            hostility_score += 2
+            if len(text) > cls.MAX_LENGTH:
+                text = text[: cls.MAX_LENGTH]
+                report["truncated"] = True
+                hostility_score += 2
 
-        # 6) Detect repeated character floods
-        repeated_runs = cls._detect_repeated_runs(text)
-        if repeated_runs:
-            report["repeated_char_runs"] = repeated_runs
-            hostility_score += len(repeated_runs)
+            repeated_runs = cls._detect_repeated_runs(text)
+            if repeated_runs:
+                report["repeated_char_runs"] = repeated_runs
+                hostility_score += len(repeated_runs)
 
-        # 7) Detect hostile patterns
-        matched = cls._detect_hostile_patterns(text)
-        if matched:
-            report["matched_patterns"] = matched
-            hostility_score += 3 * len(matched)
+            matched = cls._detect_hostile_patterns(text)
+            if matched:
+                report["matched_patterns"] = matched
+                hostility_score += 3 * len(matched)
 
-        # ------------------------------------------------------------
-        # HEM: Transition to post-check phase
-        # ------------------------------------------------------------
-        hem_transition_to_postcheck()
-
-        # ------------------------------------------------------------
-        # HEM: Run drift + integrity checks, rollback if needed
-        # ------------------------------------------------------------
-        hem_run_post_engagement_checks()
-
-        return text, report, hostility_score
+            return text, report, hostility_score
+        finally:
+            try:
+                hem_transition_to_postcheck()
+            except Exception:
+                pass
+            try:
+                hem_run_post_engagement_checks()
+            except Exception:
+                pass
 
     @classmethod
     def _detect_repeated_runs(cls, text: str):

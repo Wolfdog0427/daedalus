@@ -441,11 +441,12 @@ class ScholarlyModeManager:
                             if (exec_result.get("allowed")
                                     and not exec_result.get("error")):
                                 result["improvement_goals_executed"] += 1
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        result.setdefault("errors", []).append(
+                            f"goal_exec:{goal.id}: {exc}")
 
-        except Exception:
-            pass
+        except Exception as exc:
+            result.setdefault("errors", []).append(f"improvement_scan: {exc}")
 
         return result
 
@@ -502,8 +503,9 @@ class ScholarlyModeManager:
 
             target.explored = True
 
-        except Exception:
-            pass
+        except Exception as exc:
+            result.setdefault("errors", []).append(
+                f"exploration_goal_save: {exc}")
 
         return result
 
@@ -527,11 +529,13 @@ class ScholarlyModeManager:
             query = system_state.get("gap_query", "")
             if gap:
                 learn_result = learn_and_continue(gap, query)
-                items = learn_result.get("ingested", 0)
+                raw_ingested = learn_result.get("ingested", 0)
+                items = int(raw_ingested) if isinstance(raw_ingested, (int, float)) else (1 if raw_ingested else 0)
                 result["items_acquired"] = items
                 self.need_based_items += items
-        except Exception:
-            pass
+        except Exception as exc:
+            result.setdefault("errors", []).append(
+                f"need_based_learning: {exc}")
 
         return result
 

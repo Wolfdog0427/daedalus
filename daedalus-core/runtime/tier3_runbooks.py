@@ -140,7 +140,7 @@ def _step_apply_recommendation(step: Dict[str, Any]) -> Dict[str, Any]:
     from runtime.tier3_adaptive_bridge import apply_recommendation
     try:
         result = apply_recommendation(step["insight_id"])
-        if result.get("error") or result.get("applied") is False:
+        if result.get("error") or not result.get("applied", False):
             return {"success": False,
                     "reason": result.get("reason", "apply failed")}
         return {"success": True, "detail": result}

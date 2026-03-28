@@ -1,10 +1,9 @@
 """
 Keyword libraries for the Natural Language Understanding (NLU) layer.
 
-This version implements Option A:
-    - “add” verbs are recognized as a verb family
-    - but they do NOT map to any canonical intent directly
-    - the classifier decides whether they mean create_goal or add_step
+"add", "insert", "append" map directly to add_step in the matcher.
+Ambiguous verbs ("create", "start", "begin") stay under create_goal;
+the intent_classifier refines "create step X" -> add_step if needed.
 """
 
 # ------------------------------------------------------------
@@ -14,7 +13,7 @@ This version implements Option A:
 COMPLETE_VERBS = [
     "complete", "finish", "wrap", "wrap up", "check", "check off",
     "mark", "mark done", "resolve", "finalize", "close", "close out",
-    "end",
+    "end", "do",
 ]
 
 DELETE_VERBS = [
@@ -27,7 +26,6 @@ RENAME_VERBS = [
     "update title", "modify title",
 ]
 
-# ⭐ ADD VERBS — semantic-only (Option A)
 ADD_VERBS = [
     "add", "insert", "append", "make", "create", "start", "begin",
 ]
@@ -96,19 +94,13 @@ MODIFIERS = {
 # INTENT CLUSTERS
 # ------------------------------------------------------------
 
-# ⭐ IMPORTANT:
-# ADD_VERBS are NOT mapped to any canonical intent here.
-# They are semantic-only and resolved in intent_classifier.
-
 INTENT_CLUSTERS = {
     "complete_step":       COMPLETE_VERBS,
     "delete_step":         DELETE_VERBS,
     "rename_step":         RENAME_VERBS,
 
-    # No direct mapping for add_step — semantic fallback handles it
-    "add_step":            [],
+    "add_step":            ["add", "insert", "append"],
 
-    # Goal creation verbs (explicit)
     "create_goal":         ["create", "start", "begin"],
 
     "switch_goal":         SWITCH_VERBS,
@@ -130,6 +122,3 @@ CANONICAL_ACTIONS = {}
 for intent, verbs in INTENT_CLUSTERS.items():
     for v in verbs:
         CANONICAL_ACTIONS[v] = intent
-
-# ⭐ DO NOT MAP “add” HERE
-# It is resolved semantically in intent_classifier.

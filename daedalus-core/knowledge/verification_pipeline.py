@@ -33,13 +33,13 @@ from knowledge.ingestion import ingest_text
 try:
     from web.tools import search_web as web_search
     WEB_SEARCH_AVAILABLE = True
-except Exception:
+except ImportError:
     WEB_SEARCH_AVAILABLE = False
 
 try:
     from knowledge.llm_adapter import llm_adapter
     _LLM_AVAILABLE = True
-except Exception:
+except ImportError:
     _LLM_AVAILABLE = False
 
 
@@ -238,8 +238,9 @@ def verify_new_information(
         )
         decision["new_item_id"] = new_id
     else:
-        # Just ingest as new
-        new_id = ingest_text(new_text, source=source)
+        new_id = ingest_text(new_text, source=source, metadata={
+            "verification_status": "verified",
+        })
         decision["new_item_id"] = new_id
 
     return decision

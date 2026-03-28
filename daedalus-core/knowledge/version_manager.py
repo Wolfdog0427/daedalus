@@ -30,11 +30,12 @@ import json
 import shutil
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 from knowledge._atomic_io import atomic_write_json
+from knowledge.knowledge_graph import _graph_lock
 
 VERSIONS_DIR = Path("data/versions")
 
@@ -52,7 +53,7 @@ def _ensure_dir():
 
 
 def _timestamp():
-    return datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
 
 
 def _safe_load_json(path: Path) -> Any:
@@ -60,7 +61,7 @@ def _safe_load_json(path: Path) -> Any:
         return None
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
+    except (json.JSONDecodeError, OSError):
         return None
 
 
@@ -131,22 +132,23 @@ def apply_snapshot(snapshot_id: str) -> Dict[str, Any]:
 
     restored = {}
     errors = {}
-    for name, dest_path in _CAPTURABLE_FILES.items():
-        src = snap_dir / f"{name}.json"
-        if not src.exists():
-            restored[name] = "skipped_not_in_snapshot"
-            continue
-        try:
-            data = _safe_load_json(src)
-            if data is not None:
-                dest_path.parent.mkdir(parents=True, exist_ok=True)
-                atomic_write_json(dest_path, data)
-                restored[name] = "restored"
-            else:
-                restored[name] = "skipped_corrupt"
-        except Exception as exc:
-            restored[name] = "error"
-            errors[name] = str(exc)
+    with _graph_lock:
+        for name, dest_path in _CAPTURABLE_FILES.items():
+            src = snap_dir / f"{name}.json"
+            if not src.exists():
+                restored[name] = "skipped_not_in_snapshot"
+                continue
+            try:
+                data = _safe_load_json(src)
+                if data is not None:
+                    dest_path.parent.mkdir(parents=True, exist_ok=True)
+                    atomic_write_json(dest_path, data)
+                    restored[name] = "restored"
+                else:
+                    restored[name] = "skipped_corrupt"
+            except Exception as exc:
+                restored[name] = "error"
+                errors[name] = str(exc)
 
     return {
         "status": "restored" if not errors else "partial",

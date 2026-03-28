@@ -14,7 +14,14 @@ import os
 from typing import Any, Dict
 
 
+import re
+
 _SUBSYSTEM_MEMORY = os.path.join("data", "learning", "subsystems")
+_SAFE_NAME_RE = re.compile(r"[^a-zA-Z0-9_\-]")
+
+
+def _safe_name(name: str) -> str:
+    return _SAFE_NAME_RE.sub("_", name)[:128]
 
 
 def predict_risk_delta(
@@ -22,7 +29,7 @@ def predict_risk_delta(
     action_type: str,
     current_risk: str,
 ) -> float:
-    mem_path = os.path.join(_SUBSYSTEM_MEMORY, f"{subsystem}.json")
+    mem_path = os.path.join(_SUBSYSTEM_MEMORY, f"{_safe_name(subsystem)}.json")
     if os.path.exists(mem_path):
         try:
             with open(mem_path, "r", encoding="utf-8") as f:
@@ -30,6 +37,8 @@ def predict_risk_delta(
             avg_reduction = mem.get("avg_risk_reduction", None)
             if avg_reduction is not None:
                 return -abs(avg_reduction)
+        except (json.JSONDecodeError, OSError, ValueError):
+            pass
         except Exception:
             pass
 

@@ -64,7 +64,7 @@ _violation_lock = threading.Lock()
 
 
 def list_invariants() -> List[Dict[str, Any]]:
-    return list(_INVARIANTS)
+    return [dict(inv) for inv in _INVARIANTS]
 
 
 def get_invariant(invariant_id: str) -> Dict[str, Any] | None:
@@ -137,6 +137,3 @@ def enforce_invariants(change_request: Dict[str, Any] | None = None) -> Dict[str
     }
 
 
-def get_violation_log(limit: int = 20) -> List[Dict[str, Any]]:
-    with _violation_lock:
-        return list(_VIOLATION_LOG[-limit:])

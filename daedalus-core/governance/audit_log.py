@@ -25,24 +25,20 @@ def log_event(
     """Append a governance event to the audit log."""
     entry = {
         "event_type": event_type,
-        "details": details or {},
+        "details": dict(details) if details else {},
         "timestamp": time.time(),
     }
     with _audit_lock:
         _AUDIT_LOG.append(entry)
         if len(_AUDIT_LOG) > _MAX_LOG:
             _AUDIT_LOG[:] = _AUDIT_LOG[-_MAX_LOG:]
-    return entry
+    return dict(entry)
 
 
 def get_log(limit: int = 50) -> List[Dict[str, Any]]:
+    n = max(0, int(limit))
     with _audit_lock:
-        return list(_AUDIT_LOG[-limit:])
-
-
-def get_log_by_type(event_type: str, limit: int = 20) -> List[Dict[str, Any]]:
-    with _audit_lock:
-        return [e for e in _AUDIT_LOG if e["event_type"] == event_type][-limit:]
+        return [dict(e) for e in _AUDIT_LOG[-n:]] if n > 0 else []
 
 
 def get_log_summary() -> Dict[str, Any]:
@@ -61,10 +57,3 @@ def get_log_summary() -> Dict[str, Any]:
         }
 
 
-def clear_log(reason: str = "operator_reset") -> Dict[str, Any]:
-    """Clear the audit log (operator-only)."""
-    with _audit_lock:
-        count = len(_AUDIT_LOG)
-        _AUDIT_LOG.clear()
-    log_event("audit_log_cleared", {"reason": reason, "cleared_count": count})
-    return {"success": True, "cleared": count}

@@ -23,7 +23,7 @@ from typing import Dict, Any, List, Optional
 
 from knowledge._atomic_io import atomic_write_json
 
-_template_lock = threading.Lock()
+_template_lock = threading.RLock()
 
 CANONICAL_DIR = Path("data/entropy/canonical")
 TEMPLATE_FILE = CANONICAL_DIR / "template.json"
@@ -132,29 +132,30 @@ def _ensure_dir():
 
 def load_template() -> Dict[str, Any]:
     _ensure_dir()
-    if TEMPLATE_FILE.exists():
-        try:
-            return json.loads(TEMPLATE_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            import logging
-            logging.getLogger(__name__).warning(
-                "Canonical template corrupted or unreadable — resetting to defaults. "
-                "Any custom invariants or state registry entries have been lost."
-            )
-            backup = TEMPLATE_FILE.with_suffix(".json.corrupted")
+    with _template_lock:
+        if TEMPLATE_FILE.exists():
             try:
-                TEMPLATE_FILE.rename(backup)
-            except OSError:
-                pass
-    template = _default_template()
-    save_template(template)
-    return template
+                return json.loads(TEMPLATE_FILE.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Canonical template corrupted or unreadable — resetting to defaults. "
+                    "Any custom invariants or state registry entries have been lost."
+                )
+                backup = TEMPLATE_FILE.with_suffix(".json.corrupted")
+                try:
+                    TEMPLATE_FILE.rename(backup)
+                except OSError:
+                    pass
+        template = _default_template()
+        save_template(template)
+        return template
 
 
 def save_template(template: Dict[str, Any]) -> None:
     _ensure_dir()
     template["last_updated"] = time.time()
-    atomic_write_json(TEMPLATE_FILE, template, default=str)
+    atomic_write_json(TEMPLATE_FILE, template)
 
 
 def get_state_tier(path: str) -> str:

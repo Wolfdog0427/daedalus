@@ -188,8 +188,9 @@ def score_risk(change_request: Dict[str, Any]) -> int:
 
 
 def get_contract_log(limit: int = 20) -> List[Dict[str, Any]]:
+    n = max(0, int(limit))
     with _contract_lock:
-        return list(_CONTRACT_LOG[-limit:])
+        return [dict(e) for e in _CONTRACT_LOG[-n:]] if n > 0 else []
 
 
 def _log_contract(change_type: str, result: Dict[str, Any]) -> None:

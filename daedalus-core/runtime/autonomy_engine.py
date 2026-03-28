@@ -9,6 +9,7 @@ and operator-triggered — no automatic tier escalation.
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any, Dict, List, Tuple
 
@@ -23,6 +24,8 @@ from runtime.autonomy_state import (
 )
 
 _TRANSITION_LOG: List[Dict[str, Any]] = []
+_MAX_TRANSITION_LOG = 500
+_transition_log_lock = threading.Lock()
 
 # Postures that force a specific tier unless the operator overrides
 _POSTURE_FORCED_TIERS: Dict[str, str] = {
@@ -34,13 +37,15 @@ _POSTURE_FORCED_TIERS: Dict[str, str] = {
 
 
 def get_transition_log(limit: int = 20) -> List[Dict[str, Any]]:
-    return list(_TRANSITION_LOG[-limit:])
+    n = max(0, int(limit))
+    with _transition_log_lock:
+        return [dict(e) for e in _TRANSITION_LOG[-n:]] if n > 0 else []
 
 
 def _get_posture_id() -> str:
     try:
         from runtime.posture_state import get_current_posture
-        return get_current_posture()["posture_id"]
+        return get_current_posture().get("posture_id", "COMPANION")
     except Exception:
         return "COMPANION"
 
@@ -102,10 +107,10 @@ def request_tier(
                 "flags": [],
                 "reversible": True,
             })
-            if not verdict.get("allowed", False):
+            if not verdict.get("allowed", False) or verdict.get("needs_approval", False):
                 return {
                     "success": False, "tier_id": tier_id, "reason": reason,
-                    "rationale": f"governance: {verdict.get('reason', 'blocked')}",
+                    "rationale": f"governance: {verdict.get('reason', 'blocked — operator approval required')}",
                     "timestamp": time.time(),
                 }
     except Exception:
@@ -124,7 +129,10 @@ def request_tier(
             "rationale": f"unknown tier '{tier_id}'",
             "timestamp": time.time(),
         }
-        _TRANSITION_LOG.append({**result, "type": "rejected"})
+        with _transition_log_lock:
+            _TRANSITION_LOG.append({**result, "type": "rejected"})
+            if len(_TRANSITION_LOG) > _MAX_TRANSITION_LOG:
+                _TRANSITION_LOG[:] = _TRANSITION_LOG[-_MAX_TRANSITION_LOG:]
         return result
 
     meta = dict(metadata or {})
@@ -141,7 +149,10 @@ def request_tier(
         "to_tier": record["to_tier"],
         "timestamp": record["timestamp"],
     }
-    _TRANSITION_LOG.append({**result, "type": "activated"})
+    with _transition_log_lock:
+        _TRANSITION_LOG.append({**result, "type": "activated"})
+        if len(_TRANSITION_LOG) > _MAX_TRANSITION_LOG:
+            _TRANSITION_LOG[:] = _TRANSITION_LOG[-_MAX_TRANSITION_LOG:]
     return result
 
 
@@ -172,14 +183,15 @@ def can_perform(
             f"{sorted(allowed)} at tier {tid}",
         )
 
-    # Consult posture autonomy as an additional restriction
     try:
         from runtime.posture_autonomy import _is_posture_allowed
         posture_ok, posture_reason = _is_posture_allowed(action_type, context)
         if not posture_ok:
             return False, f"tier {tid} allows, but posture restricts: {posture_reason}"
+    except ImportError:
+        return False, f"posture_autonomy module unavailable — fail-closed for '{action_type}'"
     except Exception:
-        pass
+        return False, f"posture check unavailable for '{action_type}' at tier {tid}"
 
     return True, f"action '{action_type}' is allowed at tier {tid}"
 

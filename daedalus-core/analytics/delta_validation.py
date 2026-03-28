@@ -36,7 +36,8 @@ def record_delta_outcome(
         "risk_by_subsystem": { name: "low|medium|high", ... }
     }
     """
-    predicted_actions: List[Dict[str, Any]] = plan.get("planned_actions", [])
+    _pa = plan.get("planned_actions", [])
+    predicted_actions: List[Dict[str, Any]] = _pa if isinstance(_pa, list) else []
 
     pre_drift = pre_metrics.get("drift_score")
     post_drift = post_metrics.get("drift_score")
@@ -49,14 +50,18 @@ def record_delta_outcome(
     actual_drift_delta = post_drift - pre_drift
     actual_stability_delta = post_stab - pre_stab
 
-    risk_before = pre_metrics.get("risk_by_subsystem", {})
-    risk_after = post_metrics.get("risk_by_subsystem", {})
+    _rb = pre_metrics.get("risk_by_subsystem", {})
+    _ra = post_metrics.get("risk_by_subsystem", {})
+    risk_before = _rb if isinstance(_rb, dict) else {}
+    risk_after = _ra if isinstance(_ra, dict) else {}
 
     records: List[Dict[str, Any]] = []
 
     for action in predicted_actions:
+        if not isinstance(action, dict):
+            continue
         target = action.get("target")
-        if not target:
+        if target is None:
             continue
 
         predicted_drift = action.get("predicted_drift_delta")

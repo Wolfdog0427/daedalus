@@ -228,10 +228,13 @@ def _match_repl_meta_intent(nt: str) -> Optional[str]:
     if nt.startswith("restore checkpoint"):
         return "restore_checkpoint"
 
-    if re.match(r"^add watchpoint\s+\S", nt):
+    if re.match(r"^(?:add watchpoint|watch)\s+\S", nt):
         return "add_watchpoint"
-    if re.match(r"^remove watchpoint\s+\S", nt):
+    if re.match(r"^(?:remove watchpoint|unwatch)\s+\S", nt):
         return "remove_watchpoint"
+
+    if nt == "debug semantic":
+        return "debug_semantic_contextual"
 
     return None
 
@@ -351,11 +354,14 @@ def classify_intent(text: str) -> Dict[str, Any]:
     # --------------------------------------------------------
 
     else:
+        if canonical_intent == "add_step" and object_family == "goal":
+            canonical_intent = "create_goal"
+
         if canonical_intent == "create_goal" and object_family == "step":
             canonical_intent = "add_step"
 
         if canonical_intent == "complete_step" and object_family == "goal":
-            canonical_intent = "complete_goal"  # future expansion
+            canonical_intent = "complete_goal"
 
         if canonical_intent == "delete_step" and object_family == "goal":
             canonical_intent = "delete_goal"

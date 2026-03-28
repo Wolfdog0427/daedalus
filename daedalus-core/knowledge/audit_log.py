@@ -39,7 +39,7 @@ AUDIT_FILE = AUDIT_DIR / "audit_log.jsonl"   # JSON Lines format
 def _ensure_storage():
     AUDIT_DIR.mkdir(parents=True, exist_ok=True)
     if not AUDIT_FILE.exists():
-        AUDIT_FILE.write_text("")  # create empty log
+        AUDIT_FILE.write_text("", encoding="utf-8")
 
 
 # ------------------------------------------------------------
@@ -142,7 +142,7 @@ def read_audit_log(limit: Optional[int] = None) -> list[Dict[str, Any]]:
         for line in f:
             try:
                 entries.append(json.loads(line))
-            except Exception:
+            except (json.JSONDecodeError, ValueError):
                 continue
 
     if limit is not None:

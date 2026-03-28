@@ -16,9 +16,11 @@ StabilityLevel = Literal["low", "medium", "high"]
 # ------------------------------------------------------------
 
 _LEVEL_ORDER = {
-    "low": 0,
-    "medium": 1,
-    "high": 2,
+    "none": 0,
+    "low": 1,
+    "medium": 2,
+    "high": 3,
+    "critical": 4,
 }
 
 

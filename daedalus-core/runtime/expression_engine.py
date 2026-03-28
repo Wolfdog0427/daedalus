@@ -52,7 +52,7 @@ def _log_shaped(posture_id: str, profile: Dict[str, Any],
 def _get_active_profile() -> Dict[str, Any]:
     try:
         from runtime.posture_state import get_current_posture
-        pid = get_current_posture()["posture_id"]
+        pid = get_current_posture().get("posture_id", "COMPANION")
     except Exception:
         pid = "COMPANION"
     try:

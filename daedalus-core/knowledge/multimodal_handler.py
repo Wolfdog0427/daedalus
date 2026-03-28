@@ -151,6 +151,8 @@ def extract_structured_data(text: str) -> Dict[str, Any]:
                     "row_count": len(data) if isinstance(data, list) else 1,
                     "fields": list(data.keys()) if isinstance(data, dict) else [],
                 }
+            except (json.JSONDecodeError, ValueError):
+                pass
             except Exception:
                 pass
 

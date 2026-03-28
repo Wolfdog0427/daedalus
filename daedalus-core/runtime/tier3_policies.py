@@ -312,7 +312,7 @@ def _is_within_window(
 
     if now_hhmm is None:
         import datetime
-        now_hhmm = datetime.datetime.now().strftime("%H:%M")
+        now_hhmm = datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M")
 
     for w in windows:
         start = w.get("start", "00:00")

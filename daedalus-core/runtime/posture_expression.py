@@ -44,7 +44,7 @@ _DEFAULT_LEGACY: Dict[str, Any] = {
 def _get_posture_id() -> str:
     try:
         from runtime.posture_state import get_current_posture
-        return get_current_posture()["posture_id"]
+        return get_current_posture().get("posture_id", "COMPANION")
     except Exception:
         return COMPANION
 

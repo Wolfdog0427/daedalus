@@ -70,11 +70,36 @@ class ContextResolver:
             if last_gid is not None:
                 return last_gid
 
-        # Ordinal goals: "first goal", "last goal"
+        if "my last goal" in text_l:
+            return state.get("last_goal_id")
+
+        if "the previous goal" in text_l:
+            active_gid = state.get("active_goal_id")
+            if active_gid is not None:
+                ids = [g["id"] for g in goals]
+                try:
+                    idx = ids.index(active_gid)
+                except ValueError:
+                    idx = -1
+                if idx > 0:
+                    return ids[idx - 1]
+            return state.get("last_goal_id")
+
+        if "the next goal" in text_l:
+            active_gid = state.get("active_goal_id")
+            if active_gid is not None:
+                ids = [g["id"] for g in goals]
+                try:
+                    idx = ids.index(active_gid)
+                except ValueError:
+                    idx = -1
+                if idx >= 0 and idx + 1 < len(ids):
+                    return ids[idx + 1]
+
         if "goal" in text_l:
             if "first goal" in text_l and len(goals) >= 1:
                 return goals[0]["id"]
-            if "last goal" in text_l and len(goals) >= 1:
+            if "last goal" in text_l and "my last" not in text_l and len(goals) >= 1:
                 return goals[-1]["id"]
 
         # Topic-based / partial phrase fuzzy match against goal names
@@ -157,6 +182,8 @@ class ContextResolver:
         active_goal = state.get("active_goal_id")
         active_step = state.get("active_step_number")
         text        = self._get_text(cmd)
+        confidence  = cmd.get("repair_confidence", 1.0)
+        high_confidence = confidence >= 0.80
 
         # ------------------------------------------------------------
         # 1. Ensure args is a dict
@@ -177,21 +204,24 @@ class ContextResolver:
             "move_step",
             "show_plan",
             "set_active_goal",
+            "switch_goal",
         ):
-            if args.get("goal_id") is None:
+            if args.get("goal_id") is None and high_confidence:
                 gid = self._fuzzy_goal_from_text(text, state)
                 if gid is not None:
                     args["goal_id"] = gid
                     self._log(f"goal_id missing → fuzzy resolved goal_id={gid}")
-                else:
+                elif intent != "switch_goal":
                     args["goal_id"] = active_goal
                     self._log(f"goal_id missing → using active_goal={active_goal}")
+                else:
+                    self._log("Fuzzy goal resolution failed for switch_goal; leaving unresolved.")
 
         # ------------------------------------------------------------
         # 3. Resolve missing step_id / step_number (with fuzzy)
         # ------------------------------------------------------------
         if intent in ("complete_step", "delete_step", "rename_step", "move_step"):
-            if args.get("step_id") is None and args.get("step_number") is None:
+            if args.get("step_id") is None and args.get("step_number") is None and high_confidence:
                 snum = self._fuzzy_step_from_text(text, state)
                 if snum is not None:
                     args["step_number"] = snum
@@ -199,8 +229,11 @@ class ContextResolver:
                 elif active_step is not None:
                     args["step_number"] = active_step
                     self._log(f"step_number missing → using active_step={active_step}")
+                elif state.get("last_step_id") is not None:
+                    args["step_number"] = state["last_step_id"]
+                    self._log(f"step_number missing → using last_step_id={state['last_step_id']}")
                 else:
-                    self._log("No active_step available; leaving step unresolved.")
+                    self._log("No active_step or last_step_id available; leaving step unresolved.")
 
         # ------------------------------------------------------------
         # 4. Normalize step references
@@ -228,17 +261,6 @@ class ContextResolver:
                     self._log(f"Coerced {key} to int: {args[key]}")
                 except Exception:
                     self._log(f"Failed to coerce {key} to int → leaving as-is.")
-
-        # ------------------------------------------------------------
-        # 7. Update state references
-        # ------------------------------------------------------------
-        if args.get("goal_id") is not None:
-            state["last_goal_referenced"] = args["goal_id"]
-            self._log(f"Updated last_goal_referenced → {args['goal_id']}")
-
-        if args.get("step_number") is not None:
-            state["last_step_referenced"] = args["step_number"]
-            self._log(f"Updated last_step_referenced → {args['step_number']}")
 
         self._log(f"[ContextResolver] Final: {cmd}")
         return cmd

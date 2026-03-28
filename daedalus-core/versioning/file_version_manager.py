@@ -2,7 +2,7 @@
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional, List
 
 from versioning.version_manager import VersionManager, VersionMetadata
@@ -24,6 +24,8 @@ class FileVersionManager(VersionManager):
     """
 
     INDEX_FILENAME = "versions_index.json"
+    _MAX_VERSIONS = 200
+    _MAX_CANDIDATES = 100
 
     def __init__(self, repo_root: str, storage_root: str):
         super().__init__(repo_root, storage_root)
@@ -45,30 +47,36 @@ class FileVersionManager(VersionManager):
     # ------------------------------------------------------------
 
     def _load_index(self) -> Dict:
+        default = {"versions": [], "candidates": [], "current_lkg": None}
         try:
             with open(self.index_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return {"versions": [], "candidates": [], "current_lkg": None}
+                data = json.load(f)
+            if not isinstance(data, dict):
+                return default
+            data.setdefault("versions", [])
+            data.setdefault("candidates", [])
+            data.setdefault("current_lkg", None)
+            return data
+        except (json.JSONDecodeError, OSError, ValueError):
+            return default
 
     def _write_index(self, data: Dict) -> None:
         try:
             with open(self.index_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
-        except Exception:
-            # Never break the system due to version index write failure
+        except OSError:
             pass
 
     def _save(self) -> None:
         self._write_index(self.index)
 
     def _new_version_id(self) -> str:
-        ts = datetime.utcnow().isoformat() + "Z"
+        ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         compact = ts.replace(":", "").replace("-", "").replace(".", "")
         return f"v-{compact}"
 
     def _new_candidate_id(self) -> str:
-        ts = datetime.utcnow().isoformat() + "Z"
+        ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         compact = ts.replace(":", "").replace("-", "").replace(".", "")
         return f"c-{compact}"
 
@@ -82,7 +90,7 @@ class FileVersionManager(VersionManager):
         This stores metadata only — it does NOT copy code.
         """
         version_id = self._new_version_id()
-        ts = datetime.utcnow().isoformat() + "Z"
+        ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         metadata = VersionMetadata(
             version_id=version_id,
@@ -93,8 +101,9 @@ class FileVersionManager(VersionManager):
             confidence=1.0,               # Default confidence
         )
 
-        # Store as dict
         self.index["versions"].append(metadata.__dict__)
+        if len(self.index["versions"]) > self._MAX_VERSIONS:
+            self.index["versions"] = self.index["versions"][-self._MAX_VERSIONS:]
         self.index["current_lkg"] = version_id
         self._save()
 
@@ -105,7 +114,7 @@ class FileVersionManager(VersionManager):
         Store a candidate improvement proposal.
         """
         candidate_id = self._new_candidate_id()
-        ts = datetime.utcnow().isoformat() + "Z"
+        ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         plan = candidate.plan
         entry = {
@@ -119,6 +128,8 @@ class FileVersionManager(VersionManager):
         }
 
         self.index["candidates"].append(entry)
+        if len(self.index["candidates"]) > self._MAX_CANDIDATES:
+            self.index["candidates"] = self.index["candidates"][-self._MAX_CANDIDATES:]
         self._save()
 
         return candidate_id
@@ -127,12 +138,13 @@ class FileVersionManager(VersionManager):
         """
         Logical rollback: simply point current_lkg to an existing version.
         Does not modify code — orchestrator or external system handles that.
+        Raises ValueError if version_id is not known.
         """
-        known_ids = {v["version_id"] for v in self.index["versions"]}
-        if version_id in known_ids:
-            self.index["current_lkg"] = version_id
-            self._save()
-        # If unknown, silently ignore (safe behavior)
+        known_ids = {v.get("version_id") for v in self.index.get("versions", [])}
+        if version_id not in known_ids:
+            raise ValueError(f"Unknown version_id '{version_id}' — cannot rollback")
+        self.index["current_lkg"] = version_id
+        self._save()
 
     def get_lkg(self) -> Optional[str]:
         return self.index.get("current_lkg")
@@ -142,10 +154,13 @@ class FileVersionManager(VersionManager):
     # ------------------------------------------------------------
 
     def list_versions(self) -> List[VersionMetadata]:
-        return [
-            VersionMetadata(**v)
-            for v in self.index.get("versions", [])
-        ]
+        results = []
+        for v in self.index.get("versions", []):
+            try:
+                results.append(VersionMetadata(**v))
+            except (TypeError, KeyError):
+                continue
+        return results
 
     def list_candidates(self) -> List[Dict]:
         return self.index.get("candidates", [])
@@ -176,8 +191,8 @@ class FileVersionManager(VersionManager):
 
         lines = ["Recorded candidates:"]
         for c in candidates:
-            lines.append(f"- {c['candidate_id']}")
-            lines.append(f"    ts:             {c['timestamp']}")
+            lines.append(f"- {c.get('candidate_id', '?')}")
+            lines.append(f"    ts:             {c.get('timestamp', '?')}")
             lines.append(f"    recommendation: {c.get('recommendation', '?')}")
             lines.append(f"    best_cycle:     {c.get('best_cycle_index', '?')}")
             lines.append(f"    risks:          {c.get('risks', [])}")

@@ -99,6 +99,19 @@ class SHOCycleOrchestrator:
         proposal_id = decision.get("proposal_id")
         patch_result: Optional[Dict[str, Any]] = None
         delta_logged = False
+        adaptive_proposal: Optional[Dict[str, Any]] = None
+
+        if decision.get("should_generate_proposal") and not proposal_id:
+            try:
+                from governor.adaptive_sho import generate_adaptive_proposal
+                adaptive_proposal = generate_adaptive_proposal(
+                    cycle_id=cycle_id,
+                    drift=drift,
+                    diagnostics=diagnostics,
+                    stability=stability,
+                )
+            except Exception:
+                adaptive_proposal = None
 
         # Update SystemHealth with current state + governor state
         self._update_health(
@@ -116,62 +129,62 @@ class SHOCycleOrchestrator:
                 "patch_result": patch_result,
                 "delta_logged": delta_logged,
                 "health_snapshot": snapshot,
+                "adaptive_proposal": adaptive_proposal,
             }
 
-        # Apply patch via injected function
-        patch_result = self.apply_patch_fn(proposal_id)
+        # Apply patch via injected function; ensure post-bookkeeping
+        # runs even if an intermediate step fails.
+        try:
+            patch_result = self.apply_patch_fn(proposal_id)
 
-        # If we can't fetch post state, we can't log deltas safely
-        if not self.fetch_post_state_fn:
-            snapshot = self.health.get_snapshot()
-            return {
-                "governor_decision": decision,
-                "patch_result": patch_result,
-                "delta_logged": delta_logged,
-                "health_snapshot": snapshot,
-            }
+            if not self.fetch_post_state_fn:
+                snapshot = self.health.get_snapshot()
+                return {
+                    "governor_decision": decision,
+                    "patch_result": patch_result,
+                    "delta_logged": delta_logged,
+                    "health_snapshot": snapshot,
+                    "adaptive_proposal": adaptive_proposal,
+                }
 
-        # Fetch post state (e.g. after next cycle or after validation)
-        post_state = self.fetch_post_state_fn()
+            post_state = self.fetch_post_state_fn()
 
-        post_drift = post_state.get("drift", {})
-        post_stability = post_state.get("stability", {})
-        post_diagnostics = post_state.get("diagnostics", diagnostics)
+            post_drift = post_state.get("drift", {})
+            post_stability = post_state.get("stability", {})
+            post_diagnostics = post_state.get("diagnostics", diagnostics)
 
-        # Update SystemHealth with post state
-        self._update_health(
-            drift=post_drift,
-            stability=post_stability,
-            diagnostics=post_diagnostics,
-            patch_history=post_state.get("patch_history", patch_history),
-        )
-
-        # Build post-metrics snapshot
-        post_metrics = build_post_metrics(
-            post_drift,
-            post_stability,
-            post_diagnostics,
-        )
-
-        # If we can't fetch the plan, we can't log deltas
-        if self.fetch_plan_fn and proposal_id:
-            plan = self.fetch_plan_fn(proposal_id)
-            record_patch_deltas(
-                cycle_id=cycle_id,
-                proposal_id=proposal_id,
-                plan=plan,
-                pre_metrics=pre_metrics,
-                post_metrics=post_metrics,
+            self._update_health(
+                drift=post_drift,
+                stability=post_stability,
+                diagnostics=post_diagnostics,
+                patch_history=post_state.get("patch_history", patch_history),
             )
-            delta_logged = True
 
-        snapshot = self.health.get_snapshot()
+            post_metrics = build_post_metrics(
+                post_drift,
+                post_stability,
+                post_diagnostics,
+            )
+
+            if self.fetch_plan_fn and proposal_id:
+                plan = self.fetch_plan_fn(proposal_id)
+                record_patch_deltas(
+                    cycle_id=cycle_id,
+                    proposal_id=proposal_id,
+                    plan=plan,
+                    pre_metrics=pre_metrics,
+                    post_metrics=post_metrics,
+                )
+                delta_logged = True
+        finally:
+            snapshot = self.health.get_snapshot()
 
         return {
             "governor_decision": decision,
             "patch_result": patch_result,
             "delta_logged": delta_logged,
             "health_snapshot": snapshot,
+            "adaptive_proposal": adaptive_proposal,
         }
 
     def _update_health(

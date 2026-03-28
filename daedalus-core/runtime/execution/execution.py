@@ -1,6 +1,19 @@
 # runtime/execution/execution.py
+import copy as _copy
 import json
 from typing import Any, Dict, List, Optional
+
+_MAX_UNDO_DEPTH = 50
+
+_TRANSIENT_KEYS = frozenset({
+    "history", "contextual_trace", "last_nlu_cmd",
+})
+
+_MUTATING_INTENTS = frozenset({
+    "create_goal", "add_step", "complete_step", "delete_step",
+    "rename_step", "move_step", "switch_goal", "reset_state",
+    "restore_checkpoint",
+})
 
 from runtime.pretty import (
     pretty_help,
@@ -142,9 +155,31 @@ class ExecutionEngine:
     # --------------------------------------------------------
     # Main entrypoint (router → execution)
     # --------------------------------------------------------
+    @staticmethod
+    def _snapshot_domain(state: Dict[str, Any]) -> Dict[str, Any]:
+        return _copy.deepcopy({
+            k: v for k, v in state.items()
+            if not k.startswith("_") and k not in _TRANSIENT_KEYS
+        })
+
+    @staticmethod
+    def _restore_domain(state: Dict[str, Any], snapshot: Dict[str, Any]) -> None:
+        for k in list(state.keys()):
+            if not k.startswith("_") and k not in _TRANSIENT_KEYS:
+                state.pop(k, None)
+        state.update(snapshot)
+
     def execute(self, cmd: Dict[str, Any], state: Dict[str, Any]) -> str:
         intent = cmd.get("intent")
         args = cmd.get("args", {})
+
+        if intent in _MUTATING_INTENTS:
+            snapshot = self._snapshot_domain(state)
+            stack = state.setdefault("_undo_stack", [])
+            stack.append(snapshot)
+            if len(stack) > _MAX_UNDO_DEPTH:
+                del stack[: len(stack) - _MAX_UNDO_DEPTH]
+            state["_redo_stack"] = []
 
         # ----------------------------------------------------
         # RESET STATE
@@ -534,11 +569,20 @@ class ExecutionEngine:
         if intent == "move_step":
             num = args.get("step_number")
             new_pos = args.get("new_position")
-            if num is None or new_pos is None:
-                return "⚠ move_step: missing step_number or new_position."
+            movement = args.get("movement")
+
+            if num is None:
+                return "⚠ move_step: missing step_number."
+            if new_pos is None and movement is None:
+                return "⚠ move_step: missing new_position or movement direction."
+
             step_id = self._step_id_from_number(num, state)
             if step_id is None:
                 return f"⚠ Step {num} does not exist."
+
+            if new_pos is None and movement is not None:
+                new_pos = num + movement
+
             ok = self.goal_manager.move_step_by_id(step_id, new_pos, state)
             if not ok:
                 return f"⚠ Could not move step {num}."
@@ -639,10 +683,22 @@ class ExecutionEngine:
         # UNDO / REDO
         # ----------------------------------------------------
         if intent == "undo":
-            return "⚠ Undo is not yet available. Use 'restore checkpoint' to revert state."
+            stack = state.get("_undo_stack", [])
+            if not stack:
+                return "⚠ Nothing to undo."
+            current = self._snapshot_domain(state)
+            state.setdefault("_redo_stack", []).append(current)
+            self._restore_domain(state, stack.pop())
+            return "✓ Action undone."
 
         if intent == "redo":
-            return "⚠ Redo is not yet available."
+            stack = state.get("_redo_stack", [])
+            if not stack:
+                return "⚠ Nothing to redo."
+            current = self._snapshot_domain(state)
+            state.setdefault("_undo_stack", []).append(current)
+            self._restore_domain(state, stack.pop())
+            return "✓ Action redone."
 
         # ----------------------------------------------------
         # UNKNOWN

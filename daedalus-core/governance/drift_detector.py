@@ -68,11 +68,6 @@ def compute_drift_report() -> Dict[str, Any]:
     return report
 
 
-def get_drift_log(limit: int = 20) -> List[Dict[str, Any]]:
-    with _drift_lock:
-        return list(_DRIFT_LOG[-limit:])
-
-
 # ------------------------------------------------------------------
 # Dimension detectors
 # ------------------------------------------------------------------

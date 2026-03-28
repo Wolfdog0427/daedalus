@@ -183,7 +183,7 @@ def get_budget_trend(last_n: int = 20) -> List[Dict[str, Any]]:
         lines = BUDGET_HISTORY.read_text(encoding="utf-8").strip().split("\n")
         entries = [json.loads(line) for line in lines if line.strip()]
         return entries[-last_n:]
-    except Exception:
+    except (json.JSONDecodeError, OSError):
         return []
 
 

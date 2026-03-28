@@ -52,7 +52,7 @@ def detect_gap_in_context(
         return None
 
     confidence = getattr(rar_result, "confidence", 1.0)
-    gaps = getattr(rar_result, "gaps_detected", [])
+    gaps = list(getattr(rar_result, "gaps_detected", []))
 
     if confidence >= CONFIDENCE_GAP_THRESHOLD and not gaps:
         return None
@@ -113,7 +113,7 @@ def formulate_targeted_query(gap: Dict[str, Any]) -> str:
             result = llm_adapter.complete(prompt, max_tokens=64, temperature=0.3)
             if result.strip():
                 return result.strip()
-    except ImportError:
+    except Exception:
         pass
 
     if descriptions:
@@ -143,7 +143,7 @@ def should_learn_now(
     if gap.get("is_total_gap"):
         return True
 
-    return urgency >= URGENCY_THRESHOLD
+    return True
 
 
 # ------------------------------------------------------------

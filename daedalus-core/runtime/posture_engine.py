@@ -9,6 +9,7 @@ and operator-triggered — no hidden auto-switching.
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any, Dict, List, Tuple
 
@@ -24,13 +25,17 @@ from runtime.posture_state import (
 )
 
 _TRANSITION_LOG: List[Dict[str, Any]] = []
+_MAX_TRANSITION_LOG = 500
+_transition_log_lock = threading.Lock()
 
 _OFFLINE_POSTURES = {NULL, DORMANT}
 _HIGH_PRIORITY_OVERRIDES = {NULL, DORMANT, TALON, SHROUD}
 
 
 def get_transition_log(limit: int = 20) -> List[Dict[str, Any]]:
-    return list(_TRANSITION_LOG[-limit:])
+    n = max(0, int(limit))
+    with _transition_log_lock:
+        return [dict(e) for e in _TRANSITION_LOG[-n:]] if n > 0 else []
 
 
 def get_active_posture() -> Dict[str, Any]:
@@ -108,9 +113,9 @@ def request_posture(
                     "flags": [],
                     "reversible": True,
                 })
-                if not verdict.get("allowed", False):
+                if not verdict.get("allowed", False) or verdict.get("needs_approval", False):
                     allowed = False
-                    rationale = f"governance: {verdict.get('reason', 'blocked')}"
+                    rationale = f"governance: {verdict.get('reason', 'blocked — operator approval required')}"
         except Exception:
             allowed = False
             rationale = "governance: evaluation failed — fail-closed"
@@ -123,7 +128,10 @@ def request_posture(
             "rationale": rationale,
             "timestamp": time.time(),
         }
-        _TRANSITION_LOG.append({**result, "type": "rejected"})
+        with _transition_log_lock:
+            _TRANSITION_LOG.append({**result, "type": "rejected"})
+            if len(_TRANSITION_LOG) > _MAX_TRANSITION_LOG:
+                _TRANSITION_LOG[:] = _TRANSITION_LOG[-_MAX_TRANSITION_LOG:]
         return result
 
     record = _set_posture(posture_id, reason, metadata)
@@ -137,7 +145,10 @@ def request_posture(
         "to_posture": record["to_posture"],
         "timestamp": record["timestamp"],
     }
-    _TRANSITION_LOG.append({**result, "type": "activated"})
+    with _transition_log_lock:
+        _TRANSITION_LOG.append({**result, "type": "activated"})
+        if len(_TRANSITION_LOG) > _MAX_TRANSITION_LOG:
+            _TRANSITION_LOG[:] = _TRANSITION_LOG[-_MAX_TRANSITION_LOG:]
 
     return result
 

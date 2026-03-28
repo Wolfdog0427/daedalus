@@ -15,7 +15,14 @@ import os
 from typing import Any, Dict
 
 
+import re
+
 _SUBSYSTEM_MEMORY = os.path.join("data", "learning", "subsystems")
+_SAFE_NAME_RE = re.compile(r"[^a-zA-Z0-9_\-]")
+
+
+def _safe_name(name: str) -> str:
+    return _SAFE_NAME_RE.sub("_", name)[:128]
 
 
 def predict_drift_delta(
@@ -26,7 +33,7 @@ def predict_drift_delta(
     drift_score = drift.get("score", 0.0)
     drift_level = drift.get("level", "none")
 
-    mem_path = os.path.join(_SUBSYSTEM_MEMORY, f"{subsystem}.json")
+    mem_path = os.path.join(_SUBSYSTEM_MEMORY, f"{_safe_name(subsystem)}.json")
     if os.path.exists(mem_path):
         try:
             with open(mem_path, "r", encoding="utf-8") as f:
@@ -34,8 +41,10 @@ def predict_drift_delta(
             avg_improvement = mem.get("avg_drift_improvement", None)
             if avg_improvement is not None:
                 return -abs(avg_improvement)
+        except (json.JSONDecodeError, OSError, ValueError):
+            pass
         except Exception:
             pass
 
-    level_map = {"none": 0.0, "low": -0.02, "medium": -0.05, "high": -0.08}
+    level_map = {"none": 0.0, "low": -0.02, "medium": -0.05, "high": -0.08, "critical": -0.10}
     return level_map.get(drift_level, -0.03)

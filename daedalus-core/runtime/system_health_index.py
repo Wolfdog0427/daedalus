@@ -84,19 +84,24 @@ class SystemHealthIndex:
         metrics = telemetry_snapshot.get("metrics", {})
         drift = metrics.get("drift", {})
         stability = metrics.get("stability", {})
-        readiness = metrics.get("readiness", 0.0)
+        readiness_raw = metrics.get("readiness", 0.0)
+        if isinstance(readiness_raw, dict):
+            readiness_val = readiness_raw.get("readiness_score", 0.0) or 0.0
+        else:
+            readiness_val = readiness_raw if isinstance(readiness_raw, (int, float)) else 0.0
 
         governor_state = telemetry_snapshot.get("governor", {})
-        tier = governor_state.get("tier", 1)
+        tier_raw = governor_state.get("tier")
+        tier = tier_raw if isinstance(tier_raw, (int, float)) else 1
 
-        # Extract numeric signals
-        drift_score = drift.get("score", 0.5)
-        stability_score = stability.get("score", 0.5)
-        readiness_score = readiness
+        tier = max(1, min(3, tier))
 
-        # Tier volatility (higher volatility = lower health)
+        drift_score = max(0.0, min(1.0, float(drift.get("score", 0.5))))
+        stability_score = max(0.0, min(1.0, float(stability.get("score", 0.5))))
+        readiness_score = max(0.0, min(1.0, float(readiness_val)))
+
         self.tier_series.add(float(tier))
-        tier_volatility = abs(self.tier_series.trend())
+        tier_volatility = max(0.0, min(1.0, abs(self.tier_series.trend())))
 
         # Composite health score
         health_score = (

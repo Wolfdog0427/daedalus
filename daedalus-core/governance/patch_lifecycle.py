@@ -34,7 +34,7 @@ def create_patch(
         "proposal_id": proposal_id,
         "description": description,
         "change_type": change_type,
-        "payload": payload or {},
+        "payload": dict(payload) if payload else {},
         "status": "draft",
         "created_at": time.time(),
         "applied_at": None,
@@ -162,10 +162,12 @@ def rollback_patch(patch_id: str, reason: str = "operator") -> Dict[str, Any]:
 
 
 def get_patches(status: str | None = None, limit: int = 20) -> List[Dict[str, Any]]:
+    n = max(0, int(limit))
     with _patch_lock:
         if status:
-            return [dict(p) for p in _PATCHES if p["status"] == status][-limit:]
-        return [dict(p) for p in _PATCHES[-limit:]]
+            matches = [dict(p) for p in _PATCHES if p["status"] == status]
+            return matches[-n:] if n > 0 else []
+        return [dict(p) for p in _PATCHES[-n:]] if n > 0 else []
 
 
 def get_patch(patch_id: str) -> Optional[Dict[str, Any]]:

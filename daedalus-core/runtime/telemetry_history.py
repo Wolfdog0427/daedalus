@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import threading
+from collections import deque
 from typing import Dict, Any, List, Optional
 import time
 
@@ -21,7 +22,7 @@ class TelemetryHistory:
 
     def __init__(self, max_entries: int = 500):
         self.max_entries = max_entries
-        self.entries: List[Dict[str, Any]] = []
+        self.entries: deque[Dict[str, Any]] = deque(maxlen=max_entries)
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------
@@ -38,17 +39,16 @@ class TelemetryHistory:
         }
         with self._lock:
             self.entries.append(snapshot_with_timestamp)
-            if len(self.entries) > self.max_entries:
-                self.entries.pop(0)
 
     def latest(self) -> Optional[Dict[str, Any]]:
         """
-        Return the most recent telemetry snapshot.
+        Return the most recent telemetry snapshot (deep copy).
         """
+        import copy
         with self._lock:
             if not self.entries:
                 return None
-            return self.entries[-1]
+            return copy.deepcopy(self.entries[-1])
 
     def all(self) -> List[Dict[str, Any]]:
         """
@@ -61,8 +61,9 @@ class TelemetryHistory:
         """
         Return the last n snapshots.
         """
+        n = max(0, int(n))
         with self._lock:
-            return list(self.entries[-n:])
+            return list(self.entries[-n:]) if n > 0 else []
 
     # ------------------------------------------------------------
     # Trend helpers
@@ -74,7 +75,11 @@ class TelemetryHistory:
         key_path example: ["metrics", "readiness"]
         """
         with self._lock:
-            source = list(self.entries) if n is None else list(self.entries[-n:])
+            if n is None:
+                source = list(self.entries)
+            else:
+                nn = max(0, int(n))
+                source = list(self.entries[-nn:]) if nn > 0 else []
         results = []
 
         for entry in source:
@@ -123,8 +128,9 @@ class TelemetryHistory:
         Returns a list of {before, after, timestamp} for each tier change.
         """
         transitions = []
+        nn = max(0, int(n))
         with self._lock:
-            recent_entries = list(self.entries[-n:])
+            recent_entries = list(self.entries[-nn:]) if nn > 0 else []
 
         last_tier = None
         for entry in recent_entries:

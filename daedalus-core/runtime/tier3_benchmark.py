@@ -17,7 +17,8 @@ _MAX_LOG = 200
 
 
 def get_benchmark_log(limit: int = 20) -> List[Dict[str, Any]]:
-    return list(_BENCHMARK_LOG[-limit:])
+    n = max(0, int(limit))
+    return [dict(e) for e in _BENCHMARK_LOG[-n:]] if n > 0 else []
 
 
 def _add_insight(itype: str, summary: str, details: Dict[str, Any],
@@ -37,9 +38,9 @@ def _safe(fn, default=None):
 
 
 def _trend(current: float, historical_avg: float) -> str:
-    if historical_avg == 0:
+    if abs(historical_avg) < 1e-9:
         return "stable"
-    delta_pct = ((current - historical_avg) / max(abs(historical_avg), 0.01)) * 100
+    delta_pct = ((current - historical_avg) / abs(historical_avg)) * 100
     if delta_pct > 10:
         return "improving"
     if delta_pct < -10:

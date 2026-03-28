@@ -8,12 +8,14 @@ of transitions.  Resets on process restart.  No persistence.
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any, Dict, List, Optional
 
 from runtime.autonomy_tiers import TIER_1, get_tier
 
 _MAX_HISTORY = 100
+_state_lock = threading.Lock()
 
 _current_tier_id: str = TIER_1
 _current_reason: str = "initial default"
@@ -29,32 +31,43 @@ _history: List[Dict[str, Any]] = []
 
 def get_current_tier() -> Dict[str, Any]:
     """Return the active tier ID, reason, metadata, and registry info."""
-    info = get_tier(_current_tier_id) or {}
+    with _state_lock:
+        tid = _current_tier_id
+        reason = _current_reason
+        meta = dict(_current_metadata)
+        ts = _current_timestamp
+    info = get_tier(tid) or {}
     return {
-        "tier_id": _current_tier_id,
-        "reason": _current_reason,
-        "metadata": dict(_current_metadata),
-        "timestamp": _current_timestamp,
+        "tier_id": tid,
+        "reason": reason,
+        "metadata": meta,
+        "timestamp": ts,
         **info,
     }
 
 
 def get_previous_tier() -> Optional[Dict[str, Any]]:
     """Return the tier that was active before the current one."""
-    if _previous_tier_id is None:
+    with _state_lock:
+        pid = _previous_tier_id
+        preason = _previous_reason
+        pts = _previous_timestamp
+    if pid is None:
         return None
-    info = get_tier(_previous_tier_id) or {}
+    info = get_tier(pid) or {}
     return {
-        "tier_id": _previous_tier_id,
-        "reason": _previous_reason,
-        "timestamp": _previous_timestamp,
+        "tier_id": pid,
+        "reason": preason,
+        "timestamp": pts,
         **info,
     }
 
 
 def get_tier_history(limit: int = 20) -> List[Dict[str, Any]]:
     """Return the most recent tier transitions."""
-    return list(_history[-limit:])
+    n = max(0, int(limit))
+    with _state_lock:
+        return [dict(e) for e in _history[-n:]] if n > 0 else []
 
 
 def _set_tier(
@@ -67,27 +80,28 @@ def _set_tier(
     global _current_timestamp
     global _previous_tier_id, _previous_reason, _previous_timestamp
 
-    now = time.time()
-    from_id = _current_tier_id
+    with _state_lock:
+        now = time.time()
+        from_id = _current_tier_id
 
-    _previous_tier_id = from_id
-    _previous_reason = _current_reason
-    _previous_timestamp = _current_timestamp
+        _previous_tier_id = from_id
+        _previous_reason = _current_reason
+        _previous_timestamp = _current_timestamp
 
-    _current_tier_id = tier_id
-    _current_reason = reason
-    _current_metadata = dict(metadata or {})
-    _current_timestamp = now
+        _current_tier_id = tier_id
+        _current_reason = reason
+        _current_metadata = dict(metadata or {})
+        _current_timestamp = now
 
-    record = {
-        "from_tier": from_id,
-        "to_tier": tier_id,
-        "reason": reason,
-        "metadata": dict(_current_metadata),
-        "timestamp": now,
-    }
-    _history.append(record)
-    if len(_history) > _MAX_HISTORY:
-        _history[:] = _history[-_MAX_HISTORY:]
+        record = {
+            "from_tier": from_id,
+            "to_tier": tier_id,
+            "reason": reason,
+            "metadata": dict(_current_metadata),
+            "timestamp": now,
+        }
+        _history.append(record)
+        if len(_history) > _MAX_HISTORY:
+            _history[:] = _history[-_MAX_HISTORY:]
 
     return record

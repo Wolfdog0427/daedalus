@@ -10,6 +10,7 @@ from governor.proposal_manager import load_proposal_by_id
 def apply_patch(proposal_id: str) -> Dict[str, Any]:
     """
     Apply the patch associated with proposal_id using the live patch applier.
+    Routed through the governance kernel — patches require approval.
 
     Returns a dict like:
     {
@@ -24,6 +25,33 @@ def apply_patch(proposal_id: str) -> Dict[str, Any]:
             "status": "failed",
             "proposal_id": proposal_id,
             "details": {"error": "proposal not found"},
+        }
+
+    try:
+        from governance.kernel import evaluate_change
+        verdict = evaluate_change({
+            "type": "patch_apply",
+            "source": "patch_engine",
+            "patch": {"proposal_id": proposal_id},
+            "reversible": True,
+        })
+        if not verdict.get("allowed", False) or verdict.get("needs_approval", False):
+            return {
+                "status": "failed",
+                "proposal_id": proposal_id,
+                "details": {"error": "governance blocked", "verdict": verdict},
+            }
+    except ImportError:
+        return {
+            "status": "failed",
+            "proposal_id": proposal_id,
+            "details": {"error": "governance kernel missing — fail-closed"},
+        }
+    except Exception:
+        return {
+            "status": "failed",
+            "proposal_id": proposal_id,
+            "details": {"error": "governance evaluation failed — fail-closed"},
         }
 
     result = apply_patch_live(plan)

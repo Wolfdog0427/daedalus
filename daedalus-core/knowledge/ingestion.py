@@ -106,16 +106,17 @@ def ingest_text(
     from knowledge._atomic_io import knowledge_file_lock
     with knowledge_file_lock:
         if KNOWLEDGE_FILE.exists():
-            for raw_line in KNOWLEDGE_FILE.open("r", encoding="utf-8"):
-                raw_line = raw_line.strip()
-                if not raw_line:
-                    continue
-                try:
-                    existing = json.loads(raw_line)
-                except json.JSONDecodeError:
-                    continue
-                if existing.get("id") == item_id:
-                    return item_id
+            with KNOWLEDGE_FILE.open("r", encoding="utf-8") as rf:
+                for raw_line in rf:
+                    raw_line = raw_line.strip()
+                    if not raw_line:
+                        continue
+                    try:
+                        existing = json.loads(raw_line)
+                    except json.JSONDecodeError:
+                        continue
+                    if existing.get("id") == item_id:
+                        return item_id
         with KNOWLEDGE_FILE.open("a", encoding="utf-8") as f:
             f.write(json.dumps(asdict(item), ensure_ascii=False) + "\n")
 

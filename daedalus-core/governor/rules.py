@@ -28,9 +28,11 @@ def should_recommend_tier2(
     weakest_risk: str,
     failed_high_level_cycles: int,
 ) -> bool:
-    if drift_level in ("medium", "high"):
+    if drift_level in ("medium", "high", "critical"):
         return True
-    if weakest_risk in ("medium", "high"):
+    if weakest_risk in ("medium", "high", "critical"):
+        return True
+    if failed_high_level_cycles >= 3:
         return True
     return False
 
@@ -42,11 +44,13 @@ def should_recommend_tier3(
     failed_tier2_cycles: int,
     stability_risk: str,
 ) -> bool:
-    if stability_risk == "high":
+    if stability_risk in ("high", "critical"):
         return False
-    if drift_level == "high" and weakest_risk == "high":
+    if drift_level in ("high", "critical") and weakest_risk in ("high", "critical"):
         return True
-    if failed_tier2_cycles >= 3 and drift_level in ("medium", "high"):
+    if failed_tier2_cycles >= 3 and drift_level in ("medium", "high", "critical"):
+        return True
+    if failed_high_level_cycles >= 5 and drift_level in ("medium", "high", "critical"):
         return True
     return False
 
@@ -59,7 +63,7 @@ def is_tier3_blocked(
 ) -> Dict[str, str | bool]:
     if locked:
         return {"blocked": True, "reason": "locked"}
-    if stability_risk == "high":
+    if stability_risk in ("high", "critical"):
         return {"blocked": True, "reason": "high_stability_risk"}
     if autonomy_mode == "strict" and base_tier < 3:
         return {"blocked": True, "reason": "strict_mode_base_tier_limit"}

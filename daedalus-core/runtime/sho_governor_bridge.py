@@ -56,8 +56,8 @@ class SHOGovernorBridge:
 
         patch_result = None
 
-        # Tier 1 and Tier 2: auto-apply safe patches
-        if allowed_tier in (1, 2) and not should_generate:
+        # Tier 2: auto-apply safe patches (Tier 1 is observe-only)
+        if allowed_tier == 2 and not should_generate:
             # SHO would normally generate a patch here
             # For now, we call the stub patch applier
             patch_result = apply_patch_in_sandbox({

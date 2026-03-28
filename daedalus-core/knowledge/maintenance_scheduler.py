@@ -39,6 +39,10 @@ DEFAULT_INTERVALS = {
     "concept_evolution": 60 * 60 * 24 * 7, # 7 days
 }
 
+import threading
+
+_scheduler_lock = threading.Lock()
+
 # Persistent state (in-memory; external orchestrator can persist if desired)
 LAST_RUN = {
     "self_model_update": 0,
@@ -54,7 +58,8 @@ LAST_RUN = {
 
 def _should_run(task: str, now: float) -> bool:
     interval = DEFAULT_INTERVALS.get(task)
-    last = LAST_RUN.get(task, 0)
+    with _scheduler_lock:
+        last = LAST_RUN.get(task, 0)
     return (now - last) >= interval
 
 
@@ -88,7 +93,8 @@ def run_scheduler() -> Dict[str, Any]:
     # --------------------------------------------------------
     if _should_run("self_model_update", now):
         update_self_model()
-        LAST_RUN["self_model_update"] = now
+        with _scheduler_lock:
+            LAST_RUN["self_model_update"] = now
         report["tasks"].append({
             "task": "self_model_update",
             "status": "completed",
@@ -99,7 +105,8 @@ def run_scheduler() -> Dict[str, Any]:
     # --------------------------------------------------------
     if _should_run("consistency_scan", now):
         result = route_command("run a consistency scan")
-        LAST_RUN["consistency_scan"] = now
+        with _scheduler_lock:
+            LAST_RUN["consistency_scan"] = now
         report["tasks"].append({
             "task": "consistency_scan",
             "status": "completed",
@@ -111,7 +118,8 @@ def run_scheduler() -> Dict[str, Any]:
     # --------------------------------------------------------
     if _should_run("storage_maintenance", now):
         result = route_command("clean up storage")
-        LAST_RUN["storage_maintenance"] = now
+        with _scheduler_lock:
+            LAST_RUN["storage_maintenance"] = now
         report["tasks"].append({
             "task": "storage_maintenance",
             "status": "completed",
@@ -123,7 +131,8 @@ def run_scheduler() -> Dict[str, Any]:
     # --------------------------------------------------------
     if _should_run("concept_evolution", now):
         result = route_command("evolve concepts")
-        LAST_RUN["concept_evolution"] = now
+        with _scheduler_lock:
+            LAST_RUN["concept_evolution"] = now
         report["tasks"].append({
             "task": "concept_evolution",
             "status": "completed",

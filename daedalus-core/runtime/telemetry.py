@@ -1,6 +1,7 @@
 # runtime/telemetry.py
 
 from __future__ import annotations
+import threading
 from typing import Dict, Any
 import time
 
@@ -20,6 +21,7 @@ class Telemetry:
     """
 
     def __init__(self):
+        self._lock = threading.Lock()
         self.cycle_count = 0
 
     # ------------------------------------------------------------
@@ -31,7 +33,9 @@ class Telemetry:
         Produce a full telemetry snapshot for a single cycle.
         """
 
-        self.cycle_count += 1
+        with self._lock:
+            self.cycle_count += 1
+            cycle_num = self.cycle_count
 
         drift = cycle_result.get("drift", {})
         stability = cycle_result.get("stability", {})
@@ -43,7 +47,7 @@ class Telemetry:
         # Build base snapshot
         snapshot = {
             "timestamp": time.time(),
-            "cycle": self.cycle_count,
+            "cycle": cycle_num,
 
             # Core Metrics
             "metrics": {
@@ -95,13 +99,14 @@ telemetry = Telemetry()
 # ------------------------------------------------------------
 # Lightweight per-cycle telemetry buffer (Phase 1)
 #
-# In-memory only — no persistence, no threads.
+# In-memory only — no persistence.  Thread-safe via _telemetry_buf_lock.
 # ------------------------------------------------------------
 
 from typing import List
 
 _TELEMETRY_BUFFER: List[Dict[str, Any]] = []
 _TELEMETRY_MAX = 1000
+_telemetry_buf_lock = threading.Lock()
 
 _SUBSYSTEM_KEYS = ("diagnostics", "governor", "sho", "self_model", "maintenance")
 
@@ -111,7 +116,8 @@ def make_telemetry_record(cycle_result: Dict[str, Any]) -> Dict[str, Any]:
     Distill a cycle result from :func:`run_runtime_cycle_once` into a compact
     telemetry record (timestamp + per-subsystem ok/error rollup).
     """
-    ts = cycle_result.get("timestamp") or time.time()
+    _raw_ts = cycle_result.get("timestamp")
+    ts = _raw_ts if _raw_ts is not None else time.time()
     inner = cycle_result.get("results") or {}
 
     subsystems: Dict[str, str] = {}
@@ -133,14 +139,16 @@ def make_telemetry_record(cycle_result: Dict[str, Any]) -> Dict[str, Any]:
 
 def record_telemetry(record: Dict[str, Any]) -> None:
     """Append *record* to the in-memory buffer, capping at *_TELEMETRY_MAX*."""
-    _TELEMETRY_BUFFER.append(record)
-    if len(_TELEMETRY_BUFFER) > _TELEMETRY_MAX:
-        del _TELEMETRY_BUFFER[: len(_TELEMETRY_BUFFER) - _TELEMETRY_MAX]
+    with _telemetry_buf_lock:
+        _TELEMETRY_BUFFER.append(record)
+        if len(_TELEMETRY_BUFFER) > _TELEMETRY_MAX:
+            del _TELEMETRY_BUFFER[: len(_TELEMETRY_BUFFER) - _TELEMETRY_MAX]
 
 
 def get_telemetry() -> List[Dict[str, Any]]:
     """Return a shallow copy of the telemetry buffer."""
-    return list(_TELEMETRY_BUFFER)
+    with _telemetry_buf_lock:
+        return list(_TELEMETRY_BUFFER)
 
 
 # ------------------------------------------------------------
@@ -152,15 +160,18 @@ def get_recent_telemetry(n: int = 50) -> List[Dict[str, Any]]:
     """Return the last *n* records (or fewer if the buffer is smaller)."""
     if n <= 0:
         return []
-    return list(_TELEMETRY_BUFFER[-n:])
+    with _telemetry_buf_lock:
+        return list(_TELEMETRY_BUFFER[-n:])
 
 
 def get_telemetry_window(
     start_ts: float, end_ts: float
 ) -> List[Dict[str, Any]]:
     """Return records whose timestamp falls in [*start_ts*, *end_ts*]."""
+    with _telemetry_buf_lock:
+        snapshot = list(_TELEMETRY_BUFFER)
     out: List[Dict[str, Any]] = []
-    for rec in _TELEMETRY_BUFFER:
+    for rec in snapshot:
         ts = rec.get("timestamp")
         if not isinstance(ts, (int, float)):
             continue
@@ -192,7 +203,8 @@ def summarize_telemetry_window(
 
 def compute_error_rate(n: int = 50) -> Dict[str, Any]:
     """Per-subsystem error rate over the last *n* records."""
-    recent = _TELEMETRY_BUFFER[-n:] if n > 0 else []
+    with _telemetry_buf_lock:
+        recent = list(_TELEMETRY_BUFFER[-n:]) if n > 0 else []
     total = len(recent)
     rates: Dict[str, float] = {}
     if total == 0:
@@ -220,7 +232,8 @@ def compute_stability_signal(n: int = 50) -> Dict[str, Any]:
     er = compute_error_rate(n)
     rates = er.get("rates") or {}
 
-    recent = _TELEMETRY_BUFFER[-n:] if n > 0 else []
+    with _telemetry_buf_lock:
+        recent = list(_TELEMETRY_BUFFER[-n:]) if n > 0 else []
     total = len(recent)
 
     error_free = 0
@@ -255,7 +268,8 @@ def compute_sho_trend(n: int = 20) -> Dict[str, Any]:
     Compares the first-5 and last-5 slices of the window to label the
     trend as *improving*, *declining*, or *flat*.
     """
-    recent = _TELEMETRY_BUFFER[-n:] if n > 0 else []
+    with _telemetry_buf_lock:
+        recent = list(_TELEMETRY_BUFFER[-n:]) if n > 0 else []
     sho_ok = 0
     sho_error = 0
     for rec in recent:
@@ -365,7 +379,8 @@ def compute_readiness_level(n: int = 50) -> Dict[str, Any]:
 
 def compute_cycle_durations(n: int = 50) -> Dict[str, Any]:
     """Duration stats over the last *n* telemetry records."""
-    recent = _TELEMETRY_BUFFER[-n:] if n > 0 else []
+    with _telemetry_buf_lock:
+        recent = list(_TELEMETRY_BUFFER[-n:]) if n > 0 else []
     durations: List[float] = []
     for rec in recent:
         d = rec.get("duration")
@@ -428,7 +443,8 @@ def compute_integrity_flags(n: int = 50) -> Dict[str, Any]:
     All flags default to False when fewer than 20 records are available.
     These are observational only — they do NOT feed governor logic.
     """
-    recent = _TELEMETRY_BUFFER[-n:] if n > 0 else []
+    with _telemetry_buf_lock:
+        recent = list(_TELEMETRY_BUFFER[-n:]) if n > 0 else []
 
     flags = {
         "increasing_error_rate": False,

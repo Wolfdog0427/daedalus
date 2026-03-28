@@ -1,0 +1,52 @@
+[
+  {
+    "id": "prop-a26307fc-455e-4be7-96dd-1acf40ea0e5a",
+    "created_at": "2026-03-28T17:12:48.950066Z",
+    "source_cycle_id": null,
+    "tier_requested": 3,
+    "subsystem": "entropy.drift_court",
+    "risk_level": "low",
+    "priority": "normal",
+    "drift_context": {
+      "drift_level": "observed_deviation",
+      "deviation_name": "test_deviation",
+      "deviation_category": "config",
+      "frequency": 0.9,
+      "impact": "positive"
+    },
+    "diagnostics_summary": {
+      "source": "integration_test",
+      "details": {}
+    },
+    "proposal_summary": "Drift Court recommends canonizing 'test_deviation' — frequency 90%, impact: positive. Requires operator approval to modify canonical template.",
+    "justification": [
+      "Deviation 'test_deviation' has been observed with high frequency",
+      "Impact assessment: positive",
+      "Canonization would add this to the permanent template"
+    ],
+    "planned_actions": [
+      {
+        "type": "canonize_invariant",
+        "target": "canonical_template",
+        "invariant_name": "test_deviation"
+      }
+    ],
+    "expected_impact": {
+      "stability_delta": 0.02,
+      "risk_delta": -0.01,
+      "trust_delta": 0.01,
+      "confidence": 0.8,
+      "description": "Stabilizes the canonical template by incorporating a proven pattern"
+    },
+    "sandbox_preview": {
+      "status": "not_applicable",
+      "notes": "Canonization is a template metadata change, no sandbox needed."
+    },
+    "status": "pending",
+    "decision": {
+      "decided_by": null,
+      "decided_at": null,
+      "reason": null
+    }
+  }
+]

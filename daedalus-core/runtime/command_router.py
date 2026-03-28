@@ -447,6 +447,12 @@ def adapt_to_command(text: str, state: Dict[str, Any]) -> Dict[str, Any]:
 # 8. HANDLE COMMAND (REQUIRED BY REPL)
 # ============================================================
 
+_TOOL_INTENTS = frozenset({
+    "fetch_url", "search_web", "ingest_text", "ingest_url",
+    "summarize", "system_info",
+})
+
+
 def handle_command(
     cmd: Dict[str, Any],
     state: Dict[str, Any],
@@ -459,5 +465,32 @@ def handle_command(
     """
     REPL 3.0 calls this after NLU + Firewall + ContextResolver.
     """
+    intent = cmd.get("intent") if isinstance(cmd, dict) else None
+    if intent in _TOOL_INTENTS:
+        try:
+            from runtime.tool_router import (
+                invoke_fetch_url,
+                invoke_search_web,
+                invoke_ingest_text,
+                invoke_ingest_url,
+                invoke_summarize,
+                invoke_system_info,
+            )
+            args = cmd.get("args", {})
+            _dispatch = {
+                "fetch_url": lambda: invoke_fetch_url(args.get("url", "")),
+                "search_web": lambda: invoke_search_web(args.get("query", "")),
+                "ingest_text": lambda: invoke_ingest_text(
+                    args.get("text", ""), source=args.get("source", "manual"),
+                ),
+                "ingest_url": lambda: invoke_ingest_url(args.get("url", "")),
+                "summarize": lambda: invoke_summarize(args.get("text", "")),
+                "system_info": lambda: invoke_system_info(),
+            }
+            handler = _dispatch.get(intent)
+            if handler:
+                return handler()
+        except ImportError:
+            pass
 
     return execution.execute(cmd, state)

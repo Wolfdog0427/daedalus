@@ -52,9 +52,9 @@ def tool_fetch_url(url: str, debug_state: Optional[DebugState] = None) -> str:
         return f"❗ Web fetch failed: {e}"
 
     if debug_state and getattr(debug_state, "cockpit", False):
-        print(f"[Web] Fetched {doc['url']} ({len(doc['text'])} chars)")
+        print(f"[Web] Fetched {doc.get('url', url)} ({len(doc.get('text', ''))} chars)")
 
-    return doc["text"]
+    return doc.get("text", "")
 
 
 # ------------------------------------------------------------

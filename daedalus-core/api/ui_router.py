@@ -29,13 +29,18 @@ def _wrap(command: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     contract = get_contract()
     schema = contract["commands"].get(command)
 
-    return {
-        "ok": True,
+    ok = payload.get("ok", True) if isinstance(payload, dict) else True
+
+    result: Dict[str, Any] = {
+        "ok": ok,
         "version": contract["version"],
         "command": command,
         "schema": schema,
         "payload": payload,
     }
+    if not ok and isinstance(payload, dict) and "error" in payload:
+        result["error"] = payload["error"]
+    return result
 
 
 def route(request: Dict[str, Any]) -> Dict[str, Any]:
@@ -65,18 +70,10 @@ def route(request: Dict[str, Any]) -> Dict[str, Any]:
         return _wrap("governor_trace", {"trace": get_governor_trace()})
 
     if command == "governor_thresholds":
-        # Build thresholds panel payload
         gov_state = governor.get_state()
         state = status()
 
-        thresholds = {
-            "drift_threshold_escalate": governor.drift_threshold_escalate,
-            "drift_threshold_deescalate": governor.drift_threshold_deescalate,
-            "stability_threshold_escalate": governor.stability_threshold_escalate,
-            "stability_threshold_deescalate": governor.stability_threshold_deescalate,
-            "readiness_min_for_escalation": governor.readiness_min_for_escalation,
-            "readiness_min_for_autonomous": governor.readiness_min_for_autonomous,
-        }
+        thresholds = gov_state.get("thresholds", {})
 
         current_signals = {
             "drift": state.get("drift", {}),
@@ -97,6 +94,8 @@ def route(request: Dict[str, Any]) -> Dict[str, Any]:
     # ------------------------------------------------------------
 
     if command == "governor_set_thresholds":
+        if not isinstance(args, dict):
+            return _wrap("governor_set_thresholds", {"error": "args must be a JSON object"})
         result = set_thresholds(args)
         return _wrap("governor_set_thresholds", result)
 
@@ -116,9 +115,8 @@ def route(request: Dict[str, Any]) -> Dict[str, Any]:
     # Unknown Command
     # ------------------------------------------------------------
 
-    return {
+    return _wrap(command or "unknown", {
         "ok": False,
-        "version": get_contract()["version"],
         "error": f"Unknown command: {command}",
         "supported_commands": list(get_contract()["commands"].keys()),
-    }
+    })

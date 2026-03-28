@@ -9,9 +9,25 @@ final command dict expected by:
 """
 
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Tuple
 from .intent_classifier import classify_intent
 from .argument_extractor import extract_arguments
+
+
+def _extract_description(text: str, object_words: Tuple[str, ...]) -> Optional[str]:
+    """Extract the free-text description after a verb + object word."""
+    lower = text.lower().strip()
+    for word in object_words:
+        patterns = [
+            rf"(?:add|create|start|begin|insert|make)\s+{word}\s+(.+)",
+            rf"{word}\s+add\s+(.+)",
+        ]
+        for pat in patterns:
+            m = re.match(pat, lower)
+            if m:
+                raw_desc = text[m.start(1):m.end(1)].strip()
+                return raw_desc if raw_desc else None
+    return None
 
 
 # ------------------------------------------------------------
@@ -92,7 +108,8 @@ def adapt_to_command(text: str, state: Dict[str, Any]) -> Dict[str, Any]:
     # CREATE GOAL
     # --------------------------------------------------------
     if intent == "create_goal":
-        base["args"] = {}
+        name = _extract_description(text, ("goal", "project", "mission", "objective"))
+        base["args"] = {"name": name} if name else {}
         return base
 
     # --------------------------------------------------------
@@ -233,12 +250,12 @@ def adapt_to_command(text: str, state: Dict[str, Any]) -> Dict[str, Any]:
         return base
 
     if intent == "add_watchpoint":
-        m = re.match(r"(?i)^add watchpoint\s+(.+)$", text.strip())
+        m = re.match(r"(?i)^(?:add watchpoint|watch)\s+(.+)$", text.strip())
         base["args"] = {"path": m.group(1).strip()} if m else {}
         return base
 
     if intent == "remove_watchpoint":
-        m = re.match(r"(?i)^remove watchpoint\s+(.+)$", text.strip())
+        m = re.match(r"(?i)^(?:remove watchpoint|unwatch)\s+(.+)$", text.strip())
         base["args"] = {"path": m.group(1).strip()} if m else {}
         return base
 
@@ -313,6 +330,10 @@ def adapt_to_command(text: str, state: Dict[str, Any]) -> Dict[str, Any]:
 
         if "another" in modifiers:
             args["mode"] = "another"
+
+        desc = _extract_description(text, ("step", "task", "item", "todo"))
+        if desc:
+            args["description"] = desc
 
         base["args"] = args
         return base

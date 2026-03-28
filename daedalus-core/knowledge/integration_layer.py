@@ -156,7 +156,7 @@ def do_concept_evolution() -> Dict[str, Any]:
         return _blocked(action, guard)
 
     from knowledge.self_model import get_self_model
-    coherence = get_self_model()["confidence"]["graph_coherence"]
+    coherence = get_self_model().get("confidence", {}).get("graph_coherence", 0.0)
     return _safe_exec(action, lambda: evolution_cycle(coherence=coherence))
 
 
@@ -317,8 +317,10 @@ def do_knowledge_acquisition(
             goal_id=goal_id,
         )
 
-        if result.get("quality_before") and result.get("quality_after"):
-            record_batch_result(result["quality_before"], result["quality_after"])
+        qb = result.get("quality_before")
+        qa = result.get("quality_after")
+        if qb and qa:
+            record_batch_result(qb, qa)
 
         return {
             "action": action,
@@ -489,8 +491,9 @@ def do_active_consolidation() -> Dict[str, Any]:
         from knowledge.consistency_checker import run_active_consolidation
         from knowledge.self_model import get_self_model
         sm = get_self_model()
-        consistency = sm["confidence"]["consistency"]
-        coherence = sm["confidence"]["graph_coherence"]
+        conf = sm.get("confidence", {})
+        consistency = conf.get("consistency", 0.0)
+        coherence = conf.get("graph_coherence", 0.0)
         result = run_active_consolidation(consistency, coherence)
         return {"action": action, "allowed": True, "result": result}
     except Exception as exc:

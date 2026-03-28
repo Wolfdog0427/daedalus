@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from typing import Any, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from runtime.logging_manager import log_event
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class SystemHealth:
@@ -56,8 +56,9 @@ class SystemHealth:
         }
 
     def get_snapshot(self) -> Dict[str, Any]:
+        import copy
         log_event("system_health", "Snapshot requested")
-        return self.state
+        return copy.deepcopy(self.state)
 
     def update_patch_history(self, new_history: Dict[str, Any]) -> None:
         self.state["patch_history"] = new_history

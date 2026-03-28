@@ -67,9 +67,11 @@ class MobileStateSynchronizer:
     def stop(self, timeout: float = 5.0) -> None:
         """Signal the background loop to stop and wait for it to finish."""
         self._running = False
-        if self._thread is not None:
-            self._thread.join(timeout=timeout)
-            self._thread = None
+        t = self._thread
+        if t is not None:
+            t.join(timeout=timeout)
+            if not t.is_alive():
+                self._thread = None
 
     @property
     def is_running(self) -> bool:

@@ -1,7 +1,7 @@
 import sqlite3
 import json
 from typing import Any, Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 DB_PATH = "runtime/state.db"
@@ -158,7 +158,7 @@ class Storage:
                         json.dumps(node.get("steps", [])),
                         node.get("plan", ""),
                         node.get("status", "active"),
-                        node.get("created_at", datetime.utcnow().isoformat()),
+                        node.get("created_at", datetime.now(timezone.utc).isoformat()),
                     ),
                 )
                 for sub in node.get("subgoals", []):
@@ -201,7 +201,7 @@ class Storage:
                 INSERT INTO history (user_message, assistant_message, timestamp)
                 VALUES (?, ?, ?)
                 """,
-                (user, assistant, datetime.utcnow().isoformat()),
+                (user, assistant, datetime.now(timezone.utc).isoformat()),
             )
             conn.commit()
         finally:

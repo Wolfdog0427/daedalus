@@ -16,9 +16,13 @@ def choose_tier_from_deltas(
     - If predicted risk delta is bad or stability gain is weak → stay conservative.
     """
 
-    if base_stability_score < 0.3:
+    clamped = max(0.0, min(1.0, base_stability_score)) if isinstance(base_stability_score, (int, float)) else 0.0
+    if clamped != clamped:  # NaN check
+        clamped = 0.0
+
+    if clamped < 0.3:
         tier = 1
-    elif base_stability_score < 0.6:
+    elif clamped < 0.6:
         tier = 2
     else:
         tier = 3

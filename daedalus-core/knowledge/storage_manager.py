@@ -65,7 +65,7 @@ def replace_item(item_id: str, new_item: Dict[str, Any]) -> None:
 
         try:
             _mark_superseded_unlocked(item_id)
-        except Exception:
+        except (json.JSONDecodeError, OSError, ValueError):
             pass
 
 
@@ -154,7 +154,11 @@ def save_cockpit_snapshot(data: Dict[str, Any]) -> str:
     cockpit_dir = Path("data/cockpit")
     cockpit_dir.mkdir(parents=True, exist_ok=True)
 
-    snapshot_id = str(int(time.time() * 1000))
+    import itertools
+    _ms = int(time.time() * 1000)
+    _counter = getattr(save_cockpit_snapshot, "_counter", itertools.count())
+    save_cockpit_snapshot._counter = _counter
+    snapshot_id = f"{_ms}-{next(_counter)}"
     path = cockpit_dir / f"{snapshot_id}.json"
 
     from knowledge._atomic_io import atomic_write_json

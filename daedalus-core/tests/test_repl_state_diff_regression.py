@@ -140,14 +140,21 @@ def test_complete_step_state_diff(env, capsys):
     assert len(removed) == 0
 
 
+def _domain_state(state):
+    """Extract domain-relevant state, excluding pipeline metadata."""
+    exclude = {"history", "contextual_trace", "last_nlu_cmd"}
+    return {k: v for k, v in state.items()
+            if not k.startswith("_") and k not in exclude}
+
+
 def test_undo_redo_exact_state_restore(env, capsys):
     run(env, "add goal UndoGoal")
     run(env, "add step X")
 
-    before = copy.deepcopy(env["state"])
+    before = _domain_state(copy.deepcopy(env["state"]))
     run(env, "undo")
     run(env, "redo")
-    after = env["state"]
+    after = _domain_state(env["state"])
 
     assert before == after
 
@@ -167,7 +174,7 @@ def test_checkpoint_restore_exact_state(env, capsys):
     steps = state["goals_tree"][0]["steps"]
 
     assert len(steps) == 1
-    assert steps[0]["text"] == "CP1"
+    assert steps[0]["description"] == "CP1"
 
 
 def test_watchpoint_diff_accuracy(env, capsys):

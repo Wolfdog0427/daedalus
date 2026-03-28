@@ -98,10 +98,10 @@ def filter_logs(
     logs = list_logs()
 
     if category:
-        logs = [l for l in logs if l["category"] == category]
+        logs = [l for l in logs if l.get("category") == category]
 
     if contains:
-        logs = [l for l in logs if contains.lower() in l["message"].lower()]
+        logs = [l for l in logs if contains.lower() in str(l.get("message", "")).lower()]
 
     if limit is not None:
         logs = logs[-limit:]

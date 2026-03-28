@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import json
 from typing import Any, Dict, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from analytics.drift_delta_predictor import predict_drift_delta
 from analytics.stability_delta_predictor import predict_stability_delta
@@ -19,7 +19,7 @@ ACTION_MEMORY = os.path.join(LEARNING_ROOT, "actions")
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _load(path: str) -> Dict[str, Any]:
@@ -49,7 +49,7 @@ def _sanitize_subsystem(name: str) -> str:
 
 
 def score_subsystem(subsystem: str, diagnostics: Dict[str, Any]) -> float:
-    diag_score = diagnostics.get("score") or 0.0
+    diag_score = max(0.0, min(1.0, float(diagnostics.get("score") or 0.0)))
     subsystem = _sanitize_subsystem(subsystem)
     mem_path = os.path.join(SUBSYSTEM_MEMORY, f"{subsystem}.json")
     mem = _load(mem_path)
@@ -168,12 +168,12 @@ def generate_adaptive_proposal(
 
     _raw = drift.get("score")
     drift_score = _raw if _raw is not None else 0.5
-    confidence = (
+    confidence = max(0.0, min(1.0,
         weakest_rel * 0.4 +
         action_score * 0.25 +
         (1 - drift_score) * 0.15 +
-        max(0.0, predicted_stability_delta_total) * 0.2
-    )
+        max(0.0, min(1.0, predicted_stability_delta_total)) * 0.2
+    ))
 
     return {
         "status": "proposal_generated",

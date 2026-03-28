@@ -67,6 +67,8 @@ def run_sho_cycle(governor) -> Dict[str, Any]:
     #         All mutations still pass through the governance kernel.
     if governor.tier == 3:
         patch = generate_patch(diagnostics)
+        patch.setdefault("cycle_id", f"sho-tier3-{patch.get('id', 'unknown')}")
+        patch.setdefault("proposal_id", patch.get("id"))
 
         try:
             from governance.kernel import evaluate_change
@@ -80,11 +82,13 @@ def run_sho_cycle(governor) -> Dict[str, Any]:
         except Exception:
             verdict = {"allowed": False, "reason": "governance evaluation failed — fail-closed"}
 
-        if verdict.get("allowed", False):
-            result = apply_patch(patch)
-            applied = isinstance(result, dict) and result.get("status") == "success"
-        else:
-            result = None
+        result = None
+        applied = False
+        try:
+            if verdict.get("allowed", False) and not verdict.get("needs_approval", False):
+                result = apply_patch(patch)
+                applied = isinstance(result, dict) and result.get("status") == "success"
+        except Exception:
             applied = False
 
         return {

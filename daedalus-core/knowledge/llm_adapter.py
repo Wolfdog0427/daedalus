@@ -29,6 +29,7 @@ Operator control:
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Dict, Any, List, Optional, Protocol, runtime_checkable
 
@@ -119,6 +120,7 @@ class LLMAdapter:
     """
 
     def __init__(self) -> None:
+        self._lock = threading.RLock()
         self._providers: Dict[str, LLMProvider] = {}
         self._active_name: Optional[str] = None
         self._operator_query_active: bool = False
@@ -129,22 +131,25 @@ class LLMAdapter:
     # ------------------------------------------------------------
 
     def register_provider(self, name: str, provider: LLMProvider) -> None:
-        self._providers[name] = provider
+        with self._lock:
+            self._providers[name] = provider
 
     def remove_provider(self, name: str) -> bool:
-        if name not in self._providers:
-            return False
-        del self._providers[name]
-        if self._active_name == name:
-            self._active_name = None
-        return True
+        with self._lock:
+            if name not in self._providers:
+                return False
+            del self._providers[name]
+            if self._active_name == name:
+                self._active_name = None
+            return True
 
     def set_active_provider(self, name: str) -> bool:
         """Operator-directed provider selection."""
-        if name not in self._providers:
-            return False
-        self._active_name = name
-        return True
+        with self._lock:
+            if name not in self._providers:
+                return False
+            self._active_name = name
+            return True
 
     def get_active_provider(self) -> LLMProvider:
         """
@@ -153,26 +158,28 @@ class LLMAdapter:
         2. First available provider
         3. NullProvider (graceful degradation)
         """
-        if self._active_name and self._active_name in self._providers:
-            provider = self._providers[self._active_name]
-            if provider.is_available():
-                return provider
+        with self._lock:
+            if self._active_name and self._active_name in self._providers:
+                provider = self._providers[self._active_name]
+                if provider.is_available():
+                    return provider
 
-        for provider in self._providers.values():
-            if provider.is_available():
-                return provider
+            for provider in self._providers.values():
+                if provider.is_available():
+                    return provider
 
-        return _NULL_PROVIDER
+            return _NULL_PROVIDER
 
     def list_providers(self) -> List[Dict[str, Any]]:
-        result = []
-        for name, provider in self._providers.items():
-            info = provider.provider_info()
-            info["registered_name"] = name
-            info["is_active"] = name == self._active_name
-            info["available"] = provider.is_available()
-            result.append(info)
-        return result
+        with self._lock:
+            result = []
+            for name, provider in self._providers.items():
+                info = provider.provider_info()
+                info["registered_name"] = name
+                info["is_active"] = name == self._active_name
+                info["available"] = provider.is_available()
+                result.append(info)
+            return result
 
     def is_available(self) -> bool:
         return self.get_active_provider().is_available()
@@ -462,17 +469,23 @@ class DiscoveryAwareLLMAdapter(LLMAdapter):
         except ImportError:
             return
 
-        for p in provider_registry._providers.values():
-            registered_name = f"discovered:{p.id}"
+        for info in provider_registry.list_providers():
+            pid = info.get("id", "")
+            registered_name = f"discovered:{pid}"
+            status_val = info.get("status")
 
-            if p.status == ProviderStatus.ACTIVE:
-                if registered_name not in self._providers:
-                    bridge = _RegistryBridgeProvider(p)
-                    self.register_provider(registered_name, bridge)
+            if status_val == ProviderStatus.ACTIVE.value:
+                with self._lock:
+                    if registered_name not in self._providers:
+                        p = provider_registry.get_provider(pid)
+                        if p:
+                            bridge = _RegistryBridgeProvider(p)
+                            self.register_provider(registered_name, bridge)
 
-            elif p.status in (ProviderStatus.OFFLINE, ProviderStatus.QUARANTINED):
-                if registered_name in self._providers:
-                    self.remove_provider(registered_name)
+            elif status_val in (ProviderStatus.OFFLINE.value, ProviderStatus.QUARANTINED.value):
+                with self._lock:
+                    if registered_name in self._providers:
+                        self.remove_provider(registered_name)
 
     def get_active_provider(self) -> "LLMProvider":
         """Override: check discovery before selecting."""
@@ -505,10 +518,10 @@ class DiscoveryAwareLLMAdapter(LLMAdapter):
                 p = provider_registry.get_provider(best_id)
                 if p and p.status == ProviderStatus.ACTIVE:
                     registered_name = f"discovered:{best_id}"
-                    if registered_name in self._providers:
-                        provider = self._providers[registered_name]
-                        if provider.is_available():
-                            return provider
+                    with self._lock:
+                        provider = self._providers.get(registered_name)
+                    if provider and provider.is_available():
+                        return provider
         except (ImportError, ValueError):
             pass
 

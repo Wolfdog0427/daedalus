@@ -26,7 +26,7 @@ def load_delta_weights() -> Dict[str, Any]:
     try:
         with open(WEIGHTS_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
-    except Exception:
+    except (json.JSONDecodeError, OSError, ValueError):
         return _default_weights()
     base = _default_weights()
     base.update(data)
@@ -35,8 +35,13 @@ def load_delta_weights() -> Dict[str, Any]:
 
 def save_delta_weights(weights: Dict[str, Any]) -> None:
     os.makedirs(os.path.dirname(WEIGHTS_PATH), exist_ok=True)
-    with open(WEIGHTS_PATH, "w", encoding="utf-8") as f:
-        json.dump(weights, f, indent=2)
+    try:
+        from knowledge._atomic_io import atomic_write_json
+        from pathlib import Path
+        atomic_write_json(Path(WEIGHTS_PATH), weights)
+    except ImportError:
+        with open(WEIGHTS_PATH, "w", encoding="utf-8") as f:
+            json.dump(weights, f, indent=2)
 
 
 def update_delta_weights() -> Dict[str, Any]:

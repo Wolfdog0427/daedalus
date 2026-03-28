@@ -12,10 +12,13 @@ This implementation keeps everything OFF by default
 unless explicitly enabled.
 """
 
+import threading
+
 _FEATURE_FLAGS = {
     # Example:
     # "background_self_test": True,
 }
+_ff_lock = threading.Lock()
 
 
 def is_enabled(name: str = None) -> bool:
@@ -28,14 +31,17 @@ def is_enabled(name: str = None) -> bool:
     """
     if not name:
         return False
-    return _FEATURE_FLAGS.get(name, False)
+    with _ff_lock:
+        return _FEATURE_FLAGS.get(name, False)
 
 
 def enable(name: str) -> None:
     """Enable a feature flag."""
-    _FEATURE_FLAGS[name] = True
+    with _ff_lock:
+        _FEATURE_FLAGS[name] = True
 
 
 def disable(name: str) -> None:
     """Disable a feature flag."""
-    _FEATURE_FLAGS[name] = False
+    with _ff_lock:
+        _FEATURE_FLAGS[name] = False

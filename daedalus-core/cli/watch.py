@@ -21,6 +21,8 @@ def _load_persisted_thresholds() -> Dict[str, Any] | None:
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             payload = json.load(f)
         return payload.get("thresholds")
+    except (json.JSONDecodeError, OSError, ValueError):
+        return None
     except Exception:
         return None
 
@@ -73,36 +75,47 @@ def watch(interval: float = 2.0) -> None:
     Live dashboard showing system status, thresholds, and governor state.
     """
 
-    while True:
-        status = handle_request({"command": "status", "args": {}})
-        readiness = handle_request({"command": "readiness", "args": {}})
+    try:
+        while True:
+            status = handle_request({"command": "status", "args": {}})
+            readiness = handle_request({"command": "readiness", "args": {}})
 
-        os.system("cls" if os.name == "nt" else "clear")
+            os.system("cls" if os.name == "nt" else "clear")
 
-        print("=== ASSISTANT WATCH MODE ===")
-        print(f"Interval: {interval}s")
-        print("")
+            print("=== ASSISTANT WATCH MODE ===")
+            print(f"Interval: {interval}s")
+            print("")
 
-        # ------------------------------------------------------------
-        # Status Panel
-        # ------------------------------------------------------------
-        print("System Status")
-        print("-------------")
-        print(json.dumps(status.get("payload", {}), indent=2))
-        print("")
+            print("System Status")
+            print("-------------")
+            if status.get("ok") is False:
+                print(f"ERROR: {status.get('error', 'unknown')}")
+            else:
+                print(json.dumps(status.get("payload", {}), indent=2))
+            print("")
 
-        # ------------------------------------------------------------
-        # Readiness Panel
-        # ------------------------------------------------------------
-        print("Readiness")
-        print("---------")
-        print(json.dumps(readiness.get("payload", {}), indent=2))
-        print("")
+            print("Readiness")
+            print("---------")
+            if readiness.get("ok") is False:
+                print(f"ERROR: {readiness.get('error', 'unknown')}")
+            else:
+                print(json.dumps(readiness.get("payload", {}), indent=2))
+            print("")
 
-        # ------------------------------------------------------------
-        # Governor Thresholds Panel (unified — live + persistence)
-        # ------------------------------------------------------------
-        print(_render_thresholds_panel())
-        print("")
+            print(_render_thresholds_panel())
+            print("")
 
-        time.sleep(interval)
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("\nWatch mode stopped.")
+
+
+def watch_telemetry(interval: float = 1.0) -> None:
+    """Stream raw SHO cycle telemetry via the runtime WatchMode."""
+    try:
+        from runtime.watch_mode import watch_mode as _wm
+        _wm.interval = interval
+        _wm.start()
+    except ImportError:
+        print("WatchMode module not available. Falling back to standard watch.")
+        watch(interval=interval)

@@ -61,17 +61,3 @@ def compute_envelope() -> Dict[str, Any]:
     }
 
 
-def is_operation_allowed_by_envelope(operation: str) -> bool:
-    """Check whether *operation* is allowed under the active envelope.
-
-    When the allowlist is empty **and** `patch_approval_threshold` is
-    ``"blocked"``, nothing is allowed.  Otherwise an empty allowlist is
-    treated as "no restrictions beyond the forbidden set".
-    """
-    env = compute_envelope()
-    if operation in env["forbidden_operations"]:
-        return False
-    allowed = env["allowed_operations"]
-    if not allowed:
-        return env.get("patch_approval_threshold") != "blocked"
-    return operation in allowed

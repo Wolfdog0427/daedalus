@@ -76,7 +76,7 @@ class AutonomyGovernor:
                 return
 
             old = self.tier
-            self.tier = max(1, self.tier - 1)
+            self.tier = max(1, min(3, self.tier - 1))
             new_tier = self.tier
 
         record_governor_event("tier_deescalated", {
@@ -88,6 +88,25 @@ class AutonomyGovernor:
     # ------------------------------------------------------------
     # Strict Mode
     # ------------------------------------------------------------
+    def set_tier(self, tier: int) -> None:
+        """Set the governor tier (clamped to 1-3, max ±1 step per call)."""
+        try:
+            tier = max(1, min(3, int(tier)))
+        except (TypeError, ValueError):
+            return
+        with self._lock:
+            old = self.tier
+            if old == tier:
+                return
+            if abs(tier - old) > 1:
+                tier = old + (1 if tier > old else -1)
+            self.tier = tier
+
+        record_governor_event("tier_set", {
+            "from": old,
+            "to": tier,
+        })
+
     def set_strict_mode(self, enabled: bool) -> None:
         with self._lock:
             old = self.strict_mode
@@ -97,3 +116,40 @@ class AutonomyGovernor:
             "from": old,
             "to": enabled,
         })
+
+    def enable_strict_mode(self) -> None:
+        self.set_strict_mode(True)
+
+    def disable_strict_mode(self) -> None:
+        self.set_strict_mode(False)
+
+    # ------------------------------------------------------------
+    # SHO Integration
+    # ------------------------------------------------------------
+    def decide_for_cycle(
+        self,
+        cycle_id: str = "",
+        drift: Dict[str, Any] | None = None,
+        diagnostics: Dict[str, Any] | None = None,
+        stability: Dict[str, Any] | None = None,
+        patch_history: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        """Produce a governor decision compatible with SHOCycleOrchestrator.
+
+        This lightweight implementation bases the decision purely on
+        the current tier and strict_mode without the full knowledge-layer
+        autonomy logic.  It satisfies the API contract that
+        ``runtime.sho_cycle_orchestrator`` depends on.
+        """
+        with self._lock:
+            tier = self.tier
+            strict = self.strict_mode
+
+        should_generate = tier >= 2 and not strict
+        return {
+            "allowed_tier": tier,
+            "proposal_id": None,
+            "should_generate_proposal": should_generate,
+            "state": self.get_state(),
+            "cycle_id": cycle_id,
+        }

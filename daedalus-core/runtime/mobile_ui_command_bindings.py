@@ -42,6 +42,9 @@ class MobileUICommandBindings:
             "validate": self.run_validation,
             "compute_integrity": self.compute_integrity,
             "mark_notification_read": self.mark_notification_read,
+            "vpn_connect": self.vpn_connect,
+            "vpn_disconnect": self.vpn_disconnect,
+            "vpn_status": self.vpn_status,
         }
 
     def _headers(self) -> Dict[str, str]:
@@ -109,6 +112,18 @@ class MobileUICommandBindings:
         return self._post(
             f"{self.base_url}/notifications/{nid}/read",
         )
+
+    def vpn_connect(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        from runtime.vpn_control import connect_vpn
+        return {"message": connect_vpn()}
+
+    def vpn_disconnect(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        from runtime.vpn_control import disconnect_vpn
+        return {"message": disconnect_vpn()}
+
+    def vpn_status(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        from runtime.vpn_control import vpn_status
+        return {"message": vpn_status()}
 
 
 # ------------------------------------------------------------
