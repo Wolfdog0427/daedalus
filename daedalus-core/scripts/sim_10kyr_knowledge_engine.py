@@ -73,7 +73,7 @@ class Mulberry32:
         self.s = (self.s + 0x6D2B79F5) & 0xFFFFFFFF
         t = self.s ^ (self.s >> 15)
         t = (t * (1 | self.s)) & 0xFFFFFFFF
-        t = (t + ((t ^ (t >> 7)) * (61 | t) & 0xFFFFFFFF)) ^ t
+        t = ((t + ((t ^ (t >> 7)) * (61 | t) & 0xFFFFFFFF)) & 0xFFFFFFFF) ^ t
         return ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296
 
     def chance(self, p: float) -> bool:

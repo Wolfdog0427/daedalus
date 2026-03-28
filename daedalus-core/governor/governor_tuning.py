@@ -25,6 +25,9 @@ def _compute_signature(thresholds: Dict[str, Any]) -> str:
 # ------------------------------------------------------------
 # Validation
 # ------------------------------------------------------------
+_VALID_LEVELS = {"low", "medium", "high"}
+
+
 def _validate_thresholds(th: Dict[str, Any]) -> Optional[str]:
     """
     Returns None if valid, otherwise an error string.
@@ -42,6 +45,13 @@ def _validate_thresholds(th: Dict[str, Any]) -> Optional[str]:
     for key in required:
         if key not in th:
             return f"Missing threshold: {key}"
+
+    for key in (
+        "drift_threshold_escalate", "drift_threshold_deescalate",
+        "stability_threshold_escalate", "stability_threshold_deescalate",
+    ):
+        if th[key] not in _VALID_LEVELS:
+            return f"{key} must be one of {_VALID_LEVELS}, got {th[key]!r}"
 
     if not isinstance(th["readiness_min_for_escalation"], (int, float)):
         return "readiness_min_for_escalation must be numeric"
@@ -65,13 +75,13 @@ def set_thresholds(new_values: Dict[str, Any]) -> Dict[str, Any]:
     if err:
         return {"ok": False, "error": err}
 
-    # Apply to governor
-    _gov.drift_threshold_escalate = new_values["drift_threshold_escalate"]
-    _gov.drift_threshold_deescalate = new_values["drift_threshold_deescalate"]
-    _gov.stability_threshold_escalate = new_values["stability_threshold_escalate"]
-    _gov.stability_threshold_deescalate = new_values["stability_threshold_deescalate"]
-    _gov.readiness_min_for_escalation = new_values["readiness_min_for_escalation"]
-    _gov.readiness_min_for_autonomous = new_values["readiness_min_for_autonomous"]
+    with _gov._lock:
+        _gov.drift_threshold_escalate = new_values["drift_threshold_escalate"]
+        _gov.drift_threshold_deescalate = new_values["drift_threshold_deescalate"]
+        _gov.stability_threshold_escalate = new_values["stability_threshold_escalate"]
+        _gov.stability_threshold_deescalate = new_values["stability_threshold_deescalate"]
+        _gov.readiness_min_for_escalation = new_values["readiness_min_for_escalation"]
+        _gov.readiness_min_for_autonomous = new_values["readiness_min_for_autonomous"]
 
     return {"ok": True, "applied": new_values}
 
@@ -85,14 +95,15 @@ def save_thresholds() -> Dict[str, Any]:
     """
     from governor.singleton import governor as _gov
 
-    thresholds = {
-        "drift_threshold_escalate": _gov.drift_threshold_escalate,
-        "drift_threshold_deescalate": _gov.drift_threshold_deescalate,
-        "stability_threshold_escalate": _gov.stability_threshold_escalate,
-        "stability_threshold_deescalate": _gov.stability_threshold_deescalate,
-        "readiness_min_for_escalation": _gov.readiness_min_for_escalation,
-        "readiness_min_for_autonomous": _gov.readiness_min_for_autonomous,
-    }
+    with _gov._lock:
+        thresholds = {
+            "drift_threshold_escalate": _gov.drift_threshold_escalate,
+            "drift_threshold_deescalate": _gov.drift_threshold_deescalate,
+            "stability_threshold_escalate": _gov.stability_threshold_escalate,
+            "stability_threshold_deescalate": _gov.stability_threshold_deescalate,
+            "readiness_min_for_escalation": _gov.readiness_min_for_escalation,
+            "readiness_min_for_autonomous": _gov.readiness_min_for_autonomous,
+        }
 
     signature = _compute_signature(thresholds)
 
@@ -106,13 +117,24 @@ def save_thresholds() -> Dict[str, Any]:
         "signature": signature,
     }
 
-    # Ensure directory exists
     directory = os.path.dirname(CONFIG_PATH)
-    if directory and not os.path.exists(directory):
-        os.makedirs(directory)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
 
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2)
+    import tempfile
+    tmp_fd, tmp_path = tempfile.mkstemp(
+        dir=os.path.dirname(CONFIG_PATH) or ".", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+        os.replace(tmp_path, CONFIG_PATH)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
     # Log persisted change
     record_governor_event("thresholds_persisted", {
@@ -130,8 +152,14 @@ def load_thresholds() -> Dict[str, Any]:
     if not os.path.exists(CONFIG_PATH):
         return {"ok": False, "error": "No persisted thresholds found"}
 
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        payload = json.load(f)
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except (json.JSONDecodeError, ValueError, OSError) as exc:
+        return {"ok": False, "error": f"Failed to parse config: {exc}"}
+
+    if not isinstance(payload, dict):
+        return {"ok": False, "error": "Config file is not a JSON object"}
 
     thresholds = payload.get("thresholds", {})
     signature = payload.get("signature")
@@ -191,12 +219,13 @@ def load_thresholds_silent(gov_instance=None) -> None:
 
             target = _gov
 
-        target.drift_threshold_escalate = thresholds["drift_threshold_escalate"]
-        target.drift_threshold_deescalate = thresholds["drift_threshold_deescalate"]
-        target.stability_threshold_escalate = thresholds["stability_threshold_escalate"]
-        target.stability_threshold_deescalate = thresholds["stability_threshold_deescalate"]
-        target.readiness_min_for_escalation = thresholds["readiness_min_for_escalation"]
-        target.readiness_min_for_autonomous = thresholds["readiness_min_for_autonomous"]
+        with target._lock:
+            target.drift_threshold_escalate = thresholds["drift_threshold_escalate"]
+            target.drift_threshold_deescalate = thresholds["drift_threshold_deescalate"]
+            target.stability_threshold_escalate = thresholds["stability_threshold_escalate"]
+            target.stability_threshold_deescalate = thresholds["stability_threshold_deescalate"]
+            target.readiness_min_for_escalation = thresholds["readiness_min_for_escalation"]
+            target.readiness_min_for_autonomous = thresholds["readiness_min_for_autonomous"]
 
     except Exception:
         # Silent failure by design
@@ -208,7 +237,7 @@ def load_thresholds_silent(gov_instance=None) -> None:
 # ------------------------------------------------------------
 def reset_thresholds() -> Dict[str, Any]:
     defaults = {
-        "drift_threshold_escalate": "low",
+        "drift_threshold_escalate": "medium",
         "drift_threshold_deescalate": "medium",
         "stability_threshold_escalate": "low",
         "stability_threshold_deescalate": "high",

@@ -22,11 +22,14 @@ much shorter in test/sim mode).
 from __future__ import annotations
 
 import json
+import threading
 import time
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 
 from knowledge._atomic_io import atomic_write_json
+
+_epoch_lock = threading.Lock()
 
 EPOCH_DIR = Path("data/entropy/epochs")
 CURRENT_EPOCH_FILE = EPOCH_DIR / "current.json"
@@ -53,39 +56,39 @@ def start_epoch(
     force-end it first (triggering end-of-epoch procedures).
     """
     _ensure_dir()
+    with _epoch_lock:
+        if CURRENT_EPOCH_FILE.exists():
+            try:
+                current = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
+                if current.get("status") == "running":
+                    _end_epoch_unlocked()
+            except Exception:
+                pass
 
-    if CURRENT_EPOCH_FILE.exists():
-        try:
-            current = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
-            if current.get("status") == "running":
-                end_epoch()
-        except Exception:
-            pass
+        from knowledge.entropy.canonical_template import load_template
+        template = load_template()
 
-    from knowledge.entropy.canonical_template import load_template
-    template = load_template()
+        if epoch_id is None:
+            epoch_id = f"epoch-{int(time.time())}"
 
-    if epoch_id is None:
-        epoch_id = f"epoch-{int(time.time())}"
+        epoch: Dict[str, Any] = {
+            "id": epoch_id,
+            "start_time": time.time(),
+            "target_end_time": time.time() + (duration_hours * 3600),
+            "duration_hours": duration_hours,
+            "canonical_version": template["version"],
+            "status": "running",
+            "deviations": [],
+            "metrics_at_start": {},
+            "metrics_at_end": {},
+            "compaction_report": None,
+            "drift_court_report": None,
+            "renewal_report": None,
+            "budget_report": None,
+        }
 
-    epoch: Dict[str, Any] = {
-        "id": epoch_id,
-        "start_time": time.time(),
-        "target_end_time": time.time() + (duration_hours * 3600),
-        "duration_hours": duration_hours,
-        "canonical_version": template["version"],
-        "status": "running",
-        "deviations": [],
-        "metrics_at_start": {},
-        "metrics_at_end": {},
-        "compaction_report": None,
-        "drift_court_report": None,
-        "renewal_report": None,
-        "budget_report": None,
-    }
-
-    atomic_write_json(CURRENT_EPOCH_FILE, epoch)
-    return epoch
+        atomic_write_json(CURRENT_EPOCH_FILE, epoch)
+        return epoch
 
 
 def record_epoch_deviation(deviation: Dict[str, Any]) -> Optional[str]:
@@ -95,44 +98,46 @@ def record_epoch_deviation(deviation: Dict[str, Any]) -> Optional[str]:
     Returns the deviation ID.
     """
     _ensure_dir()
-    if not CURRENT_EPOCH_FILE.exists():
-        return None
+    with _epoch_lock:
+        if not CURRENT_EPOCH_FILE.exists():
+            return None
 
-    try:
-        epoch = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return None
+        try:
+            epoch = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return None
 
-    if epoch.get("status") != "running":
-        return None
+        if epoch.get("status") != "running":
+            return None
 
-    from knowledge.entropy.drift_court import log_deviation
-    dev_id = log_deviation(deviation)
+        from knowledge.entropy.drift_court import log_deviation
+        dev_id = log_deviation(deviation)
 
-    epoch["deviations"].append({
-        "id": dev_id,
-        "name": deviation.get("name"),
-        "timestamp": time.time(),
-    })
+        epoch["deviations"].append({
+            "id": dev_id,
+            "name": deviation.get("name"),
+            "timestamp": time.time(),
+        })
 
-    atomic_write_json(CURRENT_EPOCH_FILE, epoch)
-    return dev_id
+        atomic_write_json(CURRENT_EPOCH_FILE, epoch)
+        return dev_id
 
 
 def capture_epoch_metrics(metrics: Dict[str, Any], phase: str = "start") -> None:
     """Snapshot system metrics at epoch start or end."""
     _ensure_dir()
-    if not CURRENT_EPOCH_FILE.exists():
-        return
+    with _epoch_lock:
+        if not CURRENT_EPOCH_FILE.exists():
+            return
 
-    try:
-        epoch = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return
+        try:
+            epoch = json.loads(CURRENT_EPOCH_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return
 
-    key = f"metrics_at_{phase}"
-    epoch[key] = metrics
-    atomic_write_json(CURRENT_EPOCH_FILE, epoch)
+        key = f"metrics_at_{phase}"
+        epoch[key] = metrics
+        atomic_write_json(CURRENT_EPOCH_FILE, epoch)
 
 
 def is_epoch_expired() -> bool:
@@ -146,18 +151,8 @@ def is_epoch_expired() -> bool:
         return True
 
 
-def end_epoch() -> Dict[str, Any]:
-    """
-    End the current epoch and trigger the full end-of-epoch sequence:
-    1. Graph compaction (coherence fix)
-    2. Drift Court session
-    3. Entropy budget snapshot
-    4. Renewal cycle (prune expired transient state)
-    5. Archive the completed epoch
-
-    Each step is individually try/except'd so a failure in one
-    doesn't prevent the others from running.
-    """
+def _end_epoch_unlocked() -> Dict[str, Any]:
+    """End the current epoch (caller must hold _epoch_lock)."""
     _ensure_dir()
 
     if not CURRENT_EPOCH_FILE.exists():
@@ -219,6 +214,22 @@ def end_epoch() -> Dict[str, Any]:
     return epoch
 
 
+def end_epoch() -> Dict[str, Any]:
+    """
+    End the current epoch and trigger the full end-of-epoch sequence:
+    1. Graph compaction (coherence fix)
+    2. Drift Court session
+    3. Entropy budget snapshot
+    4. Renewal cycle (prune expired transient state)
+    5. Archive the completed epoch
+
+    Each step is individually try/except'd so a failure in one
+    doesn't prevent the others from running.
+    """
+    with _epoch_lock:
+        return _end_epoch_unlocked()
+
+
 def get_current_epoch() -> Optional[Dict[str, Any]]:
     """Return the current epoch data, or None if no epoch is running."""
     if not CURRENT_EPOCH_FILE.exists():
@@ -256,11 +267,10 @@ def get_epoch_status() -> Dict[str, Any]:
     }
 
 
-def list_completed_epochs(limit: int = 20) -> List:
+def list_completed_epochs(limit: int = 20) -> List[Dict[str, Any]]:
     """Return metadata from recent completed epochs."""
     _ensure_dir()
-    from typing import List as L
-    archives: L[Dict[str, Any]] = []
+    archives: List[Dict[str, Any]] = []
     if not EPOCH_ARCHIVE_DIR.exists():
         return archives
 

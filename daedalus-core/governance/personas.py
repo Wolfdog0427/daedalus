@@ -9,7 +9,11 @@ Personas are declarative and read-only — they never auto-activate.
 
 from __future__ import annotations
 
+import copy
+import threading
 from typing import Any, Dict, List, Optional
+
+_persona_lock = threading.Lock()
 
 ARCHITECT_GOV = "ARCHITECT_GOV"
 SENTINEL_GOV = "SENTINEL_GOV"
@@ -75,7 +79,7 @@ _PERSONAS: Dict[str, Dict[str, Any]] = {
             "approve_irreversible_without_operator",
             "modify_safety_invariants",
             "bypass_approval_gate",
-            "apply_patch",
+            "patch_apply",
         ],
         "escalation_rules": {
             "on_high_risk": "require_operator_approval",
@@ -97,7 +101,7 @@ _PERSONAS: Dict[str, Dict[str, Any]] = {
             "approve_irreversible_without_operator",
             "modify_safety_invariants",
             "bypass_approval_gate",
-            "apply_patch",
+            "patch_apply",
             "approve_high_risk",
         ],
         "escalation_rules": {
@@ -133,32 +137,37 @@ _active_persona: str = COMPANION_GOV
 
 
 def list_personas() -> List[Dict[str, Any]]:
-    return [{"persona_id": pid, **meta} for pid, meta in _PERSONAS.items()]
+    return [{"persona_id": pid, **copy.deepcopy(meta)} for pid, meta in _PERSONAS.items()]
 
 
 def get_persona(persona_id: str) -> Optional[Dict[str, Any]]:
     p = _PERSONAS.get(persona_id)
     if p is None:
         return None
-    return {"persona_id": persona_id, **p}
+    return {"persona_id": persona_id, **copy.deepcopy(p)}
 
 
 def get_active_persona() -> Dict[str, Any]:
-    return get_persona(_active_persona) or get_persona(COMPANION_GOV)  # type: ignore
+    with _persona_lock:
+        pid = _active_persona
+    return get_persona(pid) or get_persona(COMPANION_GOV)  # type: ignore
 
 
 def set_active_persona(persona_id: str, reason: str = "") -> Dict[str, Any]:
     global _active_persona
     if persona_id not in _PERSONAS:
         return {"success": False, "reason": f"unknown persona '{persona_id}'"}
-    prev = _active_persona
-    _active_persona = persona_id
+    with _persona_lock:
+        prev = _active_persona
+        _active_persona = persona_id
     return {"success": True, "from": prev, "to": persona_id, "reason": reason}
 
 
 def is_operation_allowed(operation: str) -> bool:
     """Check if an operation is allowed under the active persona."""
-    p = _PERSONAS.get(_active_persona, _PERSONAS[COMPANION_GOV])
+    with _persona_lock:
+        pid = _active_persona
+    p = _PERSONAS.get(pid, _PERSONAS[COMPANION_GOV])
     if operation in p.get("forbidden_operations", []):
         return False
     allowed = p.get("allowed_operations", [])

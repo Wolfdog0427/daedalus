@@ -39,6 +39,17 @@ def hem_rollback_to(proposal_id: Optional[str] = None) -> None:
         result = rollback_engine.rollback(proposal_id)
         hem_log_event({"type": "HEM_ROLLBACK_DONE", "proposal_id": proposal_id, "result": str(result)})
     elif _snapshot_id:
-        hem_log_event({"type": "HEM_ROLLBACK_SYMBOLIC", "snapshot_id": _snapshot_id})
+        restored = snapshot_engine.restore(_snapshot_id)
+        hem_log_event({
+            "type": "HEM_ROLLBACK_DONE",
+            "snapshot_id": _snapshot_id,
+            "restored": restored is not None,
+        })
     else:
         hem_log_event({"type": "HEM_ROLLBACK_SKIPPED", "reason": "no_snapshot"})
+
+
+def hem_clear_snapshot() -> None:
+    """Discard the current HEM snapshot reference."""
+    global _snapshot_id
+    _snapshot_id = None

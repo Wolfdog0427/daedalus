@@ -55,7 +55,7 @@ def _normal_patch(diagnostics: Dict[str, Any]) -> Dict[str, Any]:
             "diagnostics_hint": diagnostics,
         },
         "actions": [
-            {"type": "refactor", "target": weakest["target"]},
+            {"type": "refactor", "target": weakest.get("target", weakest.get("subsystem", "unknown"))},
             {"type": "improve", "target": "reasoning clarity"},
         ],
     }
@@ -74,7 +74,7 @@ def _adaptive_patch(diagnostics: Dict[str, Any]) -> Dict[str, Any]:
             "novelty": "high",
         },
         "actions": [
-            {"type": "explore", "target": weakest["target"]},
+            {"type": "explore", "target": weakest.get("target", weakest.get("subsystem", "unknown"))},
             {"type": "restructure", "target": "modular boundaries"},
             {"type": "enhance", "target": "diagnostics depth"},
         ],
@@ -94,7 +94,7 @@ def _recovery_patch(diagnostics: Dict[str, Any]) -> Dict[str, Any]:
             "stability_hint": "prioritize safety",
         },
         "actions": [
-            {"type": "rollback", "target": weakest["target"]},
+            {"type": "rollback", "target": weakest.get("target", weakest.get("subsystem", "unknown"))},
             {"type": "tighten", "target": "safety constraints"},
             {"type": "repair", "target": "diagnosed weak areas"},
         ],

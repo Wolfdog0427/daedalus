@@ -444,6 +444,8 @@ class ProviderRegistry:
     # Notifications
     # --------------------------------------------------------
 
+    _MAX_NOTIFICATIONS = 200
+
     def _add_notification(self, event_type: str, message: str, data: Dict[str, Any]) -> None:
         self._notifications.append({
             "timestamp": time.time(),
@@ -452,6 +454,8 @@ class ProviderRegistry:
             "data": data,
             "acknowledged": False,
         })
+        if len(self._notifications) > self._MAX_NOTIFICATIONS:
+            self._notifications[:] = self._notifications[-self._MAX_NOTIFICATIONS:]
 
     def get_notifications(self, unacknowledged_only: bool = True) -> List[Dict[str, Any]]:
         if unacknowledged_only:
@@ -625,6 +629,7 @@ def run_discovery_cycle(
                     except Exception:
                         pass
                     report["migrations_recommended"] += 1
+                    break
                 elif rec.get("action") == "notify_operator":
                     report["migrations_recommended"] += 1
 

@@ -163,7 +163,7 @@ def list_snapshots(limit: int = 20) -> list:
     """Return metadata from recent snapshots, newest first."""
     _ensure_dir()
     snapshots = []
-    for snap_dir in sorted(VERSIONS_DIR.iterdir(), reverse=True):
+    for snap_dir in VERSIONS_DIR.iterdir():
         if not snap_dir.is_dir():
             continue
         manifest = _safe_load_json(snap_dir / "manifest.json")
@@ -171,12 +171,12 @@ def list_snapshots(limit: int = 20) -> list:
             snapshots.append({
                 "snapshot_id": manifest.get("snapshot_id"),
                 "timestamp": manifest.get("timestamp"),
+                "epoch_time": manifest.get("epoch_time", 0),
                 "reason": manifest.get("reason"),
                 "confidence": manifest.get("confidence", {}),
             })
-        if len(snapshots) >= limit:
-            break
-    return snapshots
+    snapshots.sort(key=lambda s: s.get("epoch_time", 0), reverse=True)
+    return snapshots[:limit]
 
 
 def get_latest_snapshot_id() -> Optional[str]:

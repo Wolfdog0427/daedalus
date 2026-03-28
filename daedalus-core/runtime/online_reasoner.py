@@ -36,27 +36,21 @@ class OnlineReasoner:
         state: Dict[str, Any] | None,
     ) -> List[Dict[str, Any]]:
 
-        # ------------------------------------------------------------
-        # HEM: Enter hostile engagement mode for online reasoning
-        # ------------------------------------------------------------
         hem_maybe_enter(
             trigger_reason="online_reasoner_interpret",
             metadata={"input_preview": user_input[:80]},
         )
 
-        # ------------------------------------------------------------
-        # Delegate to offline fallback (unchanged)
-        # ------------------------------------------------------------
-        result = self._fallback.interpret(user_input, history, state)
-
-        # ------------------------------------------------------------
-        # HEM: Transition to post-check phase
-        # ------------------------------------------------------------
-        hem_transition_to_postcheck()
-
-        # ------------------------------------------------------------
-        # HEM: Run drift + integrity checks, rollback if needed
-        # ------------------------------------------------------------
-        hem_run_post_engagement_checks()
+        try:
+            result = self._fallback.interpret(user_input, state)
+        finally:
+            try:
+                hem_transition_to_postcheck()
+            except Exception:
+                pass
+            try:
+                hem_run_post_engagement_checks()
+            except Exception:
+                pass
 
         return result

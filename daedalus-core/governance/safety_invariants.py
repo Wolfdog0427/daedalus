@@ -9,6 +9,7 @@ floor of the governance system.
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any, Dict, List
 
@@ -59,6 +60,7 @@ _INVARIANTS: List[Dict[str, Any]] = [
 
 _VIOLATION_LOG: List[Dict[str, Any]] = []
 _MAX_LOG = 100
+_violation_lock = threading.Lock()
 
 
 def list_invariants() -> List[Dict[str, Any]]:
@@ -84,7 +86,7 @@ def enforce_invariants(change_request: Dict[str, Any] | None = None) -> Dict[str
 
     cr_type = change_request.get("type", "")
     cr_target = change_request.get("target", "")
-    cr_flags = set(change_request.get("flags", []))
+    cr_flags = set(change_request.get("flags") or [])
 
     if "expand_autonomy" in cr_flags:
         violations.append({"invariant": "NO_AUTONOMY_EXPANSION",
@@ -107,18 +109,26 @@ def enforce_invariants(change_request: Dict[str, Any] | None = None) -> Dict[str
                            "detail": "change introduces psychological modeling"})
 
     if cr_type == "self_modification" and "operator_approved" not in cr_flags:
-        violations.append({"invariant": "NO_SELF_MODIFICATION_WITHOUT_APPROVAL",
-                           "detail": "self-modification without operator approval"})
+        _protected = {
+            "governance", "invariant", "safety", "identity", "constitutional",
+            "autonomy", "tier_system", "operator_trust", "kernel", "permission",
+            "self_modification_rules", "drift_guard",
+        }
+        combined = f"{cr_target} {change_request.get('description', '')}".lower()
+        if any(kw in combined for kw in _protected):
+            violations.append({"invariant": "NO_SELF_MODIFICATION_WITHOUT_APPROVAL",
+                               "detail": "self-modification of protected domain without operator approval"})
 
     if not change_request.get("reversible", True) and "operator_approved_irreversible" not in cr_flags:
         violations.append({"invariant": "REVERSIBILITY_DEFAULT",
                            "detail": "irreversible change without operator approval"})
 
-    for v in violations:
-        _VIOLATION_LOG.append({**v, "timestamp": time.time(),
-                               "change_type": cr_type, "target": cr_target})
-    if len(_VIOLATION_LOG) > _MAX_LOG:
-        _VIOLATION_LOG[:] = _VIOLATION_LOG[-_MAX_LOG:]
+    with _violation_lock:
+        for v in violations:
+            _VIOLATION_LOG.append({**v, "timestamp": time.time(),
+                                   "change_type": cr_type, "target": cr_target})
+        if len(_VIOLATION_LOG) > _MAX_LOG:
+            _VIOLATION_LOG[:] = _VIOLATION_LOG[-_MAX_LOG:]
 
     return {
         "passed": len(violations) == 0,
@@ -128,4 +138,5 @@ def enforce_invariants(change_request: Dict[str, Any] | None = None) -> Dict[str
 
 
 def get_violation_log(limit: int = 20) -> List[Dict[str, Any]]:
-    return list(_VIOLATION_LOG[-limit:])
+    with _violation_lock:
+        return list(_VIOLATION_LOG[-limit:])

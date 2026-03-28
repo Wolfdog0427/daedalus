@@ -29,7 +29,7 @@ from knowledge.trust_scoring import (
     should_replace,
 )
 from knowledge.verification_pipeline import verify_new_information
-from knowledge.storage_manager import replace_item
+
 from knowledge.ingestion import ingest_text
 
 

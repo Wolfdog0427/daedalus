@@ -63,7 +63,7 @@ KNOWN_OBJECT_FAMILIES = {
 }
 
 
-def _fuzzy_family(value: Optional[str], known: set) -> (Optional[str], Optional[str]):
+def _fuzzy_family(value: Optional[str], known: set) -> tuple:
     """
     Returns (repaired_value, original_value_if_repaired_else_None)
     so the cockpit can see semantic repairs explicitly.

@@ -1,6 +1,3 @@
-import copy
-
-
 class SessionReplay:
     """
     Provides replay and summary capabilities on top of HistoryTimeline.

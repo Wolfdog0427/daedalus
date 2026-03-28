@@ -14,17 +14,23 @@ def load_recent_improvement():
     if not os.path.exists(cockpit_dir):
         return None
 
-    files = sorted(
-        [f for f in os.listdir(cockpit_dir) if f.startswith("decision-")],
-        reverse=True,
-    )
+    try:
+        files = sorted(
+            [f for f in os.listdir(cockpit_dir) if f.startswith("decision-")],
+            reverse=True,
+        )
+    except OSError:
+        return None
 
     if not files:
         return None
 
     latest = files[0]
-    with open(os.path.join(cockpit_dir, latest), "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(os.path.join(cockpit_dir, latest), "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
 
 
 def render_self_healing_panel():
@@ -55,10 +61,10 @@ def render_self_healing_panel():
         f"Trend:            {drift.get('trend')}",
         "",
         "Metric Deltas:",
-        f"  Improvement:    {drift.get('deltas', {}).get('improvement_score')}",
-        f"  Trust:          {drift.get('deltas', {}).get('trust_score')}",
-        f"  Risk:           {drift.get('deltas', {}).get('risk_score')}",
-        f"  Stability:      {drift.get('deltas', {}).get('stability_score')}",
+        f"  Improvement:    {(drift.get('deltas') or {}).get('improvement_score')}",
+        f"  Trust:          {(drift.get('deltas') or {}).get('trust_score')}",
+        f"  Risk:           {(drift.get('deltas') or {}).get('risk_score')}",
+        f"  Stability:      {(drift.get('deltas') or {}).get('stability_score')}",
         "",
         f"Cockpit Snapshot: {data.get('cockpit_snapshot_id')}",
         "",

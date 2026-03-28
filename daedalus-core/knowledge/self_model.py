@@ -46,6 +46,9 @@ from knowledge.pattern_extractor import extract_patterns
 # SELF-MODEL STRUCTURE
 # ------------------------------------------------------------
 
+import threading
+_self_model_lock = threading.Lock()
+
 SELF_MODEL: Dict[str, Any] = {
     "last_updated": None,
     "capabilities": {
@@ -409,48 +412,41 @@ def _probe_subsystem_health() -> Dict[str, str]:
 
 def update_self_model() -> Dict[str, Any]:
     """
-    Recomputes the entire self-model.
+    Recomputes the entire self-model. Thread-safe.
     """
     global SELF_MODEL
 
     consistency = run_consistency_check()
     patterns = extract_patterns()
 
-    SELF_MODEL["last_updated"] = time.time()
+    with _self_model_lock:
+        SELF_MODEL["last_updated"] = time.time()
 
-    # Confidence metrics
-    SELF_MODEL["confidence"]["knowledge_quality"] = _compute_knowledge_quality()
-    SELF_MODEL["confidence"]["graph_coherence"] = _compute_graph_coherence()
-    SELF_MODEL["confidence"]["consistency"] = _compute_consistency_score(consistency)
+        SELF_MODEL["confidence"]["knowledge_quality"] = _compute_knowledge_quality()
+        SELF_MODEL["confidence"]["graph_coherence"] = _compute_graph_coherence()
+        SELF_MODEL["confidence"]["consistency"] = _compute_consistency_score(consistency)
 
-    # Coverage
-    SELF_MODEL["coverage"]["entity_count"] = len(patterns["entity_frequency"])
-    SELF_MODEL["coverage"]["relation_count"] = len(patterns["relations"])
-    SELF_MODEL["coverage"]["topic_clusters"] = len(patterns["topic_clusters"])
+        SELF_MODEL["coverage"]["entity_count"] = len(patterns["entity_frequency"])
+        SELF_MODEL["coverage"]["relation_count"] = len(patterns["relations"])
+        SELF_MODEL["coverage"]["topic_clusters"] = len(patterns["topic_clusters"])
 
-    # Coverage gaps and frontier analysis
-    coverage_gaps = _identify_coverage_gaps()
-    SELF_MODEL["coverage"]["shallow_clusters"] = len(
-        [g for g in coverage_gaps if g["type"] == "shallow_cluster"]
-    )
-    SELF_MODEL["coverage_gaps"] = coverage_gaps
+        coverage_gaps = _identify_coverage_gaps()
+        SELF_MODEL["coverage"]["shallow_clusters"] = len(
+            [g for g in coverage_gaps if g["type"] == "shallow_cluster"]
+        )
+        SELF_MODEL["coverage_gaps"] = coverage_gaps
 
-    frontier_domains = _identify_frontier_domains()
-    SELF_MODEL["coverage"]["frontier_domains"] = len(frontier_domains)
-    SELF_MODEL["frontier_domains"] = frontier_domains
+        frontier_domains = _identify_frontier_domains()
+        SELF_MODEL["coverage"]["frontier_domains"] = len(frontier_domains)
+        SELF_MODEL["frontier_domains"] = frontier_domains
 
-    # Blind spots
-    SELF_MODEL["blind_spots"] = _identify_blind_spots(patterns)
+        SELF_MODEL["blind_spots"] = _identify_blind_spots(patterns)
+        SELF_MODEL["storage"] = get_storage_usage()
+        SELF_MODEL["trust_distribution"] = _compute_trust_distribution()
+        SELF_MODEL["subsystem_health"] = _probe_subsystem_health()
 
-    # Storage
-    SELF_MODEL["storage"] = get_storage_usage()
-
-    # Trust distribution
-    SELF_MODEL["trust_distribution"] = _compute_trust_distribution()
-
-    SELF_MODEL["subsystem_health"] = _probe_subsystem_health()
-
-    return SELF_MODEL
+        import copy
+        return copy.deepcopy(SELF_MODEL)
 
 
 # ------------------------------------------------------------
@@ -459,27 +455,31 @@ def update_self_model() -> Dict[str, Any]:
 
 def get_self_model() -> Dict[str, Any]:
     """
-    Returns the current self-model.
+    Returns a snapshot of the current self-model. Thread-safe.
     """
-    return SELF_MODEL
+    import copy
+    with _self_model_lock:
+        return copy.deepcopy(SELF_MODEL)
 
 
 def summarize_self_model() -> Dict[str, Any]:
     """
     Returns a human-readable summary of the system's self-understanding.
+    Thread-safe — reads from a snapshot under lock.
     """
+    sm = get_self_model()
     return {
-        "knowledge_quality": SELF_MODEL["confidence"]["knowledge_quality"],
-        "graph_coherence": SELF_MODEL["confidence"]["graph_coherence"],
-        "consistency": SELF_MODEL["confidence"]["consistency"],
-        "entity_count": SELF_MODEL["coverage"]["entity_count"],
-        "relation_count": SELF_MODEL["coverage"]["relation_count"],
-        "topic_clusters": SELF_MODEL["coverage"]["topic_clusters"],
-        "shallow_clusters": SELF_MODEL["coverage"]["shallow_clusters"],
-        "frontier_domains": SELF_MODEL["coverage"]["frontier_domains"],
-        "blind_spots": SELF_MODEL["blind_spots"][:10],
-        "coverage_gaps": len(SELF_MODEL["coverage_gaps"]),
-        "frontier_domain_list": SELF_MODEL["frontier_domains"][:10],
-        "storage_used": SELF_MODEL["storage"].get("used_bytes"),
-        "storage_ratio": SELF_MODEL["storage"].get("ratio"),
+        "knowledge_quality": sm["confidence"]["knowledge_quality"],
+        "graph_coherence": sm["confidence"]["graph_coherence"],
+        "consistency": sm["confidence"]["consistency"],
+        "entity_count": sm["coverage"]["entity_count"],
+        "relation_count": sm["coverage"]["relation_count"],
+        "topic_clusters": sm["coverage"]["topic_clusters"],
+        "shallow_clusters": sm["coverage"]["shallow_clusters"],
+        "frontier_domains": sm["coverage"]["frontier_domains"],
+        "blind_spots": sm["blind_spots"][:10],
+        "coverage_gaps": len(sm["coverage_gaps"]),
+        "frontier_domain_list": sm["frontier_domains"][:10],
+        "storage_used": sm["storage"].get("used_bytes"),
+        "storage_ratio": sm["storage"].get("ratio"),
     }

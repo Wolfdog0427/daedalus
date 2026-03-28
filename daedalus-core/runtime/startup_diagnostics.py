@@ -1,7 +1,7 @@
 # runtime/startup_diagnostics.py
 
 from __future__ import annotations
-from typing import Dict, Any
+from typing import Any, Dict
 import os
 import json
 
@@ -46,6 +46,31 @@ def check_json_integrity(path: str) -> bool:
         return False
 
 
+def _bootstrap_required_dirs() -> None:
+    """Create required data directories and seed files on first launch."""
+    for d in REQUIRED_DIRS:
+        os.makedirs(d, exist_ok=True)
+    for f in REQUIRED_FILES:
+        if not os.path.isfile(f):
+            os.makedirs(os.path.dirname(f), exist_ok=True)
+            with open(f, "w", encoding="utf-8") as fh:
+                json.dump(_seed_content(f), fh, indent=2)
+
+
+def _seed_content(path: str) -> Any:
+    if path.endswith("history.json"):
+        return {
+            "total_cycles": 0,
+            "successful_patches": 0,
+            "failed_patches": 0,
+            "reverted_patches": 0,
+            "failed_high_level_cycles": 0,
+            "failed_tier2_cycles": 0,
+            "recent_failures": [],
+        }
+    return {}
+
+
 def check_patch_history_integrity() -> bool:
     path = "data/patch_history/history.json"
     return check_json_integrity(path)
@@ -65,6 +90,8 @@ def run_startup_diagnostics() -> Dict[str, Any]:
     """
 
     log_event("startup", "Running startup diagnostics", {})
+
+    _bootstrap_required_dirs()
 
     dirs = check_directories()
     files = check_files()

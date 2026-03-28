@@ -9,6 +9,7 @@ returns descriptive structures only.
 
 from __future__ import annotations
 
+import copy
 from typing import Any, Dict, List
 
 
@@ -75,7 +76,7 @@ def prepare_maintenance_execution_plan(action: Dict[str, Any]) -> Dict[str, Any]
 def _copy_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
     """Deep-enough copy so the caller's plan dict is never mutated."""
     return {
-        "action": plan.get("action"),
+        "action": dict(plan.get("action") or {}),
         "plan": [dict(entry) for entry in plan.get("plan") or []],
         "note": plan.get("note", ""),
     }
@@ -135,13 +136,13 @@ _SANDBOX_SNAPSHOT: Dict[str, Any] = {}
 def _snapshot_sandbox() -> None:
     """Capture current sandbox state for rollback."""
     _SANDBOX_SNAPSHOT.clear()
-    _SANDBOX_SNAPSHOT.update({k: v for k, v in _MAINTENANCE_SANDBOX.items()})
+    _SANDBOX_SNAPSHOT.update(copy.deepcopy(_MAINTENANCE_SANDBOX))
 
 
 def _restore_sandbox() -> None:
     """Restore sandbox to the last snapshot."""
     _MAINTENANCE_SANDBOX.clear()
-    _MAINTENANCE_SANDBOX.update({k: v for k, v in _SANDBOX_SNAPSHOT.items()})
+    _MAINTENANCE_SANDBOX.update(copy.deepcopy(_SANDBOX_SNAPSHOT))
 
 
 def get_sandbox() -> Dict[str, Any]:

@@ -23,7 +23,6 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any, List, Iterable
 from pathlib import Path
 import json
-import os
 import time
 
 # Must match knowledge/ingestion.py
@@ -52,21 +51,20 @@ def _ensure_storage():
     if not KNOWLEDGE_FILE.exists():
         KNOWLEDGE_FILE.touch()
     if not INDEX_FILE.exists():
-        # Minimal index structure, future-ready for supersession
-        with INDEX_FILE.open("w", encoding="utf-8") as f:
-            json.dump(
-                {
-                    "canonical": {},   # key → item_id (future use)
-                    "superseded": {},  # item_id → reason/metadata
-                    "meta": {
-                        "created_at": time.time(),
-                        "version": 1,
-                    },
-                },
-                f,
-                ensure_ascii=False,
-                indent=2,
-            )
+        _initial_index = {
+            "canonical": {},
+            "superseded": {},
+            "meta": {
+                "created_at": time.time(),
+                "version": 1,
+            },
+        }
+        try:
+            from knowledge._atomic_io import atomic_write_json
+            atomic_write_json(INDEX_FILE, _initial_index)
+        except ImportError:
+            with INDEX_FILE.open("w", encoding="utf-8") as f:
+                json.dump(_initial_index, f, ensure_ascii=False, indent=2)
 
 
 def _load_index() -> Dict[str, Any]:
@@ -88,14 +86,14 @@ def _is_superseded(item_id: str, index: Dict[str, Any]) -> bool:
 
 def _iter_items() -> Iterable[Dict[str, Any]]:
     _ensure_storage()
-    with KNOWLEDGE_FILE.open("r", encoding="utf-8") as f:
+    with KNOWLEDGE_FILE.open("r", encoding="utf-8-sig", errors="replace") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
             try:
                 yield json.loads(line)
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, ValueError):
                 continue
 
 
@@ -171,9 +169,9 @@ def search(
         if source_filter and item.get("source") != source_filter:
             continue
 
-        text = item.get("text", "")
-        metadata = item.get("metadata", {})
-        source = item.get("source", "")
+        text = item.get("text") or ""
+        metadata = item.get("metadata") or {}
+        source = item.get("source") or ""
 
         score = 0.0
         score += text.lower().count(q)

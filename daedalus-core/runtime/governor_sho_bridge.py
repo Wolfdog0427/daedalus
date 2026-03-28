@@ -29,7 +29,12 @@ def integrate_governor_with_cycle(cycle_result: Dict[str, Any]) -> Dict[str, Any
     # Extract required signals
     drift = cycle_result.get("drift", {}) or {}
     stability = cycle_result.get("stability", {}) or {}
-    readiness = cycle_result.get("readiness", 0.0)
+    readiness_raw = cycle_result.get("readiness", 0.0)
+    readiness = (
+        readiness_raw.get("readiness_score", 0.0)
+        if isinstance(readiness_raw, dict)
+        else (readiness_raw or 0.0)
+    )
 
     # Evaluate signals through the governor
     decision_payload = evaluate_signals(

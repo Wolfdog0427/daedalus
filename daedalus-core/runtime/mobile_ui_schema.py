@@ -1,10 +1,9 @@
 # runtime/mobile_ui_schema.py
 
 from __future__ import annotations
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from runtime.dashboard_api import dashboard_api
-# FIXED
 from governor.singleton import governor
 
 
@@ -36,11 +35,12 @@ class MobileUISchema:
         """
 
         return {
-            "version": "1.0",
+            "version": "1.1",
             "layout": [
                 self._card_system_health(),
                 self._card_integrity_score(),
                 self._card_governor_state(),
+                self._panel_notifications(),
                 self._panel_proposals(),
                 self._panel_execution_log(),
                 self._panel_snapshots(),
@@ -61,9 +61,9 @@ class MobileUISchema:
             "title": "System Health",
             "style": "status",
             "metrics": [
-                {"label": "Drift", "value": health["drift"]["level"]},
-                {"label": "Stability", "value": health["stability"]["level"]},
-                {"label": "Readiness", "value": health["readiness"]},
+                {"label": "Drift", "value": health.get("drift", {}).get("level", "unknown")},
+                {"label": "Stability", "value": health.get("stability", {}).get("level", "unknown")},
+                {"label": "Readiness", "value": (health.get("readiness") or {}).get("readiness_score", "unknown") if isinstance(health.get("readiness"), dict) else health.get("readiness", "unknown")},
             ],
         }
 
@@ -73,8 +73,8 @@ class MobileUISchema:
             "type": "card",
             "title": "Integrity Score",
             "style": "score",
-            "score": score["score"],
-            "components": score["components"],
+            "score": score.get("score", 0),
+            "components": score.get("components", {}),
         }
 
     def _card_governor_state(self) -> Dict[str, Any]:
@@ -91,8 +91,36 @@ class MobileUISchema:
     # Panels (expandable sections)
     # ------------------------------------------------------------
 
+    def _panel_notifications(self) -> Dict[str, Any]:
+        try:
+            from runtime.notification_center import list_unread, list_all
+            unread = list_unread()
+            all_items = list_all()
+        except Exception:
+            unread = []
+            all_items = []
+        return {
+            "type": "panel",
+            "title": "Notifications",
+            "badge": len(unread),
+            "items": [
+                {
+                    "id": n.get("id"),
+                    "category": n.get("category"),
+                    "message": n.get("message"),
+                    "timestamp": n.get("timestamp"),
+                    "read": n.get("read", False),
+                    "metadata": n.get("metadata", {}),
+                }
+                for n in all_items
+            ],
+            "actions": [
+                {"label": "Mark Read", "command": "mark_notification_read"},
+            ],
+        }
+
     def _panel_proposals(self) -> Dict[str, Any]:
-        proposals = dashboard_api.list_proposals()["proposals"]
+        proposals = dashboard_api.list_proposals().get("proposals", [])
         return {
             "type": "panel",
             "title": "Proposals",
@@ -112,7 +140,7 @@ class MobileUISchema:
         }
 
     def _panel_execution_log(self) -> Dict[str, Any]:
-        log = dashboard_api.get_execution_log()["execution_log"]
+        log = dashboard_api.get_execution_log().get("execution_log", [])
         return {
             "type": "panel",
             "title": "Execution Log",
@@ -120,7 +148,7 @@ class MobileUISchema:
         }
 
     def _panel_snapshots(self) -> Dict[str, Any]:
-        snaps = dashboard_api.list_snapshots()["snapshots"]
+        snaps = dashboard_api.list_snapshots().get("snapshots", [])
         return {
             "type": "panel",
             "title": "Snapshots",
@@ -131,7 +159,7 @@ class MobileUISchema:
         }
 
     def _panel_restoration_log(self) -> Dict[str, Any]:
-        log = dashboard_api.get_restoration_log()["restoration_log"]
+        log = dashboard_api.get_restoration_log().get("restoration_log", [])
         return {
             "type": "panel",
             "title": "Restoration Log",
@@ -139,7 +167,7 @@ class MobileUISchema:
         }
 
     def _panel_integrity_validation(self) -> Dict[str, Any]:
-        log = dashboard_api.get_validation_log()["validation_log"]
+        log = dashboard_api.get_validation_log().get("validation_log", [])
         return {
             "type": "panel",
             "title": "Integrity Validation",
@@ -150,7 +178,7 @@ class MobileUISchema:
         }
 
     def _panel_integrity_history(self) -> Dict[str, Any]:
-        history = dashboard_api.get_integrity_score_history()["integrity_score_history"]
+        history = dashboard_api.get_integrity_score_history().get("integrity_score_history", [])
         return {
             "type": "panel",
             "title": "Integrity Score History",

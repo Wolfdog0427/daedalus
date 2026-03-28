@@ -1,6 +1,7 @@
 # runtime/rollback_engine.py
 
 from __future__ import annotations
+import threading
 from typing import Dict, Any, Optional
 import time
 
@@ -23,7 +24,10 @@ class RollbackEngine:
       - Never modify system state outside approved rollback actions
     """
 
+    _MAX_LOG = 500
+
     def __init__(self):
+        self._lock = threading.Lock()
         self.rollback_log = []
         self.last_rollback: Optional[Dict[str, Any]] = None
 
@@ -96,20 +100,28 @@ class RollbackEngine:
         # Perform rollback
         result = self._rollback_action(record)
 
-        # Log rollback
-        self.rollback_log.append(result)
-        self.last_rollback = result
+        with self._lock:
+            self.rollback_log.append(result)
+            if len(self.rollback_log) > self._MAX_LOG:
+                self.rollback_log[:] = self.rollback_log[-self._MAX_LOG:]
+            self.last_rollback = result
 
-        # Mark proposal as rolled back
-        proposal_review._update_status(proposal_id, "rolled_back")
+        proposal_review.mark_rolled_back(proposal_id)
 
         return result
 
     def get_last_rollback(self) -> Optional[Dict[str, Any]]:
-        return self.last_rollback
+        with self._lock:
+            return self.last_rollback
 
     def get_rollback_log(self):
-        return list(self.rollback_log)
+        with self._lock:
+            return list(self.rollback_log)
+
+    def clear_log(self) -> None:
+        with self._lock:
+            self.rollback_log.clear()
+            self.last_rollback = None
 
 
 # ------------------------------------------------------------

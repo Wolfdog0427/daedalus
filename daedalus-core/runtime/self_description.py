@@ -176,7 +176,7 @@ def describe_expression_stack() -> Dict[str, Any]:
             als = get_alignment_summary()
             result["alignment_corrections"] = {
                 "recent_score": als.get("last_coherence_score", "?"),
-                "recent_applied": als.get("last_applied_count", 0),
+                "recent_applied": als.get("last_corrections_applied", 0),
             }
         except Exception:
             result["alignment_corrections"] = {"error": "unavailable"}

@@ -2,8 +2,6 @@
 
 from typing import Any, Dict, List, Optional
 
-print(">>> CognitiveStack loaded from:", __file__)
-
 class CognitiveStack:
     """
     Clean, stable parser layer.
@@ -63,7 +61,7 @@ class CognitiveStack:
         # SET GOAL
         # --------------------------------------------------------
         if text.startswith("set goal"):
-            title = user_input.split("set goal", 1)[1].strip()
+            title = user_input[len("set goal"):].strip()
             if title:
                 return [{"type": "set_goal", "payload": {"title": title}}]
 
@@ -71,7 +69,7 @@ class CognitiveStack:
         # ADD STEP
         # --------------------------------------------------------
         if text.startswith("add step"):
-            title = user_input.split("add step", 1)[1].strip()
+            title = user_input[len("add step"):].strip()
             if title:
                 return [{"type": "add_step", "payload": {"title": title}}]
 
@@ -100,20 +98,22 @@ class CognitiveStack:
         # --------------------------------------------------------
         if text.startswith("block step"):
             num = self._extract_number(text)
-            reason = None
-            if "because" in text:
-                reason = text.split("because", 1)[1].strip()
-            return [{
-                "type": "block_step",
-                "payload": {"step_number": num, "reason": reason or "blocked"}
-            }]
+            if num:
+                reason = None
+                if "because" in text:
+                    reason = text.split("because", 1)[1].strip()
+                return [{
+                    "type": "block_step",
+                    "payload": {"step_number": num, "reason": reason or "blocked"}
+                }]
 
         # --------------------------------------------------------
         # UNBLOCK STEP
         # --------------------------------------------------------
         if text.startswith("unblock step"):
             num = self._extract_number(text)
-            return [{"type": "unblock_step", "payload": {"step_number": num}}]
+            if num:
+                return [{"type": "unblock_step", "payload": {"step_number": num}}]
 
         # --------------------------------------------------------
         # RENAME STEP
@@ -121,7 +121,7 @@ class CognitiveStack:
         if text.startswith("rename step"):
             num = self._extract_number(text)
             if "to" in text:
-                new_title = user_input.split("to", 1)[1].strip()
+                new_title = text.split("to", 1)[1].strip()
                 return [{
                     "type": "rename_step",
                     "payload": {"step_number": num, "new_title": new_title}
@@ -133,7 +133,7 @@ class CognitiveStack:
         if text.startswith("move step"):
             num = self._extract_number(text)
             if "to" in text:
-                after = user_input.split("to", 1)[1]
+                after = text.split("to", 1)[1]
                 dest = self._extract_number(after)
                 return [{
                     "type": "move_step",

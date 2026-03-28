@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import threading
 from typing import Any, Dict, Optional
 
-from governor.state_store import load_state, save_state
+from governor.state_store import load_state, save_state, _state_file_lock
 from governor.rules import (
     decide_base_tier,
     should_recommend_tier2,
@@ -28,14 +29,21 @@ _READ_ONLY_ACTIONS = frozenset({
     "knowledge.verify",
     "knowledge.reason",
     "knowledge.quality_gate",
+    "knowledge.rar_query",
+    "knowledge.explain",
+    "knowledge.explain_reasoning",
     "meta.cycle",
     "security.quarantine_status",
+    "security.anomaly_scan",
+    "security.contamination_pressure",
     "entropy.budget_report",
     "entropy.epoch_status",
     "entropy.court_summary",
     "entropy.template_summary",
     "entropy.renewal_status",
-    "entropy.capture_metrics",
+    "scholarly.status",
+    "bootstrap.status",
+    "cadence.status",
 })
 
 # Actions that mutate state — require at least "normal" mode.
@@ -43,6 +51,7 @@ _MUTATION_ACTIONS = frozenset({
     "maintenance.storage",
     "maintenance.consistency_scan",
     "maintenance.consolidation",
+    "maintenance.temporal",
     "concept.evolve",
     "concept.evolve_scoped",
     "knowledge.curiosity_cycle",
@@ -50,10 +59,16 @@ _MUTATION_ACTIONS = frozenset({
     "knowledge.execute_goal",
     "knowledge.acquire",
     "knowledge.deferred_verify",
+    "knowledge.hypothesis_test",
+    "knowledge.batch_hypothesis",
+    "knowledge.decompose_goal",
+    "knowledge.active_learn",
+    "knowledge.active_learning_cycle",
     "providers.discover",
     "pipeline.tune",
     "trust.decay",
     "trust.calibrate",
+    "security.taint_propagation",
     "security.poison_audit",
     "security.quarantine_review",
     "security.attack_sweep",
@@ -64,7 +79,43 @@ _MUTATION_ACTIONS = frozenset({
     "entropy.graph_compaction",
     "entropy.canonize",
     "entropy.register_state",
+    "entropy.capture_metrics",
+    "scholarly.cycle",
+    "scholarly.activate",
+    "scholarly.record_interest",
+    "memory.record_interaction",
+    "memory.consolidation",
+    "memory.operator_transfer",
+    "bootstrap.start",
+    "bootstrap.cycle",
+    "cadence.set_mode",
+    "sho_improvement_cycle",
+    "federated.import",
+    "federated.export",
+    "federated.sync",
 })
+
+
+def _kernel_emergency_active() -> Optional[str]:
+    """Check whether the governance kernel is in an emergency state.
+
+    Returns a reason string if the kernel kill switch or circuit breaker
+    is active, or None if the kernel is healthy. This bridges the two
+    governance layers so knowledge-side operations respect runtime-side
+    emergencies.
+    """
+    try:
+        from governance.kernel import compute_governance_health
+        health = compute_governance_health()
+        if health.get("kill_switch"):
+            return "kernel_kill_switch"
+        if health.get("circuit_breaker"):
+            return "kernel_circuit_breaker"
+        if health.get("stabilise_mode"):
+            return "kernel_stabilise_mode"
+    except (ImportError, Exception):
+        pass
+    return None
 
 
 def guard_action(action: str) -> Dict[str, Any]:
@@ -72,7 +123,9 @@ def guard_action(action: str) -> Dict[str, Any]:
     Lightweight governance check for a single action.
 
     Reads the current governor state (autonomy mode + lock flag)
-    and returns whether the action is permitted.
+    and consults the governance kernel's emergency state (kill switch,
+    circuit breaker, stabilise mode). Returns whether the action is
+    permitted.
 
     Return contract:
         allowed       – True if the action may proceed
@@ -91,6 +144,17 @@ def guard_action(action: str) -> Dict[str, Any]:
             "requires_approval": True,
             "reason": "system_locked",
         }
+
+    # Bridge: respect kernel-level emergencies for mutation actions
+    if action not in _READ_ONLY_ACTIONS:
+        kernel_reason = _kernel_emergency_active()
+        if kernel_reason:
+            return {
+                "allowed": False,
+                "mode": mode,
+                "requires_approval": True,
+                "reason": kernel_reason,
+            }
 
     if action in _READ_ONLY_ACTIONS:
         return {"allowed": True, "mode": mode, "requires_approval": False}
@@ -129,10 +193,11 @@ def set_autonomy_mode(mode: str) -> Dict[str, Any]:
     """Module-level autonomy mode setter. Valid modes: strict, normal, permissive."""
     if mode not in ("strict", "normal", "permissive"):
         return {"changed": False, "reason": f"invalid_mode:{mode}"}
-    state = load_state()
-    old = state.get("autonomy_mode", "strict")
-    state["autonomy_mode"] = mode
-    save_state(state)
+    with _state_file_lock:
+        state = load_state()
+        old = state.get("autonomy_mode", "strict")
+        state["autonomy_mode"] = mode
+        save_state(state)
     try:
         from runtime.notification_hooks import notify_autonomy_mode_changed
         notify_autonomy_mode_changed(mode)
@@ -183,6 +248,7 @@ class AutonomyGovernor:
     """
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self._state = load_state()
 
     def refresh_state(self) -> None:
@@ -194,20 +260,26 @@ class AutonomyGovernor:
     def set_autonomy_mode(self, mode: str) -> None:
         if mode not in ("strict", "normal", "permissive"):
             return
-        self._state["autonomy_mode"] = mode
-        save_state(self._state)
+        with self._lock:
+            with _state_file_lock:
+                self._state["autonomy_mode"] = mode
+                save_state(self._state)
         notify_autonomy_mode_changed(mode)
         log_event("autonomy_mode", f"Autonomy mode changed to {mode}")
 
     def lock(self) -> None:
-        self._state["locked"] = True
-        save_state(self._state)
+        with self._lock:
+            with _state_file_lock:
+                self._state["locked"] = True
+                save_state(self._state)
         notify_system_locked()
         log_event("lock", "System locked")
 
     def unlock(self) -> None:
-        self._state["locked"] = False
-        save_state(self._state)
+        with self._lock:
+            with _state_file_lock:
+                self._state["locked"] = False
+                save_state(self._state)
         notify_system_unlocked()
         log_event("lock", "System unlocked")
 
@@ -232,6 +304,18 @@ class AutonomyGovernor:
         - updated governor state
         """
 
+        with self._lock:
+            return self._decide_for_cycle_locked(
+                cycle_id, drift, diagnostics, stability, patch_history)
+
+    def _decide_for_cycle_locked(
+        self,
+        cycle_id: str,
+        drift: Dict[str, Any],
+        diagnostics: Dict[str, Any],
+        stability: Dict[str, Any],
+        patch_history: Dict[str, Any],
+    ) -> Dict[str, Any]:
         self.refresh_state()
 
         self._state["drift"] = {
@@ -239,7 +323,7 @@ class AutonomyGovernor:
             "score": drift.get("score", 0.0),
         }
         self._state["stability"] = {
-            "score": stability.get("score", 1.0),
+            "score": stability.get("stability_score", stability.get("score", 1.0)),
             "risk": stability.get("risk", "none"),
         }
 
@@ -309,6 +393,7 @@ class AutonomyGovernor:
             allowed_tier = min(allowed_tier, 2)
 
         self._state["current_tier"] = allowed_tier
+        save_state(self._state)
 
         proposal_id: Optional[str] = None
         should_generate_proposal = False
@@ -327,8 +412,7 @@ class AutonomyGovernor:
             )
             proposal_id = proposal["id"]
             planned_actions = proposal.get("planned_actions", [])
-
-        save_state(self._state)
+            self._state = load_state()
 
         log_event(
             "governor_decision",
@@ -434,14 +518,14 @@ class AutonomyGovernor:
         # Now generate real planned_actions and persist them
         proposal["planned_actions"] = generate_actions_for_proposal(proposal)
 
-        # Persist updated proposal with actions back into state
-        state = load_state()
-        pending = state.get("proposals", {}).get("pending", [])
-        for p in pending:
-            if p["id"] == proposal["id"]:
-                p["planned_actions"] = proposal["planned_actions"]
-                break
-        save_state(state)
+        from governor.proposal_manager import load_proposals, save_proposals
+        with _state_file_lock:
+            all_proposals = load_proposals()
+            for p in all_proposals:
+                if isinstance(p, dict) and p.get("id") == proposal["id"]:
+                    p["planned_actions"] = proposal["planned_actions"]
+                    break
+            save_proposals(all_proposals)
 
         log_event(
             "proposal_created",

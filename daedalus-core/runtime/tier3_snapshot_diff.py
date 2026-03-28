@@ -12,6 +12,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 _DIFF_LOG: List[Dict[str, Any]] = []
+_MAX_LOG = 200
 
 
 def get_diff_log(limit: int = 20) -> List[Dict[str, Any]]:
@@ -128,6 +129,8 @@ def diff_snapshots(
         "has_changes": result["has_changes"],
         "timestamp": result["timestamp"],
     })
+    if len(_DIFF_LOG) > _MAX_LOG:
+        _DIFF_LOG[:] = _DIFF_LOG[-_MAX_LOG:]
 
     return result
 
@@ -153,5 +156,7 @@ def diff_snapshot_to_current(snapshot_id: str) -> Dict[str, Any]:
         "has_changes": result["has_changes"],
         "timestamp": result["timestamp"],
     })
+    if len(_DIFF_LOG) > _MAX_LOG:
+        _DIFF_LOG[:] = _DIFF_LOG[-_MAX_LOG:]
 
     return result

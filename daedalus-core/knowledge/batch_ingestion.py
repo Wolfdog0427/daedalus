@@ -24,6 +24,7 @@ _whether_ it runs. Every item reaches full verification eventually.
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Dict, Any, List, Optional
 
@@ -57,6 +58,8 @@ except ImportError:
 # ------------------------------------------------------------
 
 _source_trust: Dict[str, float] = {}
+_source_trust_lock = threading.Lock()
+from knowledge._atomic_io import knowledge_file_lock as _knowledge_file_lock
 
 
 def register_source_trust(source: str, trust: float) -> bool:
@@ -74,16 +77,19 @@ def register_source_trust(source: str, trust: float) -> bool:
         modifier = integrity.get("trust_modifier", 0.0)
         trust = max(0.0, min(1.0, trust + modifier))
 
-    _source_trust[source] = trust
+    with _source_trust_lock:
+        _source_trust[source] = trust
     return True
 
 
 def get_source_trust(source: str) -> Optional[float]:
-    return _source_trust.get(source)
+    with _source_trust_lock:
+        return _source_trust.get(source)
 
 
 def clear_source_trust() -> None:
-    _source_trust.clear()
+    with _source_trust_lock:
+        _source_trust.clear()
 
 
 # ------------------------------------------------------------
@@ -177,7 +183,7 @@ def _pre_ingestion_consistency_check(text: str, consistency: Optional[float] = N
     try:
         neighbors = search_knowledge(text[:200], limit=neighbor_limit, include_superseded=False)
     except Exception:
-        return {"passed": True, "contradictions": []}
+        return {"passed": False, "contradictions": [], "reason": "search_failed_fail_closed"}
 
     contradictions = []
     for n in neighbors:
@@ -407,7 +413,11 @@ def _record_trust_outcome(source: str, success: bool) -> None:
 
 
 def _update_graph_for_text(text: str, item_id: str, source: str, path: str = "unknown") -> None:
-    """Incremental graph update + provenance recording for a single ingested item."""
+    """Incremental graph update for a single ingested item.
+
+    Provenance recording is handled by _record_provenance_mandatory
+    in the main ingest_batch flow — not duplicated here.
+    """
     try:
         update_graph_from_item({
             "id": item_id,
@@ -417,16 +427,6 @@ def _update_graph_for_text(text: str, item_id: str, source: str, path: str = "un
         })
     except Exception:
         pass
-
-    if _INTEGRITY_AVAILABLE:
-        try:
-            record_provenance(
-                item_id=item_id,
-                source=source,
-                verification_path=path,
-            )
-        except Exception:
-            pass
 
 
 # ------------------------------------------------------------
@@ -464,11 +464,20 @@ def verify_deferred_items(limit: int | None = None) -> Dict[str, Any]:
         text = item.get("text", "")
         source = item.get("source", "unknown")
         item_id = item.get("id", "")
-        verification = verify_new_information(text, source=source)
+        try:
+            verification = verify_new_information(text, source=source)
+        except Exception:
+            results["flagged"] += 1
+            _update_item_verification_status(item_id, "flagged")
+            continue
 
-        if verification.get("action") in ("accept_new", "replace_existing"):
+        action = verification.get("action")
+        if action in ("accept_new", "replace_existing"):
             results["verified"] += 1
             _update_item_verification_status(item_id, "verified")
+        elif action == "reject":
+            results["flagged"] += 1
+            _update_item_verification_status(item_id, "flagged")
         else:
             results["flagged"] += 1
             _update_item_verification_status(item_id, "flagged")
@@ -480,33 +489,39 @@ def _update_item_verification_status(item_id: str, new_status: str) -> None:
     """
     Update the verification_status in an item's metadata within
     the knowledge store. Scans the JSONL file and rewrites the
-    matching line with the updated metadata.
+    matching line with the updated metadata.  Serialized via
+    ``_knowledge_file_lock`` to prevent concurrent RMW races.
     """
     from knowledge.ingestion import KNOWLEDGE_FILE
     import json
 
-    if not KNOWLEDGE_FILE.exists():
-        return
+    with _knowledge_file_lock:
+        if not KNOWLEDGE_FILE.exists():
+            return
 
-    lines = KNOWLEDGE_FILE.read_text(encoding="utf-8").splitlines()
-    updated = False
+        lines = KNOWLEDGE_FILE.read_text(encoding="utf-8").splitlines()
+        updated = False
 
-    for i, line in enumerate(lines):
-        if not line.strip():
-            continue
-        try:
-            entry = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if entry.get("id") == item_id:
-            meta = entry.get("metadata", {})
-            if meta is None:
-                meta = {}
-            meta["verification_status"] = new_status
-            entry["metadata"] = meta
-            lines[i] = json.dumps(entry, ensure_ascii=False)
-            updated = True
-            break
+        for i, line in enumerate(lines):
+            if not line.strip():
+                continue
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if entry.get("id") == item_id:
+                meta = entry.get("metadata", {})
+                if meta is None:
+                    meta = {}
+                meta["verification_status"] = new_status
+                entry["metadata"] = meta
+                lines[i] = json.dumps(entry, ensure_ascii=False)
+                updated = True
+                break
 
-    if updated:
-        KNOWLEDGE_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        if updated:
+            try:
+                from knowledge._atomic_io import atomic_write_text
+                atomic_write_text(KNOWLEDGE_FILE, "\n".join(lines) + "\n")
+            except ImportError:
+                KNOWLEDGE_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")

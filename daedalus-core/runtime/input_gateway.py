@@ -1,6 +1,5 @@
 import unicodedata
 import re
-import string
 
 # ------------------------------------------------------------
 # HEM imports (Option C deep integration)

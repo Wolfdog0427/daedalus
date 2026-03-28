@@ -294,7 +294,7 @@ def tiered_verification(
         return result
 
     if intensity == "deep":
-        base = verify_new_information(text, source=source, use_web=use_web or True)
+        base = verify_new_information(text, source=source, use_web=True)
         result.update(base)
 
         if _LLM_AVAILABLE and llm_adapter.is_available():

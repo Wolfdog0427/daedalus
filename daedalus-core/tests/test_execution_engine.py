@@ -1,7 +1,7 @@
 import unittest
 
-from runtime.execution import ExecutionEngine
-from runtime.goal_manager import GoalManager
+from runtime.execution.execution import ExecutionEngine
+from runtime.execution.goal_manager import GoalManager
 
 
 class TestExecutionEngine(unittest.TestCase):
@@ -155,7 +155,7 @@ class TestExecutionEngine(unittest.TestCase):
             {"intent": "show_goals", "args": {}},
             self.state
         )
-        self.assertIn("📋 Goals:", out)
+        self.assertIn("Operator Task Goals", out)
 
     # ------------------------------------------------------------
     # UNKNOWN INTENT

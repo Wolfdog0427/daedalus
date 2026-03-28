@@ -29,7 +29,6 @@ from knowledge.knowledge_graph import (
     get_connected_components,
     get_relations_for,
 )
-from knowledge.trust_scoring import compute_trust_score
 from knowledge.retrieval import search_knowledge
 
 
@@ -93,7 +92,7 @@ def predict_missing_links(entity: str, limit: int = 10) -> List[Tuple[str, float
             candidate = edge2["object"]
             if candidate == entity:
                 continue
-            second_hop[candidate] += edge["trust"] * 0.5 + edge2["trust"] * 0.5
+            second_hop[candidate] += edge.get("trust", 0.5) * 0.5 + edge2.get("trust", 0.5) * 0.5
 
     ranked = sorted(second_hop.items(), key=lambda x: x[1], reverse=True)
     return ranked[:limit]

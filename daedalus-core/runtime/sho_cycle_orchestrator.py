@@ -1,4 +1,23 @@
 # runtime/sho_cycle_orchestrator.py
+"""
+Class-based, dependency-injection SHO orchestrator for the runtime layer.
+
+Hierarchy position
+------------------
+This module provides ``SHOCycleOrchestrator``, the class instantiated
+by ``runtime_main.start_runtime()`` and driven by ``RuntimeLoop``.
+It does NOT own the patch engine or state sources — those are injected
+via ``PatchEngineAdapter.bind()``.
+
+Related SHO modules (do NOT confuse):
+  - ``orchestrator.sho_cycle_orchestrator``  — lightweight functional
+    SHO used by ``sho_bootstrap`` and ``scheduler`` (knowledge-layer).
+  - ``knowledge.self_healing_orchestrator`` — full pipeline SHO with
+    sandboxing, scoring, and persistence for nightly / web-triggered
+    improvement cycles.
+  - ``orchestrator.orchestrator`` — planning-only orchestrator
+    (security checks + proposal-to-plan translation).
+"""
 
 from __future__ import annotations
 
@@ -20,20 +39,15 @@ FetchPlanFn = Callable[[str], Dict[str, Any]]
 
 
 class SHOCycleOrchestrator:
-    """
-    Orchestrates a single SHO improvement cycle.
-
-    It does NOT own the patch engine or state sources.
-    Instead, it accepts callables so you can plug in your
-    existing patch flow and state retrieval safely.
+    """Orchestrates a single SHO improvement cycle via dependency injection.
 
     Flow:
     - Build pre-metrics from current drift/stability/diagnostics
     - Ask governor for decision (which may create a proposal)
     - Optionally apply patch via injected apply_patch_fn
     - Optionally fetch post state via injected fetch_post_state_fn
-    - Optionally log delta accuracy via injected plan fetch (through proposal_id)
-    - Update SystemHealth (drift, stability, autonomy, reliability, etc.)
+    - Optionally log delta accuracy via injected plan fetch
+    - Update SystemHealth (drift, stability, autonomy, reliability)
     """
 
     def __init__(

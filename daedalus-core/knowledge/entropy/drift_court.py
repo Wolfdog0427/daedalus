@@ -28,10 +28,23 @@ from typing import Dict, Any, List, Optional
 COURT_DIR = Path("data/entropy/drift_court")
 DEVIATION_LOG = COURT_DIR / "deviations.jsonl"
 VERDICT_LOG = COURT_DIR / "verdicts.jsonl"
+_MAX_LOG_ENTRIES = 5000
 
 
 def _ensure_dir():
     COURT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _rotate_log(path: Path) -> None:
+    """Keep only the most recent _MAX_LOG_ENTRIES lines in an append-only JSONL."""
+    if not path.exists():
+        return
+    try:
+        lines = path.read_text(encoding="utf-8").strip().split("\n")
+        if len(lines) > _MAX_LOG_ENTRIES:
+            path.write_text("\n".join(lines[-_MAX_LOG_ENTRIES:]) + "\n", encoding="utf-8")
+    except Exception:
+        pass
 
 
 # ------------------------------------------------------------------
@@ -69,6 +82,7 @@ def log_deviation(deviation: Dict[str, Any]) -> str:
 
     with open(DEVIATION_LOG, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
+    _rotate_log(DEVIATION_LOG)
 
     return dev_id
 
@@ -126,8 +140,8 @@ def classify_deviation(deviation: Dict[str, Any]) -> str:
     - Negative impact → remove (schedule for pruning)
     - High frequency + neutral/unknown → expire (wait for more data)
     """
-    freq = deviation.get("frequency", 0.0)
-    impact = deviation.get("impact", "unknown")
+    freq = deviation.get("frequency") or 0.0
+    impact = deviation.get("impact") or "unknown"
 
     if impact == "negative":
         return "remove"
@@ -199,6 +213,7 @@ def run_drift_court(deviations: Optional[List[Dict[str, Any]]] = None) -> Dict[s
         with open(VERDICT_LOG, "a", encoding="utf-8") as f:
             f.write(json.dumps(verdict_entry) + "\n")
 
+    _rotate_log(VERDICT_LOG)
     return report
 
 
@@ -229,7 +244,7 @@ def _submit_canonization_proposal(deviation: Dict[str, Any]) -> Dict[str, Any]:
             },
             proposal_summary=(
                 f"Drift Court recommends canonizing '{deviation.get('name')}' — "
-                f"frequency {deviation.get('frequency', 0):.0%}, impact: {deviation.get('impact')}. "
+                f"frequency {(deviation.get('frequency') or 0):.0%}, impact: {deviation.get('impact')}. "
                 f"Requires operator approval to modify canonical template."
             ),
             justification=[

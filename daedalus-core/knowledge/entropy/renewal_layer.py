@@ -20,6 +20,7 @@ while preserving everything the system has learned.
 
 from __future__ import annotations
 
+import threading
 import time
 import shutil
 from pathlib import Path
@@ -32,6 +33,7 @@ from knowledge.entropy.canonical_template import (
 
 RENEWAL_DIR = Path("data/entropy/renewal")
 _migration_hooks: Dict[str, Callable] = {}
+_hooks_lock = threading.Lock()
 
 
 def _ensure_dir():
@@ -40,7 +42,8 @@ def _ensure_dir():
 
 def register_migration_hook(name: str, fn: Callable) -> None:
     """Register a named migration callable (replaces dangerous exec() of hook files)."""
-    _migration_hooks[name] = fn
+    with _hooks_lock:
+        _migration_hooks[name] = fn
 
 
 def _ttl_seconds(tier_config: Dict[str, Any]) -> Optional[float]:
@@ -95,7 +98,10 @@ def scan_for_expired(root: Path = Path("data")) -> List[Dict[str, Any]]:
             continue
 
         if _is_expired(item, ttl):
-            age_hours = (time.time() - item.stat().st_mtime) / 3600
+            try:
+                age_hours = (time.time() - item.stat().st_mtime) / 3600
+            except OSError:
+                continue
             candidates.append({
                 "path": str(item),
                 "relative": rel,
@@ -138,7 +144,8 @@ def _prune_item(item: Dict[str, Any]) -> Dict[str, Any]:
         elif action == "archive":
             archive_dir = Path("data/entropy/archives")
             archive_dir.mkdir(parents=True, exist_ok=True)
-            dest = archive_dir / path.name
+            safe_prefix = path.parent.name.replace("..", "_").replace("/", "_").replace("\\", "_")
+            dest = archive_dir / f"{safe_prefix}_{path.name}"
             if path.is_dir():
                 shutil.copytree(path, dest, dirs_exist_ok=True)
                 shutil.rmtree(path, ignore_errors=True)
@@ -184,7 +191,9 @@ def run_renewal(dry_run: bool = False) -> Dict[str, Any]:
             if result.get("status") == "error":
                 report["errors"].append(result)
 
-        for hook_name, hook_fn in _migration_hooks.items():
+        with _hooks_lock:
+            hooks_snapshot = dict(_migration_hooks)
+        for hook_name, hook_fn in hooks_snapshot.items():
             try:
                 hook_fn()
                 report["hooks_run"].append({"hook": hook_name, "status": "ok"})
@@ -211,8 +220,10 @@ def get_renewal_status() -> Dict[str, Any]:
     by_tier: Dict[str, int] = {}
     for c in candidates:
         by_tier[c["tier"]] = by_tier.get(c["tier"], 0) + 1
+    with _hooks_lock:
+        hook_names = list(_migration_hooks.keys())
     return {
         "pending_prunes": len(candidates),
         "by_tier": by_tier,
-        "hooks_registered": list(_migration_hooks.keys()),
+        "hooks_registered": hook_names,
     }

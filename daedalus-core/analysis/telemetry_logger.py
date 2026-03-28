@@ -1,5 +1,7 @@
 from typing import Dict, Any, List
 
+_MAX_RECORDS = 500
+
 
 class TelemetryLogger:
     """
@@ -11,6 +13,8 @@ class TelemetryLogger:
 
     def log(self, record: Dict[str, Any]) -> None:
         self.records.append(record)
+        if len(self.records) > _MAX_RECORDS:
+            self.records = self.records[-_MAX_RECORDS:]
 
 
 _default = TelemetryLogger()

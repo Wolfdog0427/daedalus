@@ -61,16 +61,35 @@ class WebClient:
                 url,
                 timeout=self.policy.request_timeout_sec,
                 headers={"User-Agent": self.policy.user_agent},
+                stream=True,
+                allow_redirects=False,
             )
         except Exception as e:
             raise WebClientError(f"Request failed: {e}") from e
 
         elapsed = time.time() - start
 
+        if resp.is_redirect:
+            resp.close()
+            raise WebClientError(f"Redirect not followed (security): {resp.headers.get('Location', '?')}")
+
         if not resp.ok:
+            resp.close()
             raise WebClientError(f"HTTP {resp.status_code} for {url}")
 
-        raw = resp.content[: self.policy.max_content_bytes]
+        chunks = []
+        total = 0
+        cap = self.policy.max_content_bytes
+        try:
+            for chunk in resp.iter_content(chunk_size=8192):
+                chunks.append(chunk)
+                total += len(chunk)
+                if total >= cap:
+                    break
+        finally:
+            resp.close()
+
+        raw = b"".join(chunks)[:cap]
         text = raw.decode(resp.encoding or "utf-8", errors="replace")
 
         return {

@@ -79,7 +79,7 @@ def detect_blind_spot_gaps(self_model: Dict[str, Any]) -> List[Dict[str, Any]]:
     gaps = []
     for spot in blind_spots[:20]:
         info = get_entity_info(spot)
-        occurrences = info["occurrences"] if info else 0
+        occurrences = info.get("occurrences", 0) if info else 0
         gaps.append({
             "type": "blind_spot",
             "topic": spot,
@@ -103,8 +103,7 @@ def detect_shallow_cluster_gaps() -> List[Dict[str, Any]]:
         if 1 < len(comp) < MIN_CLUSTER_DEPTH:
             representative = comp[0]
             summary = cluster_summary(representative)
-            top_rels = summary.get("top_relations", [])
-            domain_hint = top_rels[0][0] if top_rels else representative
+            domain_hint = representative
 
             gaps.append({
                 "type": "shallow_cluster",

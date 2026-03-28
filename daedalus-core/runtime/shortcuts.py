@@ -1,5 +1,6 @@
 # runtime/shortcuts.py
 
+import copy
 import re
 from typing import Optional, Dict, Any, Callable
 
@@ -83,7 +84,7 @@ def resolve_shortcut(raw_text: str) -> Optional[Dict[str, Any]]:
         if callable(result):
             return result(m)
 
-        # Static mapping
-        return result
+        # Static mapping — return a copy to prevent caller mutations
+        return copy.deepcopy(result)
 
     return None

@@ -53,6 +53,9 @@ def update_delta_weights() -> Dict[str, Any]:
     stab_mae = acc.get("stability_mae")
     risk_match = acc.get("risk_match_rate")
 
+    _WEIGHT_MIN = 0.01
+    _WEIGHT_MAX = 100.0
+
     if drift_mae is not None:
         if drift_mae > 0.2:
             weights["drift_weight"] *= 0.9
@@ -70,6 +73,9 @@ def update_delta_weights() -> Dict[str, Any]:
             weights["risk_weight"] *= 1.05
         elif risk_match < 0.5:
             weights["risk_weight"] *= 0.9
+
+    for key in ("drift_weight", "stability_weight", "risk_weight"):
+        weights[key] = max(_WEIGHT_MIN, min(_WEIGHT_MAX, weights[key]))
 
     save_delta_weights(weights)
     return weights

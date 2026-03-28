@@ -26,7 +26,6 @@ from dataclasses import dataclass, asdict
 from typing import Optional, Dict, Any
 import hashlib
 import json
-import os
 import time
 from pathlib import Path
 
@@ -85,7 +84,7 @@ def ingest_text(
         The ID of the created KnowledgeItem.
     """
     if not text.strip():
-        return "❗ Cannot ingest empty text."
+        raise ValueError("Cannot ingest empty text.")
 
     _ensure_storage()
 
@@ -104,8 +103,21 @@ def ingest_text(
         metadata=meta,
     )
 
-    with KNOWLEDGE_FILE.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(asdict(item), ensure_ascii=False) + "\n")
+    from knowledge._atomic_io import knowledge_file_lock
+    with knowledge_file_lock:
+        if KNOWLEDGE_FILE.exists():
+            for raw_line in KNOWLEDGE_FILE.open("r", encoding="utf-8"):
+                raw_line = raw_line.strip()
+                if not raw_line:
+                    continue
+                try:
+                    existing = json.loads(raw_line)
+                except json.JSONDecodeError:
+                    continue
+                if existing.get("id") == item_id:
+                    return item_id
+        with KNOWLEDGE_FILE.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(asdict(item), ensure_ascii=False) + "\n")
 
     return item_id
 
@@ -115,16 +127,19 @@ def ingest_url(url: str, metadata: Optional[Dict[str, Any]] = None) -> str:
     Fetches a URL via the Web Access Layer and ingests its text content.
 
     Returns:
-        The ID of the created KnowledgeItem, or an error string.
+        The ID of the created KnowledgeItem.
+
+    Raises:
+        ValueError: If the URL fetch fails or yields no text content.
     """
     try:
         doc = fetch_url(url)
     except Exception as e:
-        return f"❗ URL fetch failed during ingestion: {e}"
+        raise ValueError(f"URL fetch failed during ingestion: {e}") from e
 
     text = doc.get("text", "")
     if not text.strip():
-        return "❗ Fetched URL has no text content to ingest."
+        raise ValueError("Fetched URL has no text content to ingest.")
 
     meta = metadata or {}
     meta.update(

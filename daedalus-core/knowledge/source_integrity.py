@@ -37,10 +37,11 @@ from __future__ import annotations
 
 import re
 import hashlib
+import threading
 import time
 from typing import Dict, Any, List, Optional, Set
 from urllib.parse import urlparse
-from collections import Counter
+from collections import Counter, deque
 
 # Cross-system integrations (defensive imports)
 try:
@@ -75,8 +76,8 @@ HOMOGLYPH_MAP: Dict[str, List[str]] = {
     "a": ["\u0430", "\u00e0", "\u00e1", "\u0101"],  # Cyrillic а, accented
     "e": ["\u0435", "\u00e8", "\u00e9", "\u0113"],
     "o": ["\u043e", "\u00f2", "\u00f3", "\u014d", "\u0030"],  # zero
-    "i": ["\u0456", "\u00ec", "\u00ed", "\u012b", "\u006c", "\u0031"],  # l, 1
-    "l": ["\u006c", "\u0031", "\u007c", "\u0049"],  # 1, |, I
+    "i": ["\u0456", "\u00ec", "\u00ed", "\u012b"],
+    "l": ["\u0031", "\u007c", "\u0049"],
     "c": ["\u0441", "\u00e7"],
     "p": ["\u0440"],
     "s": ["\u0455"],
@@ -258,9 +259,10 @@ def _detect_domain_impersonation(host: str) -> Optional[str]:
         # Levenshtein-like: trusted domain minus one char
         trusted_base = trusted.split(".")[0]
         host_base = host.split(".")[0]
+        threshold = max(len(trusted_base) - 1, int(len(trusted_base) * 0.75))
         if len(host_base) >= len(trusted_base) - 1:
             common = sum(1 for a, b in zip(trusted_base, host_base) if a == b)
-            if common >= len(trusted_base) - 2 and host != trusted:
+            if common >= threshold and host != trusted:
                 if host_base != trusted_base:
                     return trusted
 
@@ -433,7 +435,7 @@ def _has_internal_contradiction(text: str) -> bool:
         for j in range(i + 1, min(i + 3, len(sentences))):
             words_i = set(sentences[i].lower().split())
             words_j = set(sentences[j].lower().split())
-            overlap = words_i & words_j - {"the", "a", "an", "is", "are", "was", "were"}
+            overlap = (words_i & words_j) - {"the", "a", "an", "is", "are", "was", "were"}
             if len(overlap) > 3:
                 neg_i = bool(words_i & negation_words)
                 neg_j = bool(words_j & negation_words)
@@ -446,7 +448,8 @@ def _has_internal_contradiction(text: str) -> bool:
 # SOURCE PROVENANCE CHAIN
 # ------------------------------------------------------------
 
-_provenance_log: List[Dict[str, Any]] = []
+_provenance_log: deque = deque(maxlen=50000)
+_provenance_lock = threading.Lock()
 
 
 def record_provenance(
@@ -476,15 +479,16 @@ def record_provenance(
     if content_report and content_report.get("blocked"):
         entry["blocked"] = True
 
-    _provenance_log.append(entry)
-    if len(_provenance_log) > 50000:
-        _provenance_log.pop(0)
+    with _provenance_lock:
+        _provenance_log.append(entry)
 
     return entry
 
 
 def get_provenance(item_id: str) -> Optional[Dict[str, Any]]:
-    for entry in reversed(_provenance_log):
+    with _provenance_lock:
+        snapshot = list(_provenance_log)
+    for entry in reversed(snapshot):
         if entry["item_id"] == item_id:
             return entry
     return None
@@ -504,19 +508,20 @@ def get_recent_threats(limit: int = 20) -> List[Dict[str, Any]]:
 # ATTACK WINDOW TRACKING & POST-ATTACK SWEEP (F9)
 # ------------------------------------------------------------
 
-_attack_windows: List[Dict[str, Any]] = []
+_attack_windows: deque = deque(maxlen=2000)
+_attack_lock = threading.Lock()
 
 
 def record_attack_event(source: str, threat_level: str, timestamp: Optional[float] = None) -> None:
     """Record that an attack was detected from a source at a given time."""
-    _attack_windows.append({
-        "source": source,
-        "threat_level": threat_level,
-        "detected_at": timestamp or time.time(),
-        "swept": False,
-    })
-    if len(_attack_windows) > 2000:
-        _attack_windows.pop(0)
+    with _attack_lock:
+        _attack_windows.append({
+            "source": source,
+            "threat_level": threat_level,
+            "detected_at": timestamp or time.time(),
+            "swept": False,
+        })
+    # deque(maxlen=2000) handles eviction automatically
 
 
 def sweep_attack_window(
@@ -650,8 +655,9 @@ def run_delayed_poison_audit(
         seen_ids.add(item_id)
 
     # Priority 3: Most recent items (last 20% of provenance)
+    from itertools import islice
     recency_start = max(0, len(_provenance_log) - len(_provenance_log) // 5)
-    for entry in _provenance_log[recency_start:]:
+    for entry in islice(_provenance_log, recency_start, None):
         if len(sample) >= budget:
             break
         item_id = entry.get("item_id", "")
@@ -783,21 +789,21 @@ def validate_source(source: str, text: str) -> Dict[str, Any]:
 # QUARANTINE SYSTEM (P4)
 # ------------------------------------------------------------
 
-_quarantine_queue: List[Dict[str, Any]] = []
+_quarantine_queue: deque = deque(maxlen=5000)
+_quarantine_lock = threading.Lock()
 
 
 def quarantine_item(item_id: str, source: str, text: str, reason: str) -> None:
     """Place an item in quarantine for deeper verification."""
-    _quarantine_queue.append({
-        "item_id": item_id,
-        "source": source,
-        "text_preview": text[:200],
-        "reason": reason,
-        "quarantined_at": time.time(),
-        "status": "pending",
-    })
-    if len(_quarantine_queue) > 5000:
-        _quarantine_queue.pop(0)
+    with _quarantine_lock:
+        _quarantine_queue.append({
+            "item_id": item_id,
+            "source": source,
+            "text_preview": text[:200],
+            "reason": reason,
+            "quarantined_at": time.time(),
+            "status": "pending",
+        })
 
 
 def review_quarantine(
@@ -825,7 +831,7 @@ def review_quarantine(
         reviewed += 1
         age_hours = (now - entry["quarantined_at"]) / 3600
 
-        # Auto-flag items sitting in quarantine > 48h
+        # Auto-flag items sitting in quarantine > 48 hours
         if age_hours > 48:
             entry["status"] = "auto_flagged"
             auto_flagged += 1
@@ -885,6 +891,7 @@ def get_quarantine_status() -> Dict[str, Any]:
 # ------------------------------------------------------------
 
 _corroboration_map: Dict[str, Dict[str, Any]] = {}
+_corroboration_lock = threading.Lock()
 
 
 def record_corroboration(item_id: str) -> None:
@@ -892,14 +899,15 @@ def record_corroboration(item_id: str) -> None:
     new ingested data (e.g., a new item references or confirms it).
     Legitimate items naturally accumulate corroborations over time;
     contaminated items tend to remain isolated."""
-    if item_id in _corroboration_map:
-        _corroboration_map[item_id]["count"] += 1
-        _corroboration_map[item_id]["last_corroborated"] = time.time()
-    else:
-        _corroboration_map[item_id] = {
-            "count": 1,
-            "last_corroborated": time.time(),
-        }
+    with _corroboration_lock:
+        if item_id in _corroboration_map:
+            _corroboration_map[item_id]["count"] += 1
+            _corroboration_map[item_id]["last_corroborated"] = time.time()
+        else:
+            _corroboration_map[item_id] = {
+                "count": 1,
+                "last_corroborated": time.time(),
+            }
 
 
 def get_uncorroborated_items(min_age: float = 86400 * 30) -> List[Dict[str, Any]]:

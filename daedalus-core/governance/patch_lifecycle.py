@@ -9,12 +9,15 @@ No patch is applied without kernel approval.
 
 from __future__ import annotations
 
+import itertools
+import threading
 import time
 from typing import Any, Dict, List, Optional
 
 _PATCHES: List[Dict[str, Any]] = []
 _MAX_PATCHES = 100
-_patch_counter: int = 0
+_patch_counter = itertools.count(1)
+_patch_lock = threading.Lock()
 
 
 def create_patch(
@@ -24,9 +27,7 @@ def create_patch(
     payload: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """Create a new patch in draft status."""
-    global _patch_counter
-    _patch_counter += 1
-    pid = f"PATCH-{_patch_counter:04d}"
+    pid = f"PATCH-{next(_patch_counter):04d}"
 
     patch = {
         "patch_id": pid,
@@ -40,9 +41,10 @@ def create_patch(
         "rolled_back_at": None,
         "rollback_snapshot": None,
     }
-    _PATCHES.append(patch)
-    if len(_PATCHES) > _MAX_PATCHES:
-        _PATCHES[:] = _PATCHES[-_MAX_PATCHES:]
+    with _patch_lock:
+        _PATCHES.append(patch)
+        if len(_PATCHES) > _MAX_PATCHES:
+            _PATCHES[:] = _PATCHES[-_MAX_PATCHES:]
 
     try:
         from governance.audit_log import log_event
@@ -50,11 +52,11 @@ def create_patch(
     except Exception:
         pass
 
-    return patch
+    return dict(patch)
 
 
-def validate_patch(patch_id: str) -> Dict[str, Any]:
-    """Validate a patch against the governance kernel."""
+def _validate_patch_unlocked(patch_id: str) -> Dict[str, Any]:
+    """Validate a patch against the governance kernel (caller must hold _patch_lock)."""
     patch = _find_patch(patch_id)
     if patch is None:
         return {"valid": False, "reason": f"patch '{patch_id}' not found"}
@@ -75,33 +77,40 @@ def validate_patch(patch_id: str) -> Dict[str, Any]:
             "risk_score": verdict.get("risk_score", 0),
             "needs_approval": verdict.get("needs_approval", False),
         }
-    except Exception:
-        return {"valid": True, "reason": "kernel unavailable — passthrough"}
+    except Exception as exc:
+        return {"valid": False, "reason": f"kernel unavailable — blocked (fail closed): {exc}"}
+
+
+def validate_patch(patch_id: str) -> Dict[str, Any]:
+    """Validate a patch against the governance kernel."""
+    with _patch_lock:
+        return _validate_patch_unlocked(patch_id)
 
 
 def apply_patch(patch_id: str, operator_approved: bool = False) -> Dict[str, Any]:
     """Apply a patch.  Requires validation and approval."""
-    patch = _find_patch(patch_id)
-    if patch is None:
-        return {"success": False, "reason": f"patch '{patch_id}' not found"}
+    with _patch_lock:
+        patch = _find_patch(patch_id)
+        if patch is None:
+            return {"success": False, "reason": f"patch '{patch_id}' not found"}
 
-    if patch["status"] not in ("draft", "approved"):
-        return {"success": False, "reason": f"patch in '{patch['status']}' state"}
+        if patch["status"] not in ("draft", "approved"):
+            return {"success": False, "reason": f"patch in '{patch['status']}' state"}
 
-    validation = validate_patch(patch_id)
-    if not validation.get("valid"):
-        patch["status"] = "rejected"
-        return {"success": False, "reason": validation.get("reason", "validation failed")}
+        validation = _validate_patch_unlocked(patch_id)
+        if not validation.get("valid"):
+            patch["status"] = "rejected"
+            return {"success": False, "reason": validation.get("reason", "validation failed")}
 
-    if validation.get("needs_approval") and not operator_approved:
-        patch["status"] = "pending_approval"
-        return {"success": False, "reason": "operator approval required",
-                "status": "pending_approval"}
+        if validation.get("needs_approval") and not operator_approved:
+            patch["status"] = "pending_approval"
+            return {"success": False, "reason": "operator approval required",
+                    "status": "pending_approval"}
 
-    patch["rollback_snapshot"] = {"applied_at": time.time(),
-                                   "previous_status": patch["status"]}
-    patch["status"] = "applied"
-    patch["applied_at"] = time.time()
+        patch["rollback_snapshot"] = {"applied_at": time.time(),
+                                       "previous_status": patch["status"]}
+        patch["status"] = "applied"
+        patch["applied_at"] = time.time()
 
     try:
         from governance.audit_log import log_event
@@ -112,17 +121,36 @@ def apply_patch(patch_id: str, operator_approved: bool = False) -> Dict[str, Any
     return {"success": True, "patch_id": patch_id, "status": "applied"}
 
 
+def approve_patch(patch_id: str, reason: str = "operator") -> Dict[str, Any]:
+    """Operator approves a pending patch, enabling it to be applied."""
+    with _patch_lock:
+        patch = _find_patch(patch_id)
+        if patch is None:
+            return {"success": False, "reason": f"patch '{patch_id}' not found"}
+        if patch["status"] != "pending_approval":
+            return {"success": False,
+                    "reason": f"patch in '{patch['status']}' state, expected 'pending_approval'"}
+        patch["status"] = "approved"
+    try:
+        from governance.audit_log import log_event
+        log_event("patch_approved", {"patch_id": patch_id, "reason": reason})
+    except Exception:
+        pass
+    return {"success": True, "patch_id": patch_id, "status": "approved"}
+
+
 def rollback_patch(patch_id: str, reason: str = "operator") -> Dict[str, Any]:
     """Roll back an applied patch."""
-    patch = _find_patch(patch_id)
-    if patch is None:
-        return {"success": False, "reason": f"patch '{patch_id}' not found"}
+    with _patch_lock:
+        patch = _find_patch(patch_id)
+        if patch is None:
+            return {"success": False, "reason": f"patch '{patch_id}' not found"}
 
-    if patch["status"] != "applied":
-        return {"success": False, "reason": f"patch not in 'applied' state"}
+        if patch["status"] != "applied":
+            return {"success": False, "reason": f"patch not in 'applied' state"}
 
-    patch["status"] = "rolled_back"
-    patch["rolled_back_at"] = time.time()
+        patch["status"] = "rolled_back"
+        patch["rolled_back_at"] = time.time()
 
     try:
         from governance.audit_log import log_event
@@ -134,13 +162,18 @@ def rollback_patch(patch_id: str, reason: str = "operator") -> Dict[str, Any]:
 
 
 def get_patches(status: str | None = None, limit: int = 20) -> List[Dict[str, Any]]:
-    if status:
-        return [p for p in _PATCHES if p["status"] == status][-limit:]
-    return list(_PATCHES[-limit:])
+    with _patch_lock:
+        if status:
+            return [dict(p) for p in _PATCHES if p["status"] == status][-limit:]
+        return [dict(p) for p in _PATCHES[-limit:]]
 
 
 def get_patch(patch_id: str) -> Optional[Dict[str, Any]]:
-    return _find_patch(patch_id)
+    with _patch_lock:
+        for p in _PATCHES:
+            if p["patch_id"] == patch_id:
+                return dict(p)
+    return None
 
 
 def _find_patch(patch_id: str) -> Optional[Dict[str, Any]]:

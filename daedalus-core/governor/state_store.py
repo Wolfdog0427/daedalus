@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 from typing import Any, Dict, List
 
 from knowledge._atomic_io import atomic_write_json
+
+_state_file_lock = threading.Lock()
 
 STATE_DIR = Path("data")
 STATE_PATH = STATE_DIR / "governor_state.json"
@@ -44,14 +47,25 @@ def load_state() -> Dict[str, Any]:
         data = json.loads(STATE_PATH.read_text(encoding="utf-8"))
     except Exception:
         return _default_state()
+    if not isinstance(data, dict):
+        return _default_state()
     base = _default_state()
     base.update(data)
     proposals = base.get("proposals")
     if not isinstance(proposals, dict):
         base["proposals"] = {"pending": [], "recent_decisions": []}
     else:
-        proposals.setdefault("pending", [])
-        proposals.setdefault("recent_decisions", [])
+        if not isinstance(proposals.get("pending"), list):
+            proposals["pending"] = []
+        if not isinstance(proposals.get("recent_decisions"), list):
+            proposals["recent_decisions"] = []
+    ph = base.get("patch_history")
+    if not isinstance(ph, dict):
+        base["patch_history"] = _default_state()["patch_history"]
+    else:
+        defaults = _default_state()["patch_history"]
+        for k, v in defaults.items():
+            ph.setdefault(k, v)
     return base
 
 

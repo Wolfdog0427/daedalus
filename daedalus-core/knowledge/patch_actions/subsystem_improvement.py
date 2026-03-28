@@ -12,6 +12,15 @@ def _now_iso() -> str:
     return datetime.utcnow().isoformat() + "Z"
 
 
+def _safe_name(name: str) -> str:
+    """Reject path separators and traversal sequences."""
+    sanitized = name.replace("\x00", "")
+    sanitized = sanitized.replace("..", "").replace("/", "_").replace("\\", "_")
+    if not sanitized:
+        raise ValueError(f"Invalid name: {name!r}")
+    return sanitized
+
+
 def sandbox_subsystem_improvement(
     action: Dict[str, Any],
     sandbox_root: str,
@@ -33,6 +42,7 @@ def sandbox_subsystem_improvement(
     subsystem_dir = os.path.join(sandbox_root, "subsystems")
     os.makedirs(subsystem_dir, exist_ok=True)
 
+    target = _safe_name(target)
     note_path = os.path.join(subsystem_dir, f"{target}.sandbox.json")
     payload = {
         "timestamp": _now_iso(),
@@ -72,6 +82,7 @@ def live_subsystem_improvement(
     base_dir = os.path.join("data", "subsystems")
     os.makedirs(base_dir, exist_ok=True)
 
+    target = _safe_name(target)
     config_path = os.path.join(base_dir, f"{target}.json")
 
     if os.path.exists(config_path):

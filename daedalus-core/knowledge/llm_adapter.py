@@ -115,11 +115,14 @@ class LLMAdapter:
     - Route calls to the active provider (operator-selected or auto-selected)
     - Provide higher-level cognitive methods built on raw completion
     - Degrade gracefully when no provider is available
+    - Enforce operator query priority over background (ABP) queries
     """
 
     def __init__(self) -> None:
         self._providers: Dict[str, LLMProvider] = {}
         self._active_name: Optional[str] = None
+        self._operator_query_active: bool = False
+        self._abp_paused: bool = False
 
     # ------------------------------------------------------------
     # Provider Management
@@ -173,6 +176,61 @@ class LLMAdapter:
 
     def is_available(self) -> bool:
         return self.get_active_provider().is_available()
+
+    # ------------------------------------------------------------
+    # Task-Aware Provider Selection (base fallback)
+    # ------------------------------------------------------------
+
+    def select_for_task(self, task_type: str) -> LLMProvider:
+        """Base implementation: no task-aware routing, use active provider."""
+        return self.get_active_provider()
+
+    # ------------------------------------------------------------
+    # Operator Priority
+    # ------------------------------------------------------------
+
+    def begin_operator_query(self) -> None:
+        """Signal that an operator query is in progress (foreground priority)."""
+        self._operator_query_active = True
+        self._abp_paused = True
+
+    def end_operator_query(self) -> None:
+        """Signal that the operator query completed; ABP may resume."""
+        self._operator_query_active = False
+        self._abp_paused = False
+
+    def is_operator_query_active(self) -> bool:
+        return self._operator_query_active
+
+    def is_abp_paused(self) -> bool:
+        """ABP background queries should check this before calling complete()."""
+        return self._abp_paused
+
+    def complete_for_operator(
+        self,
+        prompt: str,
+        system_prompt: str = "",
+        max_tokens: int = 2048,
+        temperature: float = 0.3,
+    ) -> str:
+        """Operator-priority completion: pauses ABP, runs query, resumes."""
+        self.begin_operator_query()
+        try:
+            return self.complete(prompt, system_prompt, max_tokens, temperature)
+        finally:
+            self.end_operator_query()
+
+    def complete_for_abp(
+        self,
+        prompt: str,
+        system_prompt: str = "",
+        max_tokens: int = 2048,
+        temperature: float = 0.3,
+    ) -> str:
+        """Background ABP completion: yields if operator query is active."""
+        if self._abp_paused:
+            return ""
+        return self.complete(prompt, system_prompt, max_tokens, temperature)
 
     # ------------------------------------------------------------
     # Core Completion (routes to active provider)
@@ -237,7 +295,7 @@ class LLMAdapter:
             "Respond with: supported, contradicted, or uncertain, "
             "followed by a brief explanation."
         )
-        raw = self.complete_for_task(prompt, task_type="reasoning",
+        raw = self.complete_for_task(prompt, task_type="general_reasoning",
                                      system_prompt="You are a precise reasoning engine.")
         return {"available": True, "assessment": raw, "claim": claim}
 
@@ -250,7 +308,7 @@ class LLMAdapter:
             f"Extract the key concepts, topics, and domain areas from "
             f"this text. Return one concept per line, no numbering:\n\n{text}"
         )
-        raw = self.complete_for_task(prompt, task_type="extraction",
+        raw = self.complete_for_task(prompt, task_type="knowledge_extraction",
                                      system_prompt="You extract structured knowledge.")
         return [line.strip() for line in raw.strip().split("\n") if line.strip()]
 
@@ -317,7 +375,7 @@ class LLMAdapter:
         )
         raw = self.complete_for_task(
             prompt,
-            task_type="general",
+            task_type="acquisition_planning",
             system_prompt="You create structured knowledge acquisition plans.",
             max_tokens=1024,
         )

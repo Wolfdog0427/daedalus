@@ -46,6 +46,8 @@ _HIGH_RISK_ACTIONS = frozenset({
     "knowledge.curiosity_cycle",
     "knowledge.approve_goal",
     "knowledge.execute_goal",
+    "bootstrap.cycle",
+    "scholarly.cycle",
 })
 
 
@@ -75,8 +77,15 @@ def _severity_guard(action: str) -> Dict[str, Any]:
                     "reason": f"severity_gate:{severity.current_level}",
                     "mode": mode,
                 }
-    except (ImportError, Exception):
+    except ImportError:
         pass
+    except Exception:
+        return {
+            "allowed": False,
+            "requires_approval": True,
+            "reason": "severity_gate_error_fail_closed",
+            "mode": base_guard.get("mode", "strict"),
+        }
 
     return base_guard
 
@@ -100,17 +109,23 @@ def _blocked(action_type: str, guard: Dict[str, Any]) -> Dict[str, Any]:
 # ------------------------------------------------------------
 
 def _safe_exec(action: str, fn, **extra) -> Dict[str, Any]:
-    """Run *fn* inside a governed error boundary."""
+    """Run *fn* inside a governed error boundary.
+
+    On exception the result is ``allowed: True`` (governance passed) but
+    ``success: False`` so callers can distinguish execution failure from
+    governance rejection.
+    """
     try:
         result = fn()
     except Exception as exc:
         return {
             "action": action,
             "allowed": True,
+            "success": False,
             "error": f"{type(exc).__name__}: {exc}",
             **extra,
         }
-    return {"action": action, "allowed": True, "result": result, **extra}
+    return {"action": action, "allowed": True, "success": True, "result": result, **extra}
 
 
 def do_storage_maintenance() -> Dict[str, Any]:
@@ -256,11 +271,20 @@ def do_knowledge_acquisition(
             return {
                 "action": action,
                 "allowed": True,
+                "success": False,
                 "paused": True,
                 "reason": f"defensive_coordinator_level_{coord.current_level}",
             }
-    except (ImportError, Exception):
+    except ImportError:
         pass
+    except Exception:
+        return {
+            "action": action,
+            "allowed": True,
+            "success": False,
+            "paused": True,
+            "reason": "defensive_coordinator_error_fail_closed",
+        }
 
     if not should_acquire_now():
         return {
@@ -299,6 +323,7 @@ def do_knowledge_acquisition(
         return {
             "action": action,
             "allowed": True,
+            "success": True,
             "pace": pace,
             "result": result,
         }
@@ -306,6 +331,7 @@ def do_knowledge_acquisition(
         return {
             "action": action,
             "allowed": True,
+            "success": False,
             "error": f"{type(exc).__name__}: {exc}",
         }
 
@@ -327,7 +353,7 @@ def do_quality_gate(goal_id: str) -> Dict[str, Any]:
 
         goal = load_goal(goal_id)
         if goal is None:
-            return {"action": action, "error": "goal_not_found"}
+            return {"action": action, "allowed": True, "success": False, "error": "goal_not_found"}
 
         gate = run_quality_gate(goal)
 
@@ -346,6 +372,7 @@ def do_quality_gate(goal_id: str) -> Dict[str, Any]:
         return {
             "action": action,
             "allowed": True,
+            "success": True,
             "goal_id": goal_id,
             "result": gate,
         }
@@ -353,6 +380,7 @@ def do_quality_gate(goal_id: str) -> Dict[str, Any]:
         return {
             "action": action,
             "allowed": True,
+            "success": False,
             "goal_id": goal_id,
             "error": f"{type(exc).__name__}: {exc}",
         }
@@ -841,3 +869,444 @@ def do_entropy_register_state(path: str, tier: str) -> Dict[str, Any]:
         return {"action": action, "allowed": True, "result": result}
     except Exception as exc:
         return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# ============================================================
+# CAPABILITY MODULES (Tier 1-4)
+# ============================================================
+
+# --- Module 1: Temporal Reasoning ---
+
+def do_temporal_maintenance() -> Dict[str, Any]:
+    """Run temporal obsolescence sweep. Low-risk maintenance."""
+    action = "maintenance.temporal"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.temporal_reasoning import run_temporal_maintenance
+        result = run_temporal_maintenance()
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# --- Module 3: Hypothesis Testing ---
+
+def do_hypothesis_test(text_a: str, text_b: str) -> Dict[str, Any]:
+    """LLM-powered contradiction resolution. Read-heavy analysis."""
+    action = "knowledge.hypothesis_test"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.hypothesis_tester import resolve_contradiction
+        result = resolve_contradiction(text_a, text_b)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_batch_hypothesis_resolve(contradictions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Batch LLM contradiction resolution. Read-heavy analysis."""
+    action = "knowledge.batch_hypothesis"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.hypothesis_tester import batch_resolve
+        result = batch_resolve(contradictions)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# --- Module 4: Goal Decomposition ---
+
+def do_goal_decomposition(goal_id: str) -> Dict[str, Any]:
+    """Decompose a complex goal into sub-goals. Governed mutation."""
+    action = "knowledge.decompose_goal"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.knowledge_goal import load_goal, save_goal
+        from knowledge.goal_planner import is_complex_goal, decompose_goal
+
+        goal = load_goal(goal_id)
+        if goal is None:
+            return {"action": action, "allowed": True, "error": "goal_not_found"}
+
+        if not is_complex_goal(goal):
+            return {"action": action, "allowed": True, "result": {"decomposed": False,
+                    "reason": "not_complex"}}
+
+        sub_goals = decompose_goal(goal)
+        sub_ids = []
+        for sg in sub_goals:
+            save_goal(sg)
+            sub_ids.append(sg.id)
+
+        goal.metadata["sub_goal_ids"] = sub_ids
+        save_goal(goal)
+
+        return {"action": action, "allowed": True, "result": {
+            "decomposed": True, "sub_goals": len(sub_goals), "sub_goal_ids": sub_ids}}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# --- Module 5: Collaborative Memory ---
+
+def do_record_interaction(
+    operator_id: str, interaction_type: str, details: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Log an operator interaction. Low-risk write."""
+    action = "memory.record_interaction"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.collaborative_memory import record_interaction
+        record_interaction(operator_id, interaction_type, details)
+        return {"action": action, "allowed": True, "result": {"recorded": True}}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_memory_consolidation() -> Dict[str, Any]:
+    """Consolidate short-term interactions into patterns. Maintenance."""
+    action = "memory.consolidation"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.collaborative_memory import run_memory_consolidation
+        result = run_memory_consolidation()
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_operator_transfer(old_operator: str, new_operator: str) -> Dict[str, Any]:
+    """Transfer operator context during transition. Governed mutation."""
+    action = "memory.operator_transfer"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.collaborative_memory import transfer_context
+        result = transfer_context(old_operator, new_operator)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# --- Module 6: RAR Engine ---
+
+def do_rar_query(
+    query: str, operator_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Retrieval-augmented reasoning query. Read-heavy."""
+    action = "knowledge.rar_query"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.rar_engine import reason_with_context
+        result = reason_with_context(query, operator_id=operator_id)
+        return {"action": action, "allowed": True, "result": {
+            "answer": result.answer,
+            "confidence": result.confidence,
+            "sources_cited": len(result.sources_cited),
+            "gaps_detected": result.gaps_detected,
+            "elapsed_ms": result.elapsed_ms,
+        }}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# --- Module 7: Explanation Engine ---
+
+def do_explain(item_id: str) -> Dict[str, Any]:
+    """Explain a knowledge item's provenance and trust. Read-only."""
+    action = "knowledge.explain"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.explanation_engine import explain_belief, format_for_operator
+        explanation = explain_belief(item_id)
+        return {"action": action, "allowed": True, "result": explanation,
+                "formatted": format_for_operator(explanation)}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_explain_reasoning(query: str) -> Dict[str, Any]:
+    """Explain the reasoning behind a query answer. Read-only."""
+    action = "knowledge.explain_reasoning"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.rar_engine import reason
+        from knowledge.explanation_engine import explain_reasoning, format_for_operator
+        rar_result = reason(query)
+        explanation = explain_reasoning(rar_result)
+        return {"action": action, "allowed": True, "result": explanation,
+                "formatted": format_for_operator(explanation)}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# --- Module 8: Active Learning ---
+
+def do_active_learn(query: str, gap: Dict[str, Any]) -> Dict[str, Any]:
+    """Fill a knowledge gap via active learning. Governed ingestion."""
+    action = "knowledge.active_learn"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.active_learner import learn_and_continue
+        result = learn_and_continue(gap, query)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_active_learning_cycle(recent_gaps: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Batch active learning cycle. Governed ingestion."""
+    action = "knowledge.active_learning_cycle"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.active_learner import run_active_learning_cycle
+        result = run_active_learning_cycle(recent_gaps)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# --- Module 9: Federated Exchange ---
+
+def do_federated_import(
+    items: List[Dict[str, Any]], peer_id: str,
+    signature: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Import knowledge from a peer instance. High-risk governed."""
+    action = "federated.import"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.federated_exchange import import_items
+        result = import_items(items, peer_id, signature=signature)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_federated_export(
+    filter_query: Optional[str] = None, min_trust: float = 0.7,
+) -> Dict[str, Any]:
+    """Export verified knowledge for peer sharing. Read-heavy."""
+    action = "federated.export"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.federated_exchange import export_items
+        items = export_items(filter_query=filter_query, min_trust=min_trust)
+        return {"action": action, "allowed": True, "result": {
+            "items_exported": len(items), "items": items}}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_federated_sync(
+    peer_id: str,
+    outgoing: Optional[List[Dict[str, Any]]] = None,
+    incoming: Optional[List[Dict[str, Any]]] = None,
+    incoming_signature: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Bidirectional sync with a peer. High-risk governed."""
+    action = "federated.sync"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.federated_exchange import sync_protocol
+        result = sync_protocol(peer_id, outgoing, incoming, incoming_signature=incoming_signature)
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# ============================================================
+# BOOTSTRAP PROTOCOL (ABP)
+# ============================================================
+
+def do_start_bootstrap() -> Dict[str, Any]:
+    """Start the Accelerated Bootstrap Protocol. Governed mutation."""
+    action = "bootstrap.start"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.bootstrap_protocol import start_bootstrap
+        result = start_bootstrap()
+        return {"action": action, "allowed": True, "result": result}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_bootstrap_status() -> Dict[str, Any]:
+    """Get ABP status. Read-only."""
+    action = "bootstrap.status"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.bootstrap_protocol import bootstrap_status
+        return {"action": action, "allowed": True, "result": bootstrap_status()}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_bootstrap_cycle() -> Dict[str, Any]:
+    """
+    Run one ABP learning cycle: get next targets, query LLM, ingest.
+    Severity-gated: suppressed during stressed periods.
+    """
+    action = "bootstrap.cycle"
+    guard = _severity_guard(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.bootstrap_protocol import get_bootstrap, is_abp_active
+        if not is_abp_active():
+            return {"action": action, "allowed": True, "result": {"active": False}}
+
+        abp = get_bootstrap()
+        targets = abp.get_next_learning_targets(max_targets=3)
+        if not targets:
+            return {"action": action, "allowed": True,
+                    "result": {"active": True, "targets": 0, "note": "no_eligible_targets"}}
+
+        results = []
+        for t in targets:
+            results.append({
+                "key": t["key"],
+                "discipline": t["discipline"],
+                "sub_domain": t["sub_domain"],
+            })
+
+        return {"action": action, "allowed": True,
+                "result": {"active": True, "targets_processed": len(results),
+                           "targets": results}}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# ============================================================
+# ADAPTIVE CADENCE
+# ============================================================
+
+def do_cadence_status() -> Dict[str, Any]:
+    """Get adaptive cadence status. Read-only."""
+    action = "cadence.status"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.adaptive_cadence import get_cadence_manager
+        return {"action": action, "allowed": True,
+                "result": get_cadence_manager().status()}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_set_cadence_mode(mode: str, multiplier: float = 1.0) -> Dict[str, Any]:
+    """Change cadence mode. Governed mutation."""
+    action = "cadence.set_mode"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.adaptive_cadence import get_cadence_manager, CadenceMode
+        mgr = get_cadence_manager()
+        mgr.set_mode(CadenceMode(mode), multiplier)
+        return {"action": action, "allowed": True, "result": mgr.status()}
+    except Exception as exc:
+        return {"action": action, "allowed": True, "error": f"{type(exc).__name__}: {exc}"}
+
+
+# ============================================================
+# SCHOLARLY MODE (Post-Graduate Lifelong Learning)
+# ============================================================
+
+def do_scholarly_cycle(system_state: Dict[str, Any]) -> Dict[str, Any]:
+    """Run one scholarly mode cycle. Governed mutation."""
+    action = "scholarly.cycle"
+    guard = _severity_guard(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.scholarly_mode import run_scholarly_cycle, is_scholarly_active
+        if not is_scholarly_active():
+            return {"action": action, "allowed": True,
+                    "result": {"active": False}}
+        return {"action": action, "allowed": True,
+                "result": run_scholarly_cycle(system_state)}
+    except Exception as exc:
+        return {"action": action, "allowed": True,
+                "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_activate_scholarly_mode() -> Dict[str, Any]:
+    """Activate scholarly mode after ABP graduation. Governed mutation."""
+    action = "scholarly.activate"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.scholarly_mode import activate_scholarly_mode
+        return {"action": action, "allowed": True,
+                "result": activate_scholarly_mode()}
+    except Exception as exc:
+        return {"action": action, "allowed": True,
+                "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_scholarly_status() -> Dict[str, Any]:
+    """Get scholarly mode status. Read-only."""
+    action = "scholarly.status"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.scholarly_mode import scholarly_status
+        return {"action": action, "allowed": True,
+                "result": scholarly_status()}
+    except Exception as exc:
+        return {"action": action, "allowed": True,
+                "error": f"{type(exc).__name__}: {exc}"}
+
+
+def do_record_interest(topic: str, source: str, strength: float = 0.1) -> Dict[str, Any]:
+    """Record an interest signal for scholarly exploration. Governed mutation."""
+    action = "scholarly.record_interest"
+    guard = guard_action(action)
+    if not guard["allowed"]:
+        return _blocked(action, guard)
+    try:
+        from knowledge.scholarly_mode import record_interest
+        record_interest(topic, source, strength)
+        return {"action": action, "allowed": True,
+                "result": {"topic": topic, "source": source, "strength": strength}}
+    except Exception as exc:
+        return {"action": action, "allowed": True,
+                "error": f"{type(exc).__name__}: {exc}"}

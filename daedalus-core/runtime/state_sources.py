@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Dict, Any
 
 from knowledge.drift_detector import compute_latest_drift
-from knowledge.dignostics import analyze_audit_log
+from knowledge.diagnostics import analyze_audit_log
 from knowledge.system_stability import compute_system_stability
 from runtime.patch_history_manager import load_patch_history
 

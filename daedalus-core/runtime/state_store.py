@@ -58,9 +58,9 @@ class StateStore:
         if state is None:
             state = self._state
 
-        # Ensure persisted state always contains a valid history list
         state = copy.deepcopy(state)
-        state["history"] = copy.deepcopy(self._history)
+        if "history" not in state:
+            state["history"] = copy.deepcopy(self._history)
 
         self._state = state
 

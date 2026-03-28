@@ -1,32 +1,29 @@
 # knowledge/sandbox_runner.py
 
 """
-Sandbox Runner
+Logical Sandbox Runner
 
-Applies a patch in an isolated context and evaluates it.
+Applies a patch in an isolated logical context and evaluates it.
+This is NOT process-level isolation — it copies state data, simulates
+the patch, runs diagnostics + stability checks on the copy, and
+returns a real pass/fail verdict.
 
-Right now this is a logical sandbox, not a process/container sandbox:
-- It uses snapshots from version_manager
-- It simulates applying a patch
-- It runs diagnostics + stability evaluation
-- It returns a candidate snapshot_id and metrics
-
-Later, you can upgrade this to:
-- separate processes
-- separate environments
-- Docker-based sandboxes
+The rollback system in patch_applier.py remains the heavy safety net
+for unexpected failures.  This sandbox catches obvious problems
+cheaply before committing.
 """
 
 from __future__ import annotations
 
 from typing import Dict, Any
 
-# ---------------------------------------------------------
-# Correct imports
-# ---------------------------------------------------------
 from knowledge.version_manager import create_snapshot
 from diagnostics.realtime_diagnoser import RealtimeDiagnoser
 from knowledge.stability_engine import evaluate_stability
+
+
+_STABILITY_THRESHOLD = 0.4
+_DIAGNOSTICS_RISK_REJECT = "high"
 
 
 def run_in_sandbox(
@@ -36,49 +33,51 @@ def run_in_sandbox(
     strict_safety: bool = True,
 ) -> Dict[str, Any]:
     """
-    Simulate applying a patch and evaluating it.
+    Simulate applying a patch and evaluate whether it is safe.
 
-    For now:
-    - create a new snapshot (as if patched)
-    - run diagnostics
-    - run stability evaluation
-    - return success + metrics
-
-    Later:
-    - actually modify code/knowledge in the snapshot
-    - run tests in a separate process
+    Steps:
+      1. Snapshot current state as the candidate baseline.
+      2. Run diagnostics against a synthetic interaction representing
+         the patch's intended change.
+      3. Run stability evaluation on the patch metadata.
+      4. Derive a real pass/fail from diagnostics risk + stability score.
     """
-
-    # Create a new snapshot representing the patched candidate
     candidate_snapshot_id = create_snapshot(
         reason=f"candidate-from-{baseline_snapshot_id}-for-{patch.get('goal', '')}"
     )
 
-    # Run diagnostics using the RealtimeDiagnoser
     diagnoser = RealtimeDiagnoser()
-
     synthetic_snapshot = {
         "error_type": "sandbox_review",
-        "subsystem": "sandbox",
+        "subsystem": patch.get("target", "sandbox"),
         "pipeline_stage": "sandbox_diagnostics",
         "error_message": "",
-        "parsed_intent": "",
-        "resolver_target": "",
+        "parsed_intent": patch.get("goal", ""),
+        "resolver_target": patch.get("target", ""),
         "user_input": "",
     }
-
     diagnostics = diagnoser.analyze_interaction(synthetic_snapshot)
 
-    # Run stability evaluation
     stability = evaluate_stability(patch)
 
-    # Simple success criteria stub
-    success = True
+    rejection_reasons: list[str] = []
+
+    diag_details = diagnostics.details if diagnostics else {}
+    diag_risk = diag_details.get("risk", "none") if isinstance(diag_details, dict) else "none"
+    if diag_risk == _DIAGNOSTICS_RISK_REJECT:
+        rejection_reasons.append(f"diagnostics_risk={diag_risk}")
+
+    stability_score = stability.get("stability_score", stability.get("score", 1.0)) if isinstance(stability, dict) else 1.0
+    if strict_safety and stability_score < _STABILITY_THRESHOLD:
+        rejection_reasons.append(f"stability_score={stability_score:.3f} < {_STABILITY_THRESHOLD}")
+
+    success = len(rejection_reasons) == 0
 
     return {
         "success": success,
+        "rejection_reasons": rejection_reasons,
         "candidate_snapshot_id": candidate_snapshot_id,
-        "diagnostics": diagnostics.details if diagnostics else {},
+        "diagnostics": diag_details,
         "stability": stability,
         "meta": {
             "baseline_snapshot_id": baseline_snapshot_id,

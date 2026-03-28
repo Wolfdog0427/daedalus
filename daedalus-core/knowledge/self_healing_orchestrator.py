@@ -1,8 +1,21 @@
 # knowledge/self_healing_orchestrator.py
-
 """
-Self-Healing Orchestrator (SHO)
-Drift-aware, subsystem-aware, adaptive version.
+Full-pipeline Self-Healing Orchestrator (SHO).
+
+Hierarchy position
+------------------
+This is the *richest* SHO implementation: diagnostics → candidate
+generation → sandboxing → scoring → drift reporting → snapshot
+persistence.  It is used for nightly / web-triggered improvement
+cycles where thorough evaluation and auditability are required.
+
+Related SHO modules (do NOT confuse):
+  - ``orchestrator.sho_cycle_orchestrator``  — lightweight functional
+    SHO (tier-driven observe / propose / apply).
+  - ``runtime.sho_cycle_orchestrator``  — class-based, DI-style
+    orchestrator used by ``RuntimeLoop`` / ``runtime_main``.
+  - ``orchestrator.orchestrator`` — planning-only orchestrator
+    (security checks + proposal-to-plan translation).
 """
 
 from __future__ import annotations
@@ -11,6 +24,7 @@ import os
 import json
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 from diagnostics.realtime_diagnoser import RealtimeDiagnoser, FailureReport
 from knowledge.patch_generator import generate_patches_for_goal
@@ -29,7 +43,7 @@ from knowledge.drift_detector import (
 
 
 def _timestamp() -> str:
-    return datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
+    return datetime.now(tz=__import__("datetime").timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
 
 
 def _cockpit_path(name: str) -> str:
@@ -83,6 +97,39 @@ def _tune_parameters_based_on_drift(drift: dict) -> dict:
     }
 
 
+def _governance_gate() -> dict | None:
+    """Check governance state before running an improvement cycle.
+
+    Returns ``None`` if the system is clear.  Returns a structured
+    block dict if any emergency state (kill switch, circuit breaker,
+    stabilise mode, autonomy-governor lock) is active.
+    """
+    try:
+        from governance.kernel import (
+            _kill_switch_active,
+            _circuit_breaker_tripped,
+            _stabilise_mode,
+        )
+        if _kill_switch_active:
+            return {"blocked": True, "reason": "kill switch active"}
+        if _circuit_breaker_tripped:
+            return {"blocked": True, "reason": "circuit breaker tripped"}
+        if _stabilise_mode:
+            return {"blocked": True, "reason": "stabilise mode active"}
+    except ImportError:
+        pass
+
+    try:
+        from knowledge.autonomy_governor import guard_action
+        guard = guard_action("sho_improvement_cycle")
+        if not guard.get("allowed", False):
+            return {"blocked": True, "reason": guard.get("reason", "governor blocked")}
+    except ImportError:
+        pass
+
+    return None
+
+
 def run_improvement_cycle(
     goal: str = "general improvement",
     max_candidates: int | None = None,
@@ -91,6 +138,15 @@ def run_improvement_cycle(
 ):
     cycle_id = str(uuid.uuid4())
     log_event("sho_cycle_start", {"cycle_id": cycle_id, "goal": goal})
+
+    gate = _governance_gate()
+    if gate is not None:
+        log_event("sho_cycle_blocked", {"cycle_id": cycle_id, **gate})
+        return {
+            "cycle_id": cycle_id,
+            "decision": "blocked",
+            **gate,
+        }
 
     # 1. Load previous decision + provisional drift for tuning
     previous_decisions = load_recent_decisions(limit=1)
@@ -125,6 +181,49 @@ def run_improvement_cycle(
 
     subsystem_diagnostics = report.details.get("subsystem_diagnostics", {})
 
+    # 2b. MetaGovernor review (blocks plans that violate meta-invariants)
+    try:
+        from governance.meta_governor import MetaGovernor
+        from core.contracts import ImprovementPlan, SecurityStatus, FixRequest
+        _mg = MetaGovernor()
+        _fix = FixRequest(
+            target_subsystem="knowledge",
+            change_type="refactor",
+            severity="medium",
+            constraints={},
+            max_cycles=3,
+            max_runtime_seconds=300,
+        )
+        _plan = ImprovementPlan(
+            fix_request=_fix,
+            allowed_modules=["knowledge"],
+            forbidden_modules=[],
+            change_budget_files=5,
+            change_budget_lines=50,
+            safety_invariants=["NO_AUTONOMY_EXPANSION"],
+        )
+        _sec = SecurityStatus(
+            mode="normal",
+            last_events=[],
+            integrity_ok=True,
+            unknown_capabilities_detected=False,
+            recommendations=[],
+        )
+        _plan = _mg.review_plan(_plan, _sec)
+        if _plan.blocked:
+            log_event("sho_cycle_meta_blocked", {
+                "cycle_id": cycle_id,
+                "reason": _plan.block_reason,
+            })
+            return {
+                "cycle_id": cycle_id,
+                "decision": "blocked",
+                "blocked": True,
+                "reason": _plan.block_reason,
+            }
+    except ImportError:
+        pass
+
     # 3. Generate candidates (drift- and subsystem-aware)
     candidates = generate_patches_for_goal(
         goal=goal,
@@ -154,6 +253,14 @@ def run_improvement_cycle(
         })
 
     # 6. Select best
+    if not scored_candidates:
+        log_event("sho_cycle_no_candidates", {"cycle_id": cycle_id, "goal": goal})
+        return {
+            "cycle_id": cycle_id,
+            "decision": "no_candidates",
+            "reason": "patch generation produced no viable candidates",
+        }
+
     best = max(
         scored_candidates,
         key=lambda c: c["scores"]["improvement_score"],
@@ -188,8 +295,8 @@ def run_improvement_cycle(
     }
 
     decision_path = _cockpit_path(f"decision-{cycle_id}.json")
-    with open(decision_path, "w", encoding="utf-8") as f:
-        json.dump(decision_record, f, indent=2)
+    from knowledge._atomic_io import atomic_write_json
+    atomic_write_json(Path(decision_path), decision_record)
 
     log_event("sho_cycle_complete", decision_record)
 

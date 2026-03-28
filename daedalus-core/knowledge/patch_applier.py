@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import Any, Dict, List
 import os
 import json
-from datetime import datetime
+import tempfile
+from datetime import datetime, timezone
 
 from knowledge.patch_actions import (
     apply_actions_in_sandbox,
@@ -20,7 +21,7 @@ from knowledge.rollback_manager import (
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(tz=timezone.utc).isoformat()
 
 
 def _ensure_dir(path: str) -> None:
@@ -38,7 +39,7 @@ def apply_patch_in_sandbox(plan: Dict[str, Any]) -> Dict[str, Any]:
     actions: List[Dict[str, Any]] = plan.get("planned_actions", [])
 
     sandbox_root = os.path.join(
-        "/data/data/com.termux/files/usr/tmp",
+        tempfile.gettempdir(),
         f"sho_sandbox_{cycle_id or 'unknown'}",
     )
     _ensure_dir(sandbox_root)
@@ -114,15 +115,24 @@ def validate_patch(plan: Dict[str, Any]) -> Dict[str, Any]:
 
         if "tuning" not in config:
             errors.append(f"{subsystem}: missing tuning block after patch")
+            details[subsystem] = {"config_ok": False}
+        else:
+            details[subsystem] = {"config_ok": True}
 
-        details[subsystem] = {"config_ok": True}
+    _KNOWN_SUBSYSTEMS = frozenset({
+        "knowledge", "governance", "diagnostics", "analysis",
+        "runtime", "security", "hem", "orchestrator", "governor",
+        "core", "nlu", "api", "server", "cli", "versioning",
+        "config", "scheduler", "analytics",
+    })
 
-    # 2. Subsystem import test
     for action in plan.get("planned_actions", []):
         subsystem = action.get("target")
         if not subsystem:
             continue
-
+        if subsystem not in _KNOWN_SUBSYSTEMS:
+            errors.append(f"{subsystem}: not a recognized subsystem")
+            continue
         try:
             __import__(subsystem)
         except Exception as e:

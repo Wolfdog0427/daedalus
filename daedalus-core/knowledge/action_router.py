@@ -168,7 +168,7 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
         return "[CURIOSITY] Curiosity engine not available."
 
     if norm.startswith("approve goal"):
-        goal_id = _extract_after_colon(cmd) or cmd.split()[-1] if len(cmd.split()) > 2 else ""
+        goal_id = _extract_after_colon(cmd) or (cmd.split()[-1] if len(cmd.split()) > 2 else "")
         if not goal_id:
             return "[GOALS] No goal ID provided. Usage: approve goal: <goal_id>"
         if _INTEGRATION_AVAILABLE:
@@ -197,7 +197,7 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
         return "[ACQUIRE] Integration layer not available."
 
     if norm.startswith("execute goal") or norm.startswith("run goal"):
-        goal_id = _extract_after_colon(cmd) or cmd.split()[-1] if len(cmd.split()) > 2 else ""
+        goal_id = _extract_after_colon(cmd) or (cmd.split()[-1] if len(cmd.split()) > 2 else "")
         if not goal_id:
             return "[EXECUTE GOAL] No goal ID provided. Usage: execute goal: <goal_id>"
         if _INTEGRATION_AVAILABLE:
@@ -206,7 +206,7 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
         return "[EXECUTE GOAL] Integration layer not available."
 
     if norm.startswith("quality gate"):
-        goal_id = _extract_after_colon(cmd) or cmd.split()[-1] if len(cmd.split()) > 2 else ""
+        goal_id = _extract_after_colon(cmd) or (cmd.split()[-1] if len(cmd.split()) > 2 else "")
         if not goal_id:
             return "[QUALITY GATE] No goal ID provided. Usage: quality gate: <goal_id>"
         if _INTEGRATION_AVAILABLE:
@@ -304,7 +304,7 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
             return "[REGRESSION] Meta-reasoner not available."
 
     if norm.startswith("set severity"):
-        level = _extract_after_colon(cmd) or cmd.split()[-1] if len(cmd.split()) > 2 else ""
+        level = _extract_after_colon(cmd) or (cmd.split()[-1] if len(cmd.split()) > 2 else "")
         if not level:
             return "[SEVERITY] No level provided. Usage: set severity: <nominal|elevated|stressed|severe|catastrophic>"
         try:
@@ -549,6 +549,147 @@ def route_command(cmd: str, claim: Optional[str] = None) -> str:
             except Exception:
                 pass
         return f"[EXPLAIN] Explanation requested for:\n{text}"
+
+    # ------------------------------------------------------------
+    # CAPABILITY MODULES
+    # ------------------------------------------------------------
+
+    # RAR queries
+    if (norm.startswith("what do you know about")
+            or norm.startswith("reason about")
+            or norm.startswith("rar:")
+            or norm.startswith("answer:")):
+        text = claim or _extract_after_colon(cmd) or norm.split("about", 1)[-1].strip()
+        if not text:
+            return "[RAR] No query provided."
+        if _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_rar_query
+                result = do_rar_query(text)
+                return f"[RAR]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
+        return f"[RAR] RAR engine not available. Query: {text}"
+
+    # Explanation requests
+    if norm.startswith("why do you") or norm.startswith("explain belief") or norm.startswith("provenance:"):
+        text = claim or _extract_after_colon(cmd)
+        if text and _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_explain_reasoning
+                result = do_explain_reasoning(text)
+                return f"[EXPLAIN]\n{result.get('formatted', json.dumps(result, indent=2, default=str))}"
+            except ImportError:
+                pass
+        return f"[EXPLAIN] Explanation engine not available."
+
+    # Active learning
+    if norm.startswith("learn about") or norm.startswith("active learn:"):
+        text = claim or _extract_after_colon(cmd) or norm.split("about", 1)[-1].strip()
+        if text and _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_active_learn
+                gap = {"query": text, "urgency": 0.8, "gap_descriptions": [text],
+                       "confidence": 0.2, "is_total_gap": True}
+                result = do_active_learn(text, gap)
+                return f"[ACTIVE LEARN]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
+        return f"[ACTIVE LEARN] Active learner not available."
+
+    # Federated sync
+    if norm.startswith("sync with peer") or norm.startswith("federated:"):
+        text = _extract_after_colon(cmd) or norm.split("peer", 1)[-1].strip()
+        if text and _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_federated_sync
+                result = do_federated_sync(text.strip())
+                return f"[FEDERATED]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
+        return f"[FEDERATED] Federated exchange not available."
+
+    # Goal decomposition
+    if norm.startswith("decompose goal:") or norm.startswith("break down goal:"):
+        goal_id = _extract_after_colon(cmd)
+        if goal_id and _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_goal_decomposition
+                result = do_goal_decomposition(goal_id.strip())
+                return f"[GOAL PLANNER]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
+        return f"[GOAL PLANNER] Goal planner not available."
+
+    # ------------------------------------------------------------
+    # BOOTSTRAP PROTOCOL (ABP)
+    # ------------------------------------------------------------
+    if norm.startswith("start bootstrap") or norm.startswith("begin training") or norm == "bootstrap":
+        if _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_start_bootstrap
+                result = do_start_bootstrap()
+                return f"[BOOTSTRAP]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
+        return "[BOOTSTRAP] Bootstrap protocol not available."
+
+    if norm.startswith("bootstrap status") or norm.startswith("training status") or norm == "abp status":
+        if _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_bootstrap_status
+                result = do_bootstrap_status()
+                return f"[BOOTSTRAP STATUS]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
+        return "[BOOTSTRAP] Bootstrap protocol not available."
+
+    # ------------------------------------------------------------
+    # ADAPTIVE CADENCE
+    # ------------------------------------------------------------
+    if norm.startswith("cadence status") or norm.startswith("tick rate") or norm == "cadence":
+        if _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_cadence_status
+                result = do_cadence_status()
+                return f"[CADENCE]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
+        return "[CADENCE] Adaptive cadence not available."
+
+    if norm.startswith("set cadence:") or norm.startswith("cadence mode:"):
+        mode = _extract_after_colon(cmd).strip()
+        if mode and _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_set_cadence_mode
+                result = do_set_cadence_mode(mode)
+                return f"[CADENCE]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
+        return f"[CADENCE] Usage: set cadence: <normal|abp_bootstrap|attack_response|idle>"
+
+    # ------------------------------------------------------------
+    # SCHOLARLY MODE (Post-Graduate Lifelong Learning)
+    # ------------------------------------------------------------
+    if norm.startswith("scholarly status") or norm == "scholar status" or norm == "learning mode":
+        if _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_scholarly_status
+                result = do_scholarly_status()
+                return f"[SCHOLARLY MODE]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
+        return "[SCHOLARLY MODE] Scholarly mode not available."
+
+    if norm.startswith("activate scholarly") or norm.startswith("start scholarly") or norm == "scholar mode on":
+        if _INTEGRATION_AVAILABLE:
+            try:
+                from knowledge.integration_layer import do_activate_scholarly_mode
+                result = do_activate_scholarly_mode()
+                return f"[SCHOLARLY MODE]\n{json.dumps(result, indent=2, default=str)}"
+            except ImportError:
+                pass
+        return "[SCHOLARLY MODE] Scholarly mode not available."
 
     # ------------------------------------------------------------
     # FALLBACK

@@ -1,6 +1,7 @@
 # runtime/integrity_score_engine.py
 
 from __future__ import annotations
+import threading
 from typing import Dict, Any, Optional
 import time
 
@@ -30,7 +31,10 @@ class IntegrityScoreEngine:
       - Provide a single scalar metric for system health
     """
 
+    _MAX_LOG = 500
+
     def __init__(self):
+        self._lock = threading.Lock()
         self.score_history = []
         self.last_score: Optional[Dict[str, Any]] = None
 
@@ -51,6 +55,9 @@ class IntegrityScoreEngine:
         for entry in snapshots:
             sid = entry["id"]
             snap = snapshot_engine.get(sid)
+            if snap is None:
+                invalid += 1
+                continue
             result = integrity_validator._validate_snapshot(snap)
             if not result["valid"]:
                 invalid += 1
@@ -104,16 +111,18 @@ class IntegrityScoreEngine:
         """
         Score telemetry stability based on drift/stability history.
         """
-        history = telemetry_history.get_all()
+        history = telemetry_history.all()
         if not history:
             return 100.0
 
         drift_penalty = 0
         stability_penalty = 0
 
-        for entry in history[-20:]:  # last 20 cycles
-            drift = entry.get("drift", {}).get("level")
-            stability = entry.get("stability", {}).get("level")
+        for entry in history[-20:]:
+            snap = entry.get("snapshot", {})
+            metrics = snap.get("metrics", snap)
+            drift = metrics.get("drift", {}).get("level") if isinstance(metrics.get("drift"), dict) else None
+            stability = metrics.get("stability", {}).get("level") if isinstance(metrics.get("stability"), dict) else None
 
             if drift == "high":
                 drift_penalty += 5
@@ -172,16 +181,26 @@ class IntegrityScoreEngine:
             "components": components,
         }
 
-        self.score_history.append(result)
-        self.last_score = result
+        with self._lock:
+            self.score_history.append(result)
+            if len(self.score_history) > self._MAX_LOG:
+                self.score_history[:] = self.score_history[-self._MAX_LOG:]
+            self.last_score = result
 
         return result
 
     def get_last_score(self) -> Optional[Dict[str, Any]]:
-        return self.last_score
+        with self._lock:
+            return self.last_score
 
     def get_score_history(self):
-        return list(self.score_history)
+        with self._lock:
+            return list(self.score_history)
+
+    def clear_log(self) -> None:
+        with self._lock:
+            self.score_history.clear()
+            self.last_score = None
 
 
 # ------------------------------------------------------------

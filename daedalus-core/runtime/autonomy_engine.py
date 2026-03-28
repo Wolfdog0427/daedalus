@@ -102,14 +102,18 @@ def request_tier(
                 "flags": [],
                 "reversible": True,
             })
-            if not verdict.get("allowed", True):
+            if not verdict.get("allowed", False):
                 return {
                     "success": False, "tier_id": tier_id, "reason": reason,
                     "rationale": f"governance: {verdict.get('reason', 'blocked')}",
                     "timestamp": time.time(),
                 }
     except Exception:
-        pass
+        return {
+            "success": False, "tier_id": tier_id, "reason": reason,
+            "rationale": "governance: evaluation failed — fail-closed",
+            "timestamp": time.time(),
+        }
 
     target = get_tier(tier_id)
     if target is None:

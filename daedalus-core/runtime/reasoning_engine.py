@@ -52,7 +52,7 @@ class ReasoningEngine:
                 # Silent fallback to offline for robustness.
                 pass
 
-        return self.offline_reasoner.interpret(user_input, history, state)
+        return self.offline_reasoner.interpret(user_input, state)
 
     def _can_use_online(self) -> bool:
         # Later: connectivity checks, feature flags, etc.

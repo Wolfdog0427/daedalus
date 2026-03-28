@@ -23,7 +23,10 @@ class CrashRecoveryWrapper:
         state_copy = copy.deepcopy(state)
 
         try:
-            return self.engine.execute(command, state_copy)
+            result = self.engine.execute(command, state_copy)
+            state.clear()
+            state.update(state_copy)
+            return result
 
         except Exception as e:
             return {

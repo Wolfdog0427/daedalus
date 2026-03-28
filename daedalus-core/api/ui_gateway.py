@@ -9,15 +9,30 @@ from runtime.logging_manager import log_event
 
 def handle_request(request: Dict[str, Any]) -> Dict[str, Any]:
     try:
-        log_event("ui_gateway", "Incoming request", request)
+        try:
+            log_event("ui_gateway", "Incoming request", request)
+        except Exception:
+            pass
         response = route(request)
-        log_event("ui_gateway", "Outgoing response", {"command": request.get("command")})
+        try:
+            log_event("ui_gateway", "Outgoing response", {"command": request.get("command")})
+        except Exception:
+            pass
         return response
 
     except Exception as e:
-        log_event("ui_gateway", "Gateway error", {"error": str(e), "request": request})
+        try:
+            log_event("ui_gateway", "Gateway error", {"error": str(e), "request": request})
+        except Exception:
+            pass
+        try:
+            from api.ui_contract import UI_VERSION
+            version = UI_VERSION
+        except ImportError:
+            version = "unknown"
         return {
-            "version": "1.2.0",
+            "ok": False,
+            "version": version,
             "error": "gateway_error",
-            "message": str(e),
+            "message": "An internal error occurred. Check server logs for details.",
         }

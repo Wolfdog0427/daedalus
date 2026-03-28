@@ -1,6 +1,7 @@
 # runtime/proposal_review.py
 
 from __future__ import annotations
+import threading
 from typing import Dict, Any, Optional, List
 import time
 
@@ -20,6 +21,7 @@ class ProposalReviewSystem:
     """
 
     def __init__(self):
+        self._lock = threading.Lock()
         self.proposals: Dict[str, Dict[str, Any]] = {}
 
     # ------------------------------------------------------------
@@ -28,8 +30,9 @@ class ProposalReviewSystem:
 
     def _register(self, proposal: Dict[str, Any]):
         pid = proposal["id"]
-        if pid not in self.proposals:
-            self.proposals[pid] = proposal
+        with self._lock:
+            if pid not in self.proposals:
+                self.proposals[pid] = proposal
 
     def _update_status(self, pid: str, status: str):
         if pid in self.proposals:
@@ -52,52 +55,66 @@ class ProposalReviewSystem:
         """
         Return all proposals in the registry.
         """
-        return list(self.proposals.values())
+        with self._lock:
+            return [dict(p) for p in self.proposals.values()]
 
     def list_pending(self) -> List[Dict[str, Any]]:
         """
         Return proposals awaiting approval.
         """
-        return [
-            p for p in self.proposals.values()
-            if p.get("status") == "pending_review"
-        ]
+        with self._lock:
+            return [
+                dict(p) for p in self.proposals.values()
+                if p.get("status") == "pending_review"
+            ]
 
     def approve(self, pid: str) -> Optional[Dict[str, Any]]:
         """
         Approve a proposal. Marks it as approved and ready for execution.
         """
-        if pid not in self.proposals:
-            return None
-
-        self._update_status(pid, "approved")
-        return self.proposals[pid]
+        with self._lock:
+            if pid not in self.proposals:
+                return None
+            self._update_status(pid, "approved")
+            return dict(self.proposals[pid])
 
     def reject(self, pid: str) -> Optional[Dict[str, Any]]:
         """
         Reject a proposal. Marks it as rejected.
         """
-        if pid not in self.proposals:
-            return None
-
-        self._update_status(pid, "rejected")
-        return self.proposals[pid]
+        with self._lock:
+            if pid not in self.proposals:
+                return None
+            self._update_status(pid, "rejected")
+            return dict(self.proposals[pid])
 
     def mark_executed(self, pid: str) -> Optional[Dict[str, Any]]:
         """
         Mark a proposal as executed (future execution engine will call this).
         """
-        if pid not in self.proposals:
-            return None
+        with self._lock:
+            if pid not in self.proposals:
+                return None
+            self._update_status(pid, "executed")
+            return dict(self.proposals[pid])
 
-        self._update_status(pid, "executed")
-        return self.proposals[pid]
+    def mark_rolled_back(self, pid: str) -> Optional[Dict[str, Any]]:
+        """
+        Mark a proposal as rolled back (called by rollback engine).
+        """
+        with self._lock:
+            if pid not in self.proposals:
+                return None
+            self._update_status(pid, "rolled_back")
+            return dict(self.proposals[pid])
 
     def get(self, pid: str) -> Optional[Dict[str, Any]]:
         """
         Retrieve a single proposal by ID.
         """
-        return self.proposals.get(pid)
+        with self._lock:
+            p = self.proposals.get(pid)
+            return dict(p) if p is not None else None
 
 
 # ------------------------------------------------------------

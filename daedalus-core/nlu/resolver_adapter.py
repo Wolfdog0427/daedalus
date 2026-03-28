@@ -89,21 +89,7 @@ def adapt_to_command(text: str, state: Dict[str, Any]) -> Dict[str, Any]:
         return base
 
     # --------------------------------------------------------
-    # Vague step reference → resolver will fill step_number
-    # --------------------------------------------------------
-    if vague_step:
-        base["args"] = {"step_number": None}
-        return base
-
-    # --------------------------------------------------------
-    # Vague goal reference → resolver will fill goal_id
-    # --------------------------------------------------------
-    if vague_goal:
-        base["args"] = {"goal_id": None}
-        return base
-
-    # --------------------------------------------------------
-    # CREATE GOAL  ← ★ NEW BLOCK ★
+    # CREATE GOAL
     # --------------------------------------------------------
     if intent == "create_goal":
         base["args"] = {}
@@ -343,6 +329,20 @@ def adapt_to_command(text: str, state: Dict[str, Any]) -> Dict[str, Any]:
     # --------------------------------------------------------
     if goal_number is not None:
         base["args"] = {"goal_id": goal_number}
+        return base
+
+    # --------------------------------------------------------
+    # Vague step reference (no intent-specific block matched)
+    # --------------------------------------------------------
+    if vague_step:
+        base["args"] = {"step_number": None}
+        return base
+
+    # --------------------------------------------------------
+    # Vague goal reference (no intent-specific block matched)
+    # --------------------------------------------------------
+    if vague_goal:
+        base["args"] = {"goal_id": None}
         return base
 
     # --------------------------------------------------------

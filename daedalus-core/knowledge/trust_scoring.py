@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import time
 import hashlib
+import threading
 from typing import Dict, Any, Optional, List
 
 from knowledge.retrieval import _iter_items, get_item_by_id
@@ -95,56 +96,61 @@ class TrustMomentum:
 
     def __init__(self) -> None:
         self._history: Dict[str, Dict[str, Any]] = {}
+        self._lock = threading.Lock()
 
     def record_outcome(self, source: str, success: bool) -> None:
-        if source not in self._history:
-            self._history[source] = {
-                "successes": 0, "failures": 0, "momentum": 0.0,
-            }
-        entry = self._history[source]
+        with self._lock:
+            if source not in self._history:
+                self._history[source] = {
+                    "successes": 0, "failures": 0, "momentum": 0.0,
+                }
+            entry = self._history[source]
 
-        # Decay existing momentum slightly each recording
-        entry["momentum"] *= MOMENTUM_DECAY_FACTOR
+            entry["momentum"] *= MOMENTUM_DECAY_FACTOR
 
-        if success:
-            entry["successes"] += 1
-            entry["momentum"] = min(
-                MOMENTUM_CAP,
-                entry["momentum"] + MOMENTUM_SUCCESS_BONUS,
-            )
-        else:
-            entry["failures"] += 1
-            entry["momentum"] = max(
-                -MOMENTUM_CAP,
-                entry["momentum"] - MOMENTUM_FAILURE_PENALTY,
-            )
+            if success:
+                entry["successes"] += 1
+                entry["momentum"] = min(
+                    MOMENTUM_CAP,
+                    entry["momentum"] + MOMENTUM_SUCCESS_BONUS,
+                )
+            else:
+                entry["failures"] += 1
+                entry["momentum"] = max(
+                    -MOMENTUM_CAP,
+                    entry["momentum"] - MOMENTUM_FAILURE_PENALTY,
+                )
 
     def apply_natural_decay(self) -> None:
         """H1: Apply per-cycle decay so trust must be continuously earned."""
-        for entry in self._history.values():
-            entry["momentum"] = max(
-                -MOMENTUM_CAP,
-                entry["momentum"] - TRUST_NATURAL_DECAY,
-            )
+        with self._lock:
+            for entry in self._history.values():
+                entry["momentum"] = max(
+                    -MOMENTUM_CAP,
+                    entry["momentum"] - TRUST_NATURAL_DECAY,
+                )
 
     def get_momentum(self, source: str) -> float:
-        entry = self._history.get(source)
-        if not entry:
-            return 0.0
-        return entry["momentum"]
+        with self._lock:
+            entry = self._history.get(source)
+            if not entry:
+                return 0.0
+            return entry["momentum"]
 
     def get_stats(self, source: str) -> Optional[Dict[str, Any]]:
-        return self._history.get(source)
+        with self._lock:
+            return self._history.get(source)
 
     def summary(self) -> Dict[str, Any]:
-        return {
-            src: {
-                "successes": d["successes"],
-                "failures": d["failures"],
-                "momentum": round(d["momentum"], 4),
+        with self._lock:
+            return {
+                src: {
+                    "successes": d["successes"],
+                    "failures": d["failures"],
+                    "momentum": round(d["momentum"], 4),
+                }
+                for src, d in self._history.items()
             }
-            for src, d in self._history.items()
-        }
 
 
 _trust_momentum = TrustMomentum()
@@ -208,7 +214,8 @@ def score_source(source: str) -> float:
 def compute_trust_score(item: Dict[str, Any]) -> float:
     source = item.get("source", "")
     text = item.get("text", "")
-    meta = item.get("metadata", {}) or {}
+    _raw_meta = item.get("metadata", {}) or {}
+    meta = _raw_meta if isinstance(_raw_meta, dict) else {}
 
     source_score = score_source(source)
     content_score = score_content_quality(text)
@@ -277,7 +284,8 @@ class EpistemicConfidence:
 
     def compute(self, item: Dict[str, Any]) -> Dict[str, Any]:
         text = item.get("text", "")
-        meta = item.get("metadata", {}) or {}
+        _raw_meta = item.get("metadata", {}) or {}
+        meta = _raw_meta if isinstance(_raw_meta, dict) else {}
 
         corroboration = self._corroboration_score(text)
         consistency = self._neighborhood_consistency(text)
@@ -393,10 +401,13 @@ def compute_calibrated_trust(item: Dict[str, Any]) -> float:
 def batch_calibrate_trust(sample_cap: int = 500) -> Dict[str, Any]:
     """
     Batch calibration sweep: sample items from the KB and compute
-    calibrated trust. Items whose calibrated score is significantly
-    higher than their raw trust get a trust boost via metadata flag.
-    This increases effective coverage of epistemic confidence to
-    more of the KB each maintenance cycle.
+    calibrated trust.  Returns metrics showing how many items have
+    calibrated trust significantly above their raw score.
+
+    This is a **read-only diagnostic** — it does not mutate items.
+    Trust scores are derived live by ``compute_trust_score`` /
+    ``compute_calibrated_trust``; injecting boosts into metadata
+    would create a divergent trust source.
     """
     import random as _rnd
 
@@ -442,10 +453,13 @@ def detect_contradiction(text_a: str, text_b: str) -> bool:
 
     negations = ["not", "never", "no ", "false", "incorrect"]
 
-    if any(n in a for n in negations) and any(n in b for n in negations):
-        overlap = len(set(a.split()) & set(b.split()))
-        if overlap < 5:
-            return True
+    a_has_neg = any(n in a for n in negations)
+    b_has_neg = any(n in b for n in negations)
+
+    overlap = len(set(a.split()) & set(b.split()))
+
+    if a_has_neg != b_has_neg and overlap >= 5:
+        return True
 
     return False
 
@@ -480,16 +494,19 @@ def ingest_with_replacement_check(new_text: str, source: str = "manual") -> str:
     new_hash = _hash_text(new_text)
 
     for item in _iter_items():
+        old_id = item.get("id", "")
+        if not old_id:
+            continue
         old_text = item.get("text", "")
         old_hash = _hash_text(old_text)
 
         if new_hash == old_hash:
-            return item["id"]
+            return old_id
 
         if old_text[:100] == new_text[:100]:
             if should_replace(item, new_text):
                 return replace_item_from_text(
-                    old_id=item["id"],
+                    old_id=old_id,
                     new_text=new_text,
                     reason="trust_score_replacement",
                     source=source,

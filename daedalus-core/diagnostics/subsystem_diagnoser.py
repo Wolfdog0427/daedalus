@@ -22,8 +22,6 @@ Each subsystem returns:
 """
 
 from __future__ import annotations
-import os
-import json
 from typing import Dict, Any, List
 
 
@@ -41,23 +39,11 @@ def _risk_from_score(score: float) -> str:
     return "high"
 
 
-def _load_json(path: str) -> Dict[str, Any]:
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-
 # ---------------------------------------------------------
 # Subsystem Diagnostics
 # ---------------------------------------------------------
 
 def diagnose_nlu() -> Dict[str, Any]:
-    """
-    Evaluate NLU consistency and stability.
-    """
-    # Placeholder heuristic: NLU is stable unless drift is high.
     score = 0.8
     return {
         "subsystem": "nlu",
@@ -65,13 +51,11 @@ def diagnose_nlu() -> Dict[str, Any]:
         "risk": _risk_from_score(score),
         "message": "NLU pipeline appears consistent.",
         "target": "nlu_pipeline",
+        "synthetic": True,
     }
 
 
 def diagnose_reasoning() -> Dict[str, Any]:
-    """
-    Evaluate reasoning coherence and step stability.
-    """
     score = 0.75
     return {
         "subsystem": "reasoning",
@@ -79,13 +63,11 @@ def diagnose_reasoning() -> Dict[str, Any]:
         "risk": _risk_from_score(score),
         "message": "Reasoning chain is coherent with minor drift.",
         "target": "reasoning_engine",
+        "synthetic": True,
     }
 
 
 def diagnose_sandbox() -> Dict[str, Any]:
-    """
-    Evaluate sandbox execution consistency.
-    """
     score = 0.9
     return {
         "subsystem": "sandbox",
@@ -93,13 +75,11 @@ def diagnose_sandbox() -> Dict[str, Any]:
         "risk": _risk_from_score(score),
         "message": "Sandbox execution is stable.",
         "target": "sandbox_runner",
+        "synthetic": True,
     }
 
 
 def diagnose_scoring() -> Dict[str, Any]:
-    """
-    Evaluate scoring engine variance and sensitivity.
-    """
     score = 0.6
     return {
         "subsystem": "scoring",
@@ -107,13 +87,11 @@ def diagnose_scoring() -> Dict[str, Any]:
         "risk": _risk_from_score(score),
         "message": "Scoring engine shows mild stagnation.",
         "target": "trust_scoring",
+        "synthetic": True,
     }
 
 
 def diagnose_stability() -> Dict[str, Any]:
-    """
-    Evaluate stability engine responsiveness.
-    """
     score = 0.7
     return {
         "subsystem": "stability",
@@ -121,13 +99,11 @@ def diagnose_stability() -> Dict[str, Any]:
         "risk": _risk_from_score(score),
         "message": "Stability engine is responsive.",
         "target": "stability_engine",
+        "synthetic": True,
     }
 
 
 def diagnose_file_structure() -> Dict[str, Any]:
-    """
-    Evaluate file structure entropy and unused modules.
-    """
     score = 0.65
     return {
         "subsystem": "file_structure",
@@ -135,13 +111,11 @@ def diagnose_file_structure() -> Dict[str, Any]:
         "risk": _risk_from_score(score),
         "message": "File structure shows moderate entropy.",
         "target": "module_structure",
+        "synthetic": True,
     }
 
 
 def diagnose_dashboard() -> Dict[str, Any]:
-    """
-    Evaluate dashboard completeness and freshness.
-    """
     score = 0.85
     return {
         "subsystem": "dashboard",
@@ -149,6 +123,7 @@ def diagnose_dashboard() -> Dict[str, Any]:
         "risk": _risk_from_score(score),
         "message": "Dashboard rendering is healthy.",
         "target": "system_dashboard",
+        "synthetic": True,
     }
 
 
@@ -174,8 +149,10 @@ def run_subsystem_diagnostics() -> Dict[str, Any]:
     # Compute overall health score
     avg_score = sum(s["score"] for s in subsystems) / len(subsystems)
 
+    all_synthetic = all(s.get("synthetic", False) for s in subsystems)
     return {
         "overall_score": avg_score,
         "overall_risk": _risk_from_score(avg_score),
+        "synthetic": all_synthetic,
         "subsystems": subsystems,
     }

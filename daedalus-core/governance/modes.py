@@ -9,7 +9,11 @@ Modes are declarative and operator-switched — no auto-escalation.
 
 from __future__ import annotations
 
+import copy
+import threading
 from typing import Any, Dict, List, Optional
+
+_mode_lock = threading.Lock()
 
 STRICT = "STRICT"
 ADVISORY = "ADVISORY"
@@ -74,32 +78,39 @@ _active_mode: str = ADVISORY
 
 
 def list_modes() -> List[Dict[str, Any]]:
-    return [{"mode_id": mid, **meta} for mid, meta in _MODES.items()]
+    return [{"mode_id": mid, **copy.deepcopy(meta)} for mid, meta in _MODES.items()]
 
 
 def get_mode(mode_id: str) -> Optional[Dict[str, Any]]:
     m = _MODES.get(mode_id)
     if m is None:
         return None
-    return {"mode_id": mode_id, **m}
+    return {"mode_id": mode_id, **copy.deepcopy(m)}
 
 
 def get_active_mode() -> Dict[str, Any]:
-    return get_mode(_active_mode) or get_mode(ADVISORY)  # type: ignore
+    with _mode_lock:
+        mid = _active_mode
+    return get_mode(mid) or get_mode(ADVISORY)  # type: ignore
 
 
 def set_active_mode(mode_id: str, reason: str = "") -> Dict[str, Any]:
     global _active_mode
     if mode_id not in _MODES:
         return {"success": False, "reason": f"unknown mode '{mode_id}'"}
-    prev = _active_mode
-    _active_mode = mode_id
+    with _mode_lock:
+        prev = _active_mode
+        _active_mode = mode_id
     return {"success": True, "from": prev, "to": mode_id, "reason": reason}
 
 
 def get_drift_sensitivity() -> float:
-    return _MODES.get(_active_mode, _MODES[ADVISORY]).get("drift_sensitivity", 0.7)
+    with _mode_lock:
+        mid = _active_mode
+    return _MODES.get(mid, _MODES[ADVISORY]).get("drift_sensitivity", 0.7)
 
 
 def get_safety_multiplier() -> float:
-    return _MODES.get(_active_mode, _MODES[ADVISORY]).get("safety_multiplier", 1.0)
+    with _mode_lock:
+        mid = _active_mode
+    return _MODES.get(mid, _MODES[ADVISORY]).get("safety_multiplier", 1.0)

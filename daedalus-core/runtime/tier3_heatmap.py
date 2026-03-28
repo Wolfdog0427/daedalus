@@ -13,6 +13,7 @@ import time
 from typing import Any, Dict, List
 
 _HEATMAP_LOG: List[Dict[str, Any]] = []
+_MAX_LOG = 200
 
 
 def get_heatmap_log(limit: int = 20) -> List[Dict[str, Any]]:
@@ -78,6 +79,8 @@ def generate_system_heatmap() -> Dict[str, Any]:
         "type": "system", "n_envs": len(cells),
         "n_hot": n_hot, "timestamp": result["timestamp"],
     })
+    if len(_HEATMAP_LOG) > _MAX_LOG:
+        _HEATMAP_LOG[:] = _HEATMAP_LOG[-_MAX_LOG:]
     _add_insight(
         "heatmap",
         f"system heatmap: {len(cells)} env(s), {n_hot} hot/critical",
@@ -118,6 +121,8 @@ def generate_environment_heatmap(env_id: str) -> Dict[str, Any]:
         "heat": cell["heat"], "risk_score": cell["risk_score"],
         "timestamp": result["timestamp"],
     })
+    if len(_HEATMAP_LOG) > _MAX_LOG:
+        _HEATMAP_LOG[:] = _HEATMAP_LOG[-_MAX_LOG:]
     _add_insight(
         "heatmap",
         f"env '{env.get('name', '?')}' heatmap: {cell['heat']} "

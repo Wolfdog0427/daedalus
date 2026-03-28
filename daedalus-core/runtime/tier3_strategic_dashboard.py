@@ -14,6 +14,7 @@ import time
 from typing import Any, Dict, List
 
 _STRATEGIC_DASH_LOG: List[Dict[str, Any]] = []
+_MAX_LOG = 200
 
 
 def get_strategic_dashboard_log(limit: int = 20) -> List[Dict[str, Any]]:
@@ -123,6 +124,8 @@ def build_strategic_dashboard() -> Dict[str, Any]:
     _STRATEGIC_DASH_LOG.append({
         "grade": grade, "score": score, "timestamp": ts,
     })
+    if len(_STRATEGIC_DASH_LOG) > _MAX_LOG:
+        _STRATEGIC_DASH_LOG[:] = _STRATEGIC_DASH_LOG[-_MAX_LOG:]
     _add_insight(
         "strategic_dashboard",
         f"strategic dashboard built: system grade={grade} ({score}/100)",

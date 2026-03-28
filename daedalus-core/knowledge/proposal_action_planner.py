@@ -26,10 +26,13 @@ def generate_actions_for_proposal(proposal: Dict[str, Any]) -> List[Dict[str, An
 
     subsystem = proposal.get("subsystem")
     risk = proposal.get("risk_level")
-    drift = proposal.get("drift_context", {})
-    diag = proposal.get("diagnostics_summary", {})
+    drift = proposal.get("drift_context") or {}
+    diag = proposal.get("diagnostics_summary") or {}
 
     actions: List[Dict[str, Any]] = []
+
+    if not subsystem:
+        return actions
 
     # ---------------------------------------------------------
     # Example rule 1: test_module.py auto-fix

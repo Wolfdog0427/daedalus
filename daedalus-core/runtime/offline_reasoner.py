@@ -46,12 +46,9 @@ class OfflineReasoner:
         Build a fuzzy action dictionary.
 
         - ref_phrase: the full natural-language phrase (e.g., "the step about roof")
-        - resolved_step_number: resolved by GoalManager (may be None)
+        - resolved_step_number: best-effort fuzzy match against active steps
         """
-        from runtime.goal_manager import GoalManager
-        gm = GoalManager()
-
-        resolved = gm.resolve_step_phrase(ref_phrase, state)
+        resolved = self._resolve_step_phrase(ref_phrase, state)
 
         payload = {
             "ref_phrase": ref_phrase,
@@ -65,6 +62,21 @@ class OfflineReasoner:
             "type": action_type,
             "payload": payload,
         }
+
+    @staticmethod
+    def _resolve_step_phrase(phrase: str, state: Dict[str, Any]) -> Optional[int]:
+        """Best-effort fuzzy step resolution by description substring match."""
+        from runtime.execution.goal_manager import GoalManager
+        gm = GoalManager()
+        steps = gm.get_active_steps(state)
+        if not steps:
+            return None
+        phrase_lower = phrase.lower().strip()
+        for step in steps:
+            desc = step.get("description", "").lower()
+            if desc and (phrase_lower in desc or desc in phrase_lower):
+                return step.get("number")
+        return None
 
     # ------------------------------------------------------------
     # Utility: Extract block reason cleanly
@@ -200,11 +212,10 @@ class OfflineReasoner:
         # RENAME STEP (fuzzy)
         # --------------------------------------------------------
         if t.startswith("rename "):
-            # Pattern: rename <fuzzy> to <new title>
             if " to " in t:
-                before, after = text.split(" to ", 1)
-                fuzzy = before[len("rename "):].strip()
-                new_title = after.strip()
+                idx = t.index(" to ")
+                fuzzy = text[len("rename "):idx].strip()
+                new_title = text[idx + len(" to "):].strip()
                 result = [ self._build_fuzzy_action(
                     "rename_step",
                     fuzzy,
@@ -258,7 +269,7 @@ class OfflineReasoner:
                     hem_transition_to_postcheck()
                     hem_run_post_engagement_checks()
                     return result
-            except:
+            except (ValueError, TypeError, IndexError):
                 pass
 
         # --------------------------------------------------------

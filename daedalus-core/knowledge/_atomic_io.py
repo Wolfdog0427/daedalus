@@ -14,8 +14,11 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any
+
+knowledge_file_lock = threading.RLock()
 
 
 def atomic_write_json(path: Path, data: Any, **kwargs) -> None:
@@ -36,6 +39,25 @@ def atomic_write_json(path: Path, data: Any, **kwargs) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(content)
+        os.replace(tmp_path, str(path))
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+def atomic_write_text(path: Path, text: str) -> None:
+    """Atomic text write — same temp-then-replace pattern as JSON."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(
+        dir=str(path.parent), suffix=".tmp", prefix=".atomic_"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
         os.replace(tmp_path, str(path))
     except BaseException:
         try:

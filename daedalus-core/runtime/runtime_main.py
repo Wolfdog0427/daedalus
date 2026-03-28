@@ -1,4 +1,4 @@
-# runtime/main.py
+# runtime/runtime_main.py
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ from runtime.system_health import SystemHealth
 from runtime.sho_cycle_orchestrator import SHOCycleOrchestrator
 from runtime.runtime_loop import RuntimeLoop
 from runtime.patch_engine_adapter import PatchEngineAdapter
-from runtime.ui_state_bridge import build_ui_state
 
 
 def start_runtime(

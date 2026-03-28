@@ -30,22 +30,31 @@ def hem_run_post_engagement_checks() -> bool:
 
 
 def _check_drift() -> bool:
-    """Check drift using the knowledge drift detector."""
+    """Check drift using the knowledge drift detector.  Fail closed."""
     try:
         from knowledge.drift_detector import compute_latest_drift
         report = compute_latest_drift()
         if report is None:
-            return True
+            hem_log_event({"type": "HEM_DRIFT_CHECK_NO_DATA"})
+            return False
         return report.get("level", "none") in ("none", "low")
-    except Exception:
-        return True
+    except Exception as exc:
+        try:
+            hem_log_event({"type": "HEM_DRIFT_CHECK_FAILED", "error": str(exc)})
+        except Exception:
+            pass
+        return False
 
 
 def _check_integrity() -> bool:
-    """Check system integrity using the runtime integrity validator."""
+    """Check system integrity using the runtime integrity validator.  Fail closed."""
     try:
         from runtime.integrity_validator import integrity_validator
         result = integrity_validator.validate()
         return result.get("valid", False) if isinstance(result, dict) else bool(result)
-    except Exception:
-        return True
+    except Exception as exc:
+        try:
+            hem_log_event({"type": "HEM_INTEGRITY_CHECK_FAILED", "error": str(exc)})
+        except Exception:
+            pass
+        return False

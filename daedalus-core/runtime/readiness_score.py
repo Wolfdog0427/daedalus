@@ -15,10 +15,10 @@ def compute_readiness_score() -> Dict[str, Any]:
     state = fetch_state()
     diag = run_startup_diagnostics()
 
-    drift = state["drift"]
-    stability = state["stability"]
-    diagnostics = state["diagnostics"]
-    patch_history = state["patch_history"]
+    drift = state.get("drift", {})
+    stability = state.get("stability", {})
+    diagnostics = state.get("diagnostics", {})
+    patch_history = state.get("patch_history", {})
 
     # -----------------------------
     # Drift score (0–1)
@@ -46,9 +46,10 @@ def compute_readiness_score() -> Dict[str, Any]:
     # -----------------------------
     # Diagnostics readiness (0–1)
     # -----------------------------
-    readiness_avg = diagnostics["readiness"]["average"]
-    blocked = diagnostics["summary"]["blocked_actions"]
-    verif_fail = diagnostics["summary"]["verification_failures"]
+    readiness_avg = diagnostics.get("readiness", {}).get("average", 0.0) or 0.0
+    summary = diagnostics.get("summary", {})
+    blocked = summary.get("blocked_actions", 0)
+    verif_fail = summary.get("verification_failures", 0)
 
     diag_penalty = 0.0
     diag_penalty += min(blocked * 0.05, 0.3)

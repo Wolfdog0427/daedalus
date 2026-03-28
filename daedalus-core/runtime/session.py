@@ -25,35 +25,22 @@ class Session:
             self.state["goals_tree"] = self.goals_tree
 
     def handle_input(self, user_input: str) -> Dict[str, Any]:
-        result = self.execution.handle(
-            user_input=user_input,
-            history=self.history,
-            state=self.state,
-            goals=self.goals,
-        )
+        try:
+            from nlu.resolver_adapter import adapt_to_command
 
-        text = result.get("text", "")
+            cmd = adapt_to_command(user_input, self.state)
+            result_text = self.execution.execute(cmd, self.state)
+            text = result_text if isinstance(result_text, str) else str(result_text)
+        except Exception as e:
+            text = f"An error occurred while processing your input: {e}"
 
-        # Update history
-        self.history.append(
-            {
-                "user": user_input,
-                "assistant": text,
-            }
-        )
-        self.storage.append_history(user_input, text)
-
-        # Update goals tree if changed
-        if "goal_update" in result:
-            # ExecutionEngine already updated state["goals_tree"]
+        try:
+            self.history.append({"user": user_input, "assistant": text})
+            self.storage.append_history(user_input, text)
             self.goals_tree = self.state.get("goals_tree", [])
             self.storage.save_goals_tree(self.goals_tree)
+            self.storage.save_state(self.state)
+        except Exception:
+            pass
 
-        # Update public goal view
-        if "goals" in result and result["goals"] is not None:
-            self.goals = result["goals"]
-
-        # Persist state
-        self.storage.save_state(self.state)
-
-        return result
+        return {"text": text}

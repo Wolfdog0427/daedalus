@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
@@ -109,7 +110,7 @@ class SHOPatchFlow:
         """
         Update patch history when a patch attempt fails.
         """
-        new_history = dict(patch_history) if patch_history is not None else {}
+        new_history = copy.deepcopy(patch_history) if patch_history is not None else {}
 
         total_cycles = new_history.get("total_cycles", 0) + 1
         failed_patches = new_history.get("failed_patches", 0) + 1
@@ -146,7 +147,7 @@ class SHOPatchFlow:
         """
         Update patch history when a patch attempt succeeds.
         """
-        new_history = dict(patch_history) if patch_history is not None else {}
+        new_history = copy.deepcopy(patch_history) if patch_history is not None else {}
 
         total_cycles = new_history.get("total_cycles", 0) + 1
         successful_patches = new_history.get("successful_patches", 0) + 1

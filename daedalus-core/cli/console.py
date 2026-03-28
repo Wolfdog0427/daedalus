@@ -7,7 +7,7 @@ import json
 from api.ui_gateway import handle_request
 from cli.watch import watch
 from cli.governor_thresholds import render_governor_thresholds
-from governor.autonomy_governor import governor
+from governor.singleton import governor
 
 
 def main() -> None:
@@ -46,6 +46,8 @@ def main() -> None:
     try:
         args = json.loads(ns.args)
     except json.JSONDecodeError:
+        import sys
+        print(f"⚠ Warning: --args '{ns.args}' is not valid JSON. Using empty args.", file=sys.stderr)
         args = {}
 
     # ------------------------------------------------------------

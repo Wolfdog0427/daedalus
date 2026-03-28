@@ -108,9 +108,17 @@ def analyze_audit_log(limit: int = 5000) -> Dict[str, Any]:
     if verification_failures and len(verification_failures) > 20:
         drift_warnings.append("Frequent verification failures — knowledge quality may be degrading.")
 
-    # Local import avoids circular init: governor.singleton ↔ governor_tuning
-    from governor.singleton import governor as _governor
-    from knowledge.self_model import summarize_self_model
+    try:
+        from governor.singleton import governor as _governor
+        autonomy_state = _governor.get_state()
+    except Exception:
+        autonomy_state = "unavailable"
+
+    try:
+        from knowledge.self_model import summarize_self_model
+        self_model = summarize_self_model()
+    except Exception:
+        self_model = "unavailable"
 
     return {
         "summary": {
@@ -125,13 +133,13 @@ def analyze_audit_log(limit: int = 5000) -> Dict[str, Any]:
             "average": readiness_avg,
             "recent": readiness_recent,
         },
-        "blocked_actions": blocked[-20:],  # last 20
+        "blocked_actions": blocked[-20:],
         "autonomy_changes": autonomy_changes[-10:],
         "scheduler_runs": scheduler_runs[-10:],
         "verification_failures": verification_failures[-20:],
         "drift_warnings": drift_warnings,
-        "current_autonomy_state": _governor.get_state(),
-        "current_self_model": summarize_self_model(),
+        "current_autonomy_state": autonomy_state,
+        "current_self_model": self_model,
     }
 
 

@@ -1,6 +1,7 @@
 # runtime/restoration_engine.py
 
 from __future__ import annotations
+import threading
 from typing import Dict, Any, Optional
 import time
 
@@ -23,7 +24,10 @@ class RestorationEngine:
       - Never modify system state unless explicitly authorized
     """
 
+    _MAX_LOG = 500
+
     def __init__(self):
+        self._lock = threading.Lock()
         self.restoration_log = []
         self.last_restoration: Optional[Dict[str, Any]] = None
 
@@ -111,17 +115,26 @@ class RestorationEngine:
         else:
             result = self._restore_partial({"id": snapshot_id, **snapshot}, keys)
 
-        # Log restoration
-        self.restoration_log.append(result)
-        self.last_restoration = result
+        with self._lock:
+            self.restoration_log.append(result)
+            if len(self.restoration_log) > self._MAX_LOG:
+                self.restoration_log[:] = self.restoration_log[-self._MAX_LOG:]
+            self.last_restoration = result
 
         return result
 
     def get_last_restoration(self) -> Optional[Dict[str, Any]]:
-        return self.last_restoration
+        with self._lock:
+            return self.last_restoration
 
     def get_restoration_log(self):
-        return list(self.restoration_log)
+        with self._lock:
+            return list(self.restoration_log)
+
+    def clear_log(self) -> None:
+        with self._lock:
+            self.restoration_log.clear()
+            self.last_restoration = None
 
 
 # ------------------------------------------------------------

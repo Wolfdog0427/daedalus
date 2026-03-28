@@ -126,7 +126,7 @@ class REPLContext:
 
         self.store.save()
         run_background_self_test()
-        analyze_last_action_for_watch_anomalies()
+        analyze_last_action_for_watch_anomalies(self.store)
         return f"Goal {gid} archived."
 
     def unarchive_goal(self, gid: int) -> str:
@@ -140,7 +140,7 @@ class REPLContext:
 
         self.store.save()
         run_background_self_test()
-        analyze_last_action_for_watch_anomalies()
+        analyze_last_action_for_watch_anomalies(self.store)
         return f"Goal {gid} unarchived."
 
     # ------------------------------------------------------------
@@ -177,14 +177,14 @@ class REPLContext:
         msg = self.store.save_checkpoint(name)
         self.store.save()
         run_background_self_test()
-        analyze_last_action_for_watch_anomalies()
+        analyze_last_action_for_watch_anomalies(self.store)
         return msg
 
     def restore_checkpoint(self, name: str) -> str:
         msg = self.store.restore_checkpoint(name) or f"No checkpoint named '{name}'."
         self.store.save()
         run_background_self_test()
-        analyze_last_action_for_watch_anomalies()
+        analyze_last_action_for_watch_anomalies(self.store)
         return msg
 
     def list_checkpoints(self) -> str:
@@ -202,14 +202,14 @@ class REPLContext:
         msg = self.store.add_watchpoint(path)
         self.store.save()
         run_background_self_test()
-        analyze_last_action_for_watch_anomalies()
+        analyze_last_action_for_watch_anomalies(self.store)
         return msg
 
     def remove_watchpoint(self, path: str) -> str:
         msg = self.store.remove_watchpoint(path)
         self.store.save()
         run_background_self_test()
-        analyze_last_action_for_watch_anomalies()
+        analyze_last_action_for_watch_anomalies(self.store)
         return msg
 
     def list_watchpoints(self) -> str:
@@ -227,14 +227,14 @@ class REPLContext:
         msg = self.store.undo() or "Nothing to undo."
         self.store.save()
         run_background_self_test()
-        analyze_last_action_for_watch_anomalies()
+        analyze_last_action_for_watch_anomalies(self.store)
         return msg
 
     def redo(self) -> str:
         msg = self.store.redo() or "Nothing to redo."
         self.store.save()
         run_background_self_test()
-        analyze_last_action_for_watch_anomalies()
+        analyze_last_action_for_watch_anomalies(self.store)
         return msg
 
     # ------------------------------------------------------------
@@ -266,7 +266,7 @@ class REPLContext:
         return debug_timing_summary(timing)
 
     def debug_history(self) -> str:
-        return debug_history(self.store.history)
+        return debug_history({"history": self.store.history})
 
     def debug_context_trace(self) -> str:
         if len(self.store.history) < 1:

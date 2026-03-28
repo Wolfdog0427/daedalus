@@ -1,2 +1,5 @@
-rich
-prompt_toolkit
+fastapi
+uvicorn[standard]
+starlette
+pydantic
+requests

@@ -33,9 +33,9 @@ def _ensure_goal_shape(goal: Dict[str, Any], lines: List[str]) -> None:
         )
         _log(lines, f"Added missing goal id: {goal['id']}")
 
-    if "title" not in goal:
-        goal["title"] = "(untitled goal)"
-        _log(lines, f"Added missing goal title for id={goal['id']}")
+    if "name" not in goal:
+        goal["name"] = "(untitled goal)"
+        _log(lines, f"Added missing goal name for id={goal['id']}")
 
     if "steps" not in goal or not isinstance(goal["steps"], list):
         goal["steps"] = []
@@ -47,13 +47,13 @@ def _ensure_step_shape(step: Dict[str, Any], goal_id: Any, lines: List[str]) -> 
         step["id"] = id(step)
         _log(lines, f"Added missing step id under goal={goal_id}")
 
-    if "title" not in step:
-        step["title"] = "(untitled step)"
-        _log(lines, f"Added missing step title for step id={step['id']} under goal={goal_id}")
+    if "description" not in step:
+        step["description"] = "(untitled step)"
+        _log(lines, f"Added missing step description for step id={step['id']} under goal={goal_id}")
 
-    if "status" not in step:
-        step["status"] = "pending"
-        _log(lines, f"Added missing step status for step id={step['id']} under goal={goal_id}")
+    if "done" not in step:
+        step["done"] = False
+        _log(lines, f"Added missing step done flag for step id={step['id']} under goal={goal_id}")
 
 
 def run_system_doctor(auto: bool = True) -> List[str]:
@@ -109,7 +109,7 @@ def run_system_doctor(auto: bool = True) -> List[str]:
         state["history"] = new_history
         _log(lines, f"Dropped {dropped} malformed history entries.")
 
-    store.save()
+    store.save(state)
     _log(lines, "System doctor completed and state saved.")
 
     update_last_doctor_report(lines)

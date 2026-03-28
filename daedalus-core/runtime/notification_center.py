@@ -16,38 +16,52 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 from datetime import datetime
-import os
+from pathlib import Path
 import json
+import threading
 
 from runtime.logging_manager import log_event
 
+_notify_lock = threading.Lock()
 
-NOTIFY_DIR = os.path.join("data", "notifications")
-NOTIFY_PATH = os.path.join(NOTIFY_DIR, "notifications.json")
+
+NOTIFY_DIR = Path("data") / "notifications"
+NOTIFY_PATH = NOTIFY_DIR / "notifications.json"
 
 
 def _ensure_dir() -> None:
-    os.makedirs(NOTIFY_DIR, exist_ok=True)
+    NOTIFY_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    from datetime import timezone
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _atomic_write(path: Path, data: Any) -> None:
+    """Crash-safe JSON write using the knowledge-layer atomic helper."""
+    try:
+        from knowledge._atomic_io import atomic_write_json
+        atomic_write_json(path, data)
+    except ImportError:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def load_notifications() -> List[Dict[str, Any]]:
     _ensure_dir()
-    if not os.path.exists(NOTIFY_PATH):
-        with open(NOTIFY_PATH, "w", encoding="utf-8") as f:
-            json.dump([], f)
+    if not NOTIFY_PATH.exists():
+        _atomic_write(NOTIFY_PATH, [])
         return []
-    with open(NOTIFY_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        return json.loads(NOTIFY_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
 
 
 def save_notifications(notifications: List[Dict[str, Any]]) -> None:
     _ensure_dir()
-    with open(NOTIFY_PATH, "w", encoding="utf-8") as f:
-        json.dump(notifications, f, indent=2)
+    _atomic_write(NOTIFY_PATH, notifications)
 
 
 def push_notification(
@@ -57,21 +71,30 @@ def push_notification(
 ) -> Dict[str, Any]:
     """
     Add a new notification to the queue.
+    Thread-safe — serializes load/modify/save via _notify_lock.
     """
+    with _notify_lock:
+        notifications = load_notifications()
 
-    notifications = load_notifications()
+        max_id = 0
+        for n in notifications:
+            nid = n.get("id", "")
+            if nid.startswith("note-"):
+                try:
+                    max_id = max(max_id, int(nid.split("-", 1)[1]))
+                except (ValueError, IndexError):
+                    pass
+        entry = {
+            "id": f"note-{max_id + 1}",
+            "timestamp": _now_iso(),
+            "category": category,
+            "message": message,
+            "metadata": metadata or {},
+            "read": False,
+        }
 
-    entry = {
-        "id": f"note-{len(notifications) + 1}",
-        "timestamp": _now_iso(),
-        "category": category,  # e.g., "tier3", "drift", "stability", "patch_failure"
-        "message": message,
-        "metadata": metadata or {},
-        "read": False,
-    }
-
-    notifications.append(entry)
-    save_notifications(notifications)
+        notifications.append(entry)
+        save_notifications(notifications)
 
     log_event(
         "notification",
@@ -91,17 +114,20 @@ def list_all() -> List[Dict[str, Any]]:
 
 
 def mark_read(notification_id: str) -> bool:
-    notifications = load_notifications()
-    updated = False
+    with _notify_lock:
+        notifications = load_notifications()
+        updated = False
 
-    for n in notifications:
-        if n.get("id") == notification_id:
-            n["read"] = True
-            updated = True
-            break
+        for n in notifications:
+            if n.get("id") == notification_id:
+                n["read"] = True
+                updated = True
+                break
+
+        if updated:
+            save_notifications(notifications)
 
     if updated:
-        save_notifications(notifications)
         log_event(
             "notification_read",
             f"Notification {notification_id} marked as read",

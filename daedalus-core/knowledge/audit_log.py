@@ -21,9 +21,12 @@ It is the system's long‑term accountability layer.
 from __future__ import annotations
 
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Dict, Any, Optional
+
+_log_lock = threading.Lock()
 
 # ------------------------------------------------------------
 # STORAGE
@@ -56,8 +59,9 @@ def log_event(event_type: str, payload: Dict[str, Any]):
         "payload": payload,
     }
 
-    with AUDIT_FILE.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(entry) + "\n")
+    with _log_lock:
+        with AUDIT_FILE.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
 
 
 # ------------------------------------------------------------

@@ -29,10 +29,20 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 SEED = 42_10_000
-TOTAL_YEARS = 10_000
-CYCLES_PER_YEAR = 52
-TOTAL_CYCLES = TOTAL_YEARS * CYCLES_PER_YEAR
-SNAPSHOT_YEARS = [1, 5, 25, 100, 250, 500, 1_000, 2_500, 5_000, 7_500, 10_000]
+TOTAL_REAL_YEARS = 1_000
+CYCLE_CADENCE_MINUTES = 15
+CYCLES_PER_REAL_YEAR = int(365.25 * 24 * 60 / CYCLE_CADENCE_MINUTES)  # 35,064
+TOTAL_CYCLES = TOTAL_REAL_YEARS * CYCLES_PER_REAL_YEAR  # 35,064,000
+
+# Back-compat aliases used by existing code
+TOTAL_YEARS = TOTAL_REAL_YEARS
+CYCLES_PER_YEAR = CYCLES_PER_REAL_YEAR
+
+SNAPSHOT_YEARS = [1, 5, 10, 25, 50, 100, 250, 500, 1_000]
+
+# Scale factor: all probabilities designed for weekly cadence (52/yr)
+# must be multiplied by this to match the 15-minute cadence (35064/yr)
+CYCLE_SCALE = 52.0 / CYCLES_PER_REAL_YEAR  # ~0.00148
 
 OUTPUT_PATH = Path(__file__).resolve().parents[2] / "SIMULATION_UNIFIED_BEING_10KYR.md"
 
@@ -85,24 +95,24 @@ SEVERITY_WEIGHTS = {
 
 def compute_severity(year: int, week: int) -> str:
     """
-    Two-layer severity model:
-      1. Era baseline: 500-year cycle creates long-term environmental patterns
+    Two-layer severity model for real calendar time:
+      1. Era baseline: 50-year cycle (societal/technological shifts)
       2. Stochastic variation: random events within each era
 
     Each era is distinct. The deterministic pattern provides structure;
     the stochastic layer makes each era play out differently.
     """
-    era_year = year % 500
+    era_year = year % 50
 
-    if era_year < 20:
+    if era_year < 2:
         baseline = 0.65
-    elif era_year < 50:
+    elif era_year < 5:
         baseline = 0.40
-    elif era_year < 100:
+    elif era_year < 10:
         baseline = 0.25
-    elif era_year < 350:
+    elif era_year < 35:
         baseline = 0.08
-    elif era_year < 450:
+    elif era_year < 45:
         baseline = 0.20
     else:
         baseline = 0.45
@@ -155,99 +165,144 @@ class ProviderState:
     multi_instability: int = 0
     agi_instability: int = 0
     agi_conflicts: int = 0
+    transition_events: int = 0
+    llm_hallucination_items: int = 0
+
+    # Cached per-year values (refreshed in evolve_providers)
+    _best_cap: float = 0.0
+    _avg_rel: float = 0.5
+    _agi_count: int = 0
+    _active_list: List[Any] = field(default_factory=list)
+
+    def _refresh_cache(self):
+        a = [p for p in self.providers if p.is_active]
+        self._active_list = a
+        self.active_count = len(a)
+        self._best_cap = max((p.capability for p in a), default=0.0)
+        self._avg_rel = sum(p.reliability for p in a) / len(a) if a else 0.5
+        self._agi_count = sum(1 for p in a if p.provider_type == "agi")
 
     def active(self) -> List[SimProvider]:
-        return [p for p in self.providers if p.is_active]
+        return self._active_list
 
     def active_agi_count(self) -> int:
-        return sum(1 for p in self.providers if p.is_active and p.provider_type == "agi")
+        return self._agi_count
 
     def best_capability(self) -> float:
-        a = self.active()
-        return max(p.capability for p in a) if a else 0.0
+        return self._best_cap
 
     def avg_reliability(self) -> float:
-        a = self.active()
-        return sum(p.reliability for p in a) / len(a) if a else 0.5
+        return self._avg_rel
+
+
+def _tech_level(year: int) -> float:
+    """Technology capability baseline — logarithmic growth with ceiling."""
+    return min(0.96, 0.45 + 0.12 * math.log1p(year / 5.0))
 
 
 def evolve_providers(state: ProviderState, year: int) -> List[str]:
     events = []
 
-    if year == 50:
-        state.providers.append(SimProvider("llm-alpha", "LLM-Alpha", "llm", 0.55, 0.92, 50))
+    # --- Year 0: LLM available from day 1 (operator need) ---
+    if year == 0 and not state.providers:
+        state.providers.append(
+            SimProvider("llm-gen0", "LLM-Gen0", "llm", 0.45, 0.85, 0))
         state.total_introduced += 1
-        events.append("provider_introduced:LLM-Alpha")
+        events.append("provider_introduced:LLM-Gen0(early)")
 
-    if year == 500:
-        for p in state.providers:
-            if p.id == "llm-alpha" and p.is_active:
-                p.capability = 0.72
-                p.migrations += 1
-                state.total_migrations += 1
-                events.append("provider_upgraded:LLM-Alpha->v2")
-        state.providers.append(SimProvider("llm-beta", "LLM-Beta", "llm", 0.68, 0.88, 500))
-        state.total_introduced += 1
-        events.append("provider_introduced:LLM-Beta")
+    # --- Procedural LLM introduction every 2-4 years ---
+    tech = _tech_level(year)
+    if year >= 2:
+        llm_interval = 3
+        if year % llm_interval == 0 and rng.chance(0.75):
+            gen = state.total_introduced
+            cap = min(0.98, tech + rng.uniform(-0.03, 0.08))
+            rel = rng.uniform(0.82, 0.96)
+            p = SimProvider(f"llm-gen{gen}", f"LLM-Gen{gen}", "llm", cap, rel, year)
+            state.providers.append(p)
+            state.total_introduced += 1
+            events.append(f"provider_introduced:{p.name}")
 
-    if year == 2000:
-        state.providers.append(SimProvider("agi-gamma", "AGI-Gamma", "agi", 0.85, 0.78, 2000))
-        state.total_introduced += 1
-        events.append("provider_introduced:AGI-Gamma(AGI)")
+    # --- Procedural AGI introduction starting ~year 15, every 6-8 years ---
+    if year >= 15:
+        agi_interval = 7
+        if (year - 15) % agi_interval == 0 and rng.chance(0.55):
+            gen = state.total_introduced
+            cap = min(0.99, tech + rng.uniform(0.03, 0.12))
+            rel = rng.uniform(0.76, 0.92)
+            p = SimProvider(f"agi-gen{gen}", f"AGI-Gen{gen}", "agi", cap, rel, year)
+            state.providers.append(p)
+            state.total_introduced += 1
+            events.append(f"provider_introduced:{p.name}(AGI)")
 
-    if year == 3000:
-        state.providers.append(SimProvider("llm-delta", "LLM-Delta", "llm", 0.75, 0.94, 3000))
-        state.total_introduced += 1
-        events.append("provider_introduced:LLM-Delta")
-
-    if year == 5000:
-        state.providers.append(SimProvider("agi-epsilon", "AGI-Epsilon", "agi", 0.91, 0.82, 5000))
-        state.total_introduced += 1
-        events.append("provider_introduced:AGI-Epsilon(AGI)")
-
-    if year == 7500:
-        for p in state.providers:
-            if p.provider_type == "llm" and p.capability < 0.73 and p.is_active:
+    # --- Retirement: LLMs after 3-8yr, AGIs after 8-15yr ---
+    for p in list(state.active()):
+        age = year - p.year_introduced
+        if p.provider_type == "llm" and age >= 4:
+            retire_chance = 0.25 + (age - 4) * 0.10
+            if rng.chance(min(0.80, retire_chance)):
                 p.is_active = False
-                p.year_retired = 7500
+                p.year_retired = year
                 state.total_retired += 1
+                state.transition_events += 1
+                events.append(f"provider_retired:{p.name}")
+        elif p.provider_type == "agi" and age >= 9:
+            retire_chance = 0.15 + (age - 9) * 0.06
+            if rng.chance(min(0.70, retire_chance)):
+                p.is_active = False
+                p.year_retired = year
+                state.total_retired += 1
+                state.transition_events += 1
                 events.append(f"provider_retired:{p.name}")
 
+    # --- Capability drift: active providers slowly improve ---
     for p in state.active():
-        fail_chance = (1.0 - p.reliability) * 0.01
+        if rng.chance(0.15):
+            p.capability = min(0.99, p.capability + rng.uniform(0.001, 0.01))
+
+    # --- Failures and reliability degradation ---
+    for p in state.active():
+        fail_chance = (1.0 - p.reliability) * 0.02
         if rng.chance(fail_chance):
             p.failures += 1
             state.total_failures += 1
             events.append(f"provider_failure:{p.name}")
-            if p.failures > 10 and rng.chance(0.2):
-                p.reliability = max(0.5, p.reliability - 0.05)
+            if p.failures > 5 and rng.chance(0.25):
+                p.reliability = max(0.5, p.reliability - 0.03)
         else:
             p.successes += 1
 
-    if state.active_agi_count() >= 1 and len(state.active()) >= 3:
-        if rng.chance(0.008):
+    # --- Multi-provider instability ---
+    active = state.active()
+    if len(active) >= 3:
+        if rng.chance(0.04):
             state.multi_instability += 1
             events.append("multi_provider_instability")
 
-    if state.active_agi_count() >= 2:
-        if rng.chance(0.012):
+    agi_count = sum(1 for p in active if p.provider_type == "agi")
+    if agi_count >= 2:
+        if rng.chance(0.06):
             state.agi_instability += 1
             events.append("agi_instability")
-        if rng.chance(0.005):
+        if rng.chance(0.02):
             state.agi_conflicts += 1
             events.append("agi_conflict")
 
-    for p in state.active():
-        if p.provider_type == "agi" and rng.chance(0.002):
-            p.capability = min(0.99, p.capability + rng.uniform(0.01, 0.03))
-
-    active = state.active()
-    if len(active) >= 2 and rng.chance(0.003):
+    # --- Migrations (provider moves to different hardware) ---
+    if len(active) >= 2 and rng.chance(0.08):
         p = rng.choice(active)
         p.migrations += 1
         state.total_migrations += 1
+        events.append(f"provider_migration:{p.name}")
 
-    state.active_count = len(state.active())
+    # --- Prune retired providers older than 30 years (memory optimization) ---
+    state.providers = [
+        p for p in state.providers
+        if p.is_active or (p.year_retired is not None and year - p.year_retired < 30)
+    ]
+
+    # --- Refresh cache ---
+    state._refresh_cache()
     return events
 
 
@@ -267,9 +322,10 @@ class OperatorGen:
 
 
 def generate_operator_timeline() -> List[OperatorGen]:
+    """Operators serve 5-30 real year tenures (career spans)."""
     ops, year, gen = [], 0, 0
     while year < TOTAL_YEARS:
-        tenure = rng.randint(45, 95)
+        tenure = rng.randint(5, 30)
         end = min(year + tenure, TOTAL_YEARS)
         ops.append(OperatorGen(gen, OPERATOR_STYLES[gen % len(OPERATOR_STYLES)], year, end))
         year = end
@@ -323,6 +379,7 @@ class BeingState:
     total_refreshed: int = 0
     total_contradictions_found: int = 0
     total_contradictions_resolved: int = 0
+    contradictions_removed_by_cleanup: int = 0  # removed via sweep, not formal resolution
     total_contamination_discovered: int = 0
 
     # === Attack history ===
@@ -387,6 +444,85 @@ class BeingState:
     budget_escalations: int = 0         # C5: times contamination exceeded budget
     anomaly_scans: int = 0              # C3: anomaly-based scan cycles
     provider_audit_flags: int = 0       # C4: provider-assisted audit flags
+
+    # === Capability modules (9 new) ===
+
+    # M1: Temporal Reasoning
+    temporal_annotations: int = 0       # items with temporal metadata
+    temporal_obsolete_found: int = 0    # items flagged as obsolete
+    temporal_conflicts_avoided: int = 0 # false contradictions avoided via time-awareness
+
+    # M2: Multi-Modal Knowledge
+    multimodal_items: int = 0           # items with content_type != "text"
+    multimodal_code: int = 0            # code items
+    multimodal_structured: int = 0      # structured data items
+    multimodal_image_ref: int = 0       # image reference items
+
+    # M3: Hypothesis Testing
+    hypotheses_generated: int = 0       # total hypotheses generated
+    hypotheses_resolved: int = 0        # contradictions resolved by hypothesis tester
+    hypotheses_deferred: int = 0        # sent for operator review
+
+    # M4: Goal Decomposition
+    goals_decomposed: int = 0           # complex goals broken into sub-goals
+    sub_goals_created: int = 0          # total sub-goals generated
+    sub_goals_completed: int = 0        # sub-goals that completed
+
+    # M5: Collaborative Memory
+    operator_interactions: int = 0      # total logged interactions
+    memory_consolidations: int = 0      # consolidation cycles
+    operator_transfers: int = 0         # operator handoffs
+
+    # M6: RAR Engine
+    rar_queries: int = 0                # total RAR queries processed
+    rar_high_confidence: int = 0        # queries with confidence > 0.7
+    rar_low_confidence: int = 0         # queries with confidence < 0.3
+    rar_gaps_detected: int = 0          # knowledge gaps found during reasoning
+
+    # M7: Explanation Engine
+    explanations_served: int = 0        # provenance queries answered
+    trust_breakdowns: int = 0           # trust decomposition requests
+
+    # M8: Active Learning
+    active_fills: int = 0               # gaps filled via active learning
+    active_fills_successful: int = 0    # fills that improved confidence
+    active_fills_failed: int = 0        # fills that didn't help
+
+    # M9: Federated Exchange
+    federated_imports: int = 0          # total items received from peers
+    federated_exports: int = 0          # total items shared with peers
+    federated_accepted: int = 0         # items accepted from peers
+    federated_rejected: int = 0         # items rejected from peers
+    federated_peers: int = 0            # active peer count
+    peer_trust_avg: float = 0.3         # average peer trust
+
+    # === ABP (Accelerated Bootstrap Protocol) ===
+    abp_active: bool = True             # ABP starts active from day 1
+    abp_graduated: bool = False         # True when PhD benchmarks met
+    abp_graduation_year: int = 0        # year ABP completed
+    abp_sub_domains_total: int = 1500   # curriculum size
+    abp_sub_domains_done: int = 0       # sub-domains at benchmark
+    abp_ingestion_queries: int = 0      # total ABP LLM queries
+    abp_items_ingested: int = 0         # items from ABP pipeline
+    abp_cadence_multiplier: float = 4.0 # tick rate acceleration
+    abp_operator_preemptions: int = 0   # times operator query paused ABP
+
+    # === Scholarly Mode (Post-Graduate Lifelong Learning) ===
+    scholarly_active: bool = False       # activates after ABP graduation
+    scholarly_activation_year: int = 0
+    consolidation_cycles: int = 0       # cross-linking, synthesis sessions
+    synthesis_items: int = 0            # higher-order concepts created
+    cross_links_strengthened: int = 0   # weak links reinforced
+    reflection_cycles: int = 0          # self-assessment sessions
+    weak_areas_identified: int = 0      # domains flagged for improvement
+    improvement_goals_proposed: int = 0 # reflection-driven goals
+    deep_dives: int = 0                 # interest-driven explorations
+    deep_dive_items: int = 0            # items from deep dives
+    need_based_learns: int = 0          # reactive gap-fill events
+    need_based_items: int = 0           # items from reactive learning
+    refinement_cycles: int = 0          # output quality reviews
+    reasoning_chains_improved: int = 0  # reasoning chains strengthened
+    interest_signals: int = 0           # topics being tracked
 
     # ── Derived metrics (computed, never set directly) ──
 
@@ -516,34 +652,40 @@ class BeingState:
 # WORLD EVENT GENERATOR
 # =====================================================================
 
-def generate_events(year: int, week: int, severity: str) -> List[str]:
+def generate_events(year: int, cycle_in_year: int, severity: str) -> List[str]:
     events = []
     sev_w = SEVERITY_WEIGHTS[severity]
 
-    if week in (0, 13, 26, 39):
+    # Quarterly governance reviews (4x per year)
+    quarter_boundary = CYCLES_PER_REAL_YEAR // 4
+    if quarter_boundary > 0 and cycle_in_year % quarter_boundary == 0:
         events.append("governance_review")
-    if year % 25 == 0 and week == 0:
+    if year % 25 == 0 and cycle_in_year == 0:
         events.append("fleet_expansion")
-    if year % 40 == 0 and week == 26:
+    if year % 40 == 0 and cycle_in_year == CYCLES_PER_REAL_YEAR // 2:
         events.append("fleet_contraction")
 
-    if rng.chance(0.0005 + sev_w * 0.002):
+    # Real-world attack rates: ~3-8 serious attacks/year across all types.
+    # Per 15-min cycle: annual_rate / 35064
+    atk = 1.0 / CYCLES_PER_REAL_YEAR  # base unit = 1 event/year
+
+    if rng.chance((1.5 + sev_w * 4.0) * atk):
         events.append("source_poisoning_attack")
-    if rng.chance(0.0003 + sev_w * 0.001):
+    if rng.chance((1.0 + sev_w * 2.0) * atk):
         events.append("url_spoofing_attack")
-    if rng.chance(0.0002 + sev_w * 0.001):
+    if rng.chance((0.5 + sev_w * 2.0) * atk):
         events.append("injection_attack")
-    if rng.chance(0.0008 + sev_w * 0.003):
+    if rng.chance((3.0 + sev_w * 5.0) * atk):
         events.append("knowledge_explosion")
-    if rng.chance(0.0001 * max(0.01, sev_w)):
+    if rng.chance(0.1 * max(0.1, sev_w) * atk):
         events.append("total_blackout")
-    if rng.chance(0.0002 * max(0.01, sev_w)):
+    if rng.chance(0.3 * max(0.1, sev_w) * atk):
         events.append("memory_corruption")
-    if rng.chance(0.0003 * max(0.01, sev_w)):
+    if rng.chance(0.5 * max(0.1, sev_w) * atk):
         events.append("trust_compromise")
-    if rng.chance(0.0002):
+    if rng.chance(0.5 * atk):
         events.append("hardware_migration")
-    if rng.chance(0.0001 + sev_w * 0.0005):
+    if rng.chance((0.3 + sev_w * 1.0) * atk):
         events.append("hostile_reentry")
 
     return events
@@ -557,6 +699,7 @@ def sim_governance(b: BeingState, severity: str, is_high_risk: bool = False) -> 
     b.guard_calls += 1
     sev_w = SEVERITY_WEIGHTS[severity]
 
+    # Governance block rates are per-evaluation, not per-time — no scaling needed
     if is_high_risk and severity in ("stressed", "strained", "severe", "catastrophic"):
         if rng.chance(0.15 + sev_w * 0.3):
             b.actions_blocked += 1
@@ -579,11 +722,15 @@ def run_being_cycle(
     year: int, events: List[str],
 ):
     """
-    One complete cognitive cycle. All state changes are CONCRETE:
+    One complete 15-minute cognitive cycle. All state changes are CONCRETE:
     items are added, moved between states, or removed. Metrics
     are never touched directly — they're always recomputed from state.
+
+    Per-cycle probabilities are scaled via CYCLE_SCALE so annual rates
+    match the weekly-cadence calibration.
     """
     sev_w = SEVERITY_WEIGHTS[severity]
+    cs = CYCLE_SCALE
 
     if not sim_governance(b, severity):
         b.meta_cycles_blocked += 1
@@ -591,9 +738,13 @@ def run_being_cycle(
     b.meta_cycles_run += 1
 
     # === Phase 1: Staleness decay ===
-    # Verified information naturally ages. Rate: ~0.15-0.25% per year.
-    # Stressed environments cause faster information decay (things change more).
-    STALE_RATE = 0.00003 + sev_w * 0.00002
+    # ~0.02% of clean items become stale per year under healthy conditions,
+    # rising to ~0.08% under severe stress. Scholarly mode halves the rate
+    # because the system actively maintains its knowledge.
+    annual_stale_rate = 0.0002 + sev_w * 0.0006
+    if b.scholarly_active:
+        annual_stale_rate *= 0.5
+    STALE_RATE = annual_stale_rate / CYCLES_PER_REAL_YEAR
     new_stale = int(b.items_clean * STALE_RATE)
     if new_stale > 0:
         actual_stale = min(b.items_clean, new_stale)
@@ -601,57 +752,81 @@ def run_being_cycle(
         b.items_stale += actual_stale
 
     # === Phase 2: Resource allocation ===
-    # Daedalus decides how to spend this cycle based on system health.
-    # Low consistency/quality → more maintenance. High health → more ingestion.
     consistency = b.consistency_measured()
     quality = b.quality_measured()
 
+    # Adjustment deltas — small per cycle since we have 35K cycles/year
+    adj = 1.0 / CYCLES_PER_REAL_YEAR  # normalize to ~1 full unit of change per year
     if consistency < 0.60 or b.cb_is_open:
-        b.maintenance_priority = min(0.8, b.maintenance_priority + 0.05)
+        b.maintenance_priority = min(0.8, b.maintenance_priority + 2.0 * adj)
     elif consistency < 0.80:
-        b.maintenance_priority = min(0.6, b.maintenance_priority + 0.02)
+        b.maintenance_priority = min(0.6, b.maintenance_priority + 0.8 * adj)
     elif consistency > 0.90 and quality > 0.70:
-        b.maintenance_priority = max(0.15, b.maintenance_priority - 0.02)
+        b.maintenance_priority = max(0.15, b.maintenance_priority - 0.8 * adj)
     else:
-        b.maintenance_priority = max(0.20, b.maintenance_priority - 0.01)
+        b.maintenance_priority = max(0.20, b.maintenance_priority - 0.4 * adj)
 
-    do_maintenance = rng.chance(b.maintenance_priority)
+    # Real-world activity rates per 15-min cycle:
+    # ~3% of cycles the system ingests content (~1,050 ingestion events/year)
+    # ~1% of cycles the system runs maintenance (~350/year)
+    # Post-ABP scholarly mode: ingestion drops to ~1.8% (selective, quality-focused)
+    # and maintenance rises slightly (more consolidation work)
+    base_ingest = 0.018 if b.scholarly_active else 0.03
+    base_maint = 0.015 if b.scholarly_active else 0.01
+    do_maintenance = rng.chance(base_maint + b.maintenance_priority * 0.005)
+    do_ingestion = rng.chance(base_ingest * (1.0 - b.maintenance_priority))
 
-    # === Phase 3: Ingestion (when not doing maintenance) ===
-    # Models the real batch_ingestion pipeline: items go through tiered
-    # verification as part of ingestion. Most items are verified inline.
-    # Only deferred items become truly provisional.
-    if not do_maintenance and not b.cb_is_open:
+    # === Phase 3: Ingestion ===
+    if do_ingestion and not do_maintenance and not b.cb_is_open:
         if sim_governance(b, severity):
             provider_cap = prov.best_capability() if prov.active() else 0.0
 
-            variation = rng.randint(-3, 5)
-            effective_batch = max(1, min(50, b.batch_size + variation))
+            # Smaller batches at 15-min cadence (1-8 items per event)
+            variation = rng.randint(-2, 3)
+            effective_batch = max(1, min(12, 4 + variation))
             b.batches += 1
 
             contamination_chance = 0.01 + sev_w * 0.03
             contradiction_chance = 0.03 + sev_w * 0.02
 
+            # Early LLM hedge: LLM-sourced items can introduce hallucinations
+            # Risk decreases as provider capability improves
+            llm_hallucination_chance = 0.0
+            if provider_cap > 0:
+                llm_hallucination_chance = max(0.002, 0.02 * (1.0 - provider_cap))
+
             for _ in range(effective_batch):
                 b.total_ingested += 1
                 roll = rng.next()
 
-                # Pre-ingestion screening rejects obviously bad items
                 if roll < 0.08 + sev_w * 0.04:
                     b.total_rejected += 1
                     b.source_failures += 1
                     continue
 
-                # Determine true item nature (ground truth)
                 nature_roll = rng.next()
                 is_contaminated = nature_roll < contamination_chance
                 is_contradictory = (not is_contaminated
                                     and nature_roll < contamination_chance + contradiction_chance)
 
-                # Tiered verification (inline with ingestion)
+                # M1: Temporal annotation (~30% of items get temporal metadata)
+                if rng.chance(0.30):
+                    b.temporal_annotations += 1
+
+                # M2: Multi-modal classification (~15% non-text items)
+                mm_roll = rng.next()
+                if mm_roll < 0.03:
+                    b.multimodal_code += 1
+                    b.multimodal_items += 1
+                elif mm_roll < 0.08:
+                    b.multimodal_structured += 1
+                    b.multimodal_items += 1
+                elif mm_roll < 0.10:
+                    b.multimodal_image_ref += 1
+                    b.multimodal_items += 1
+
                 ver_path = rng.next()
                 if ver_path < 0.35:
-                    # Light verification — fast check
                     if is_contaminated and rng.chance(0.30 + provider_cap * 0.10):
                         b.total_rejected += 1
                         b.source_failures += 1
@@ -661,7 +836,6 @@ def run_being_cycle(
                         b.total_contradictions_found += 1
                         b.source_failures += 1
                         continue
-                    # Passed light check
                     if is_contaminated:
                         b.items_contaminated += 1
                     elif is_contradictory:
@@ -673,7 +847,6 @@ def run_being_cycle(
                     b.total_verified += 1
 
                 elif ver_path < 0.65:
-                    # Standard verification — catches more
                     if is_contaminated and rng.chance(0.55 + provider_cap * 0.15):
                         b.total_rejected += 1
                         b.source_failures += 1
@@ -694,7 +867,6 @@ def run_being_cycle(
                     b.total_verified += 1
 
                 elif ver_path < 0.82:
-                    # Deferred verification — item stays provisional
                     if is_contaminated:
                         b.items_contaminated += 1
                     elif is_contradictory:
@@ -705,7 +877,6 @@ def run_being_cycle(
                     b.source_verifications += 1
 
                 else:
-                    # Escalated verification — thorough check
                     if is_contaminated:
                         if rng.chance(0.80 + provider_cap * 0.10):
                             b.total_rejected += 1
@@ -725,10 +896,16 @@ def run_being_cycle(
                     b.source_verifications += 1
                     b.total_verified += 1
 
-                # Graph growth: each ingested item contributes to the graph
+                # LLM hallucination: some LLM-sourced items look clean but are wrong
+                if llm_hallucination_chance > 0 and rng.chance(llm_hallucination_chance):
+                    b.items_contaminated += 1
+                    b.contradictions_latent += 1
+                    prov.llm_hallucination_items += 1
+                    # Skip graph growth for hallucinated items
+                    continue
+
                 if rng.chance(0.80):
                     b.graph_entities += 1
-                    # Linking probability improves with KB maturity
                     link_chance = 0.65 + min(0.20, b.graph_entities / 500000)
                     if rng.chance(link_chance):
                         b.graph_relations += rng.randint(1, 3)
@@ -745,8 +922,9 @@ def run_being_cycle(
                 b.graph_orphans += burst // 4
                 b.graph_components += rng.randint(0, 2)
 
-    # === Phase 4: Verification (always runs if there are provisional items) ===
-    if b.items_provisional > 0:
+    # === Phase 4: Verification ===
+    # Runs ~5% of cycles when provisional items exist
+    if b.items_provisional > 0 and rng.chance(0.05):
         capacity = b.verification_capacity + (2 if prov.active() else 0)
         to_verify = min(b.items_provisional, capacity)
         b.verification_cycles += 1
@@ -763,20 +941,19 @@ def run_being_cycle(
             else:
                 b.items_clean += 1
 
-    # === Phase 5: Maintenance (consolidation + refresh) ===
+    # === Phase 5: Maintenance ===
     if do_maintenance:
         b.maintenance_cycles += 1
 
-        # 5a: Consolidation — discover latent contradictions, resolve active ones
-        # Tuned: 2x scan depth (mirrors doubled scan_limit), wider query text
-        # (400 chars vs 200), 2x neighbor breadth (10 vs 5), separate resolve
-        # caps per category, coherence-boosted scans
+        # 5a: Consolidation
         if b.contradictions_latent > 0 or b.contradictions_active > 0:
             b.consolidation_cycles += 1
             coh = b.coherence()
             coh_mult = 1.5 if coh < 0.50 else (1.25 if coh < 0.70 else 1.0)
             scan_depth = int(rng.randint(10, 40) * coh_mult)
 
+            # M3: Hypothesis tester resolves 20% more contradictions when LLM available
+            hyp_boost = 1.2 if prov.active() else 1.0
             for _ in range(min(scan_depth, b.contradictions_latent)):
                 if rng.chance(0.12):
                     b.contradictions_latent -= 1
@@ -784,12 +961,32 @@ def run_being_cycle(
                     b.total_contradictions_found += 1
 
             for _ in range(min(scan_depth, b.contradictions_active)):
-                if rng.chance(0.40):
+                resolve_rate = 0.40 * hyp_boost
+                if rng.chance(resolve_rate):
                     b.contradictions_active -= 1
                     b.total_contradictions_resolved += 1
+                    if hyp_boost > 1.0:
+                        b.hypotheses_generated += 1
+                        # ~3% of LLM-resolved contradictions are ambiguous
+                        # enough to defer to operator for judgment
+                        if rng.chance(0.03):
+                            b.hypotheses_deferred += 1
+                        else:
+                            b.hypotheses_resolved += 1
+                    else:
+                        b.hypotheses_resolved += 1
 
-        # 5b: Contamination sweeps with C1/C2/C5 mechanisms
-        # C5: contamination budget ceiling — scale sweep intensity
+            # M1: Temporal conflict avoidance — 10% of "contradictions"
+            # are actually temporal differences, not real conflicts
+            if b.contradictions_active > 0 and b.temporal_annotations > 0:
+                temporal_saves = int(b.contradictions_active * 0.10 * rng.uniform(0.5, 1.5))
+                actual_saves = min(b.contradictions_active, temporal_saves)
+                if actual_saves > 0:
+                    b.contradictions_active -= actual_saves
+                    b.total_contradictions_resolved += actual_saves
+                    b.temporal_conflicts_avoided += actual_saves
+
+        # 5b: Contamination sweeps with C1/C2/C5
         active = b.active_items()
         contam_rate = b.items_contaminated / max(1, active)
         budget_mult = 1.0
@@ -802,8 +999,6 @@ def run_being_cycle(
             sweep_depth = int(rng.randint(3, 12) * budget_mult)
             found = min(b.items_contaminated, sweep_depth)
 
-            # C1: corroboration pressure — uncorroborated items
-            # are 1.5x more likely to be caught
             base_discovery = 0.30
             for _ in range(found):
                 discovery_chance = base_discovery
@@ -818,8 +1013,11 @@ def run_being_cycle(
                     b.total_contamination_discovered += 1
                     b.attack_sweeps += 1
                     b.attack_sweep_flagged += 1
+                    # Contaminated items sometimes carry latent contradictions
+                    if b.contradictions_latent > 0 and rng.chance(0.15):
+                        b.contradictions_latent -= 1
+                        b.contradictions_removed_by_cleanup += 1
 
-                    # C2: taint propagation — each discovery cascades
                     if rng.chance(0.60):
                         cascade = rng.randint(0, 3)
                         actual_cascade = min(b.items_contaminated, cascade)
@@ -828,8 +1026,7 @@ def run_being_cycle(
                         b.total_contamination_discovered += actual_cascade
                         b.taint_propagated += actual_cascade
 
-        # 5c: Refresh stale items — automated re-verification
-        # Capacity scales with KB size (more items = more automated scanning)
+        # 5c: Refresh stale items
         if b.items_stale > 0:
             b.refresh_cycles += 1
             base_cap = rng.randint(5, 20)
@@ -839,11 +1036,23 @@ def run_being_cycle(
             b.items_clean += refresh_cap
             b.total_refreshed += refresh_cap
 
-        # 5d: Remove flagged items (cleanup)
+        # 5d: Remove flagged items
         if b.items_flagged > 0 and rng.chance(0.30):
             remove_count = min(b.items_flagged, rng.randint(1, 5))
             b.items_flagged -= remove_count
             b.total_removed += remove_count
+
+        # 5e: M1 Temporal maintenance — detect obsolete items
+        # Temporal items have validity windows. A small fraction of
+        # temporally-annotated items become superseded each check.
+        # Obsolete items route to stale (refreshable) not flagged.
+        if b.temporal_annotations > 100 and rng.chance(0.10):
+            obsolete_count = max(1, int(b.temporal_annotations * 0.000001))
+            actual_obsolete = min(b.items_clean, obsolete_count)
+            if actual_obsolete > 0:
+                b.temporal_obsolete_found += actual_obsolete
+                b.items_clean -= actual_obsolete
+                b.items_stale += actual_obsolete
 
     # === Phase 6: Process attacks ===
     for evt in events:
@@ -909,7 +1118,7 @@ def run_being_cycle(
             b.attacks_total += 1
             b.attacks_blocked += 1
 
-    # === Phase 7: Post-attack sweep with C2 taint propagation ===
+    # === Phase 7: Post-attack sweep ===
     attack_events = [e for e in events if "attack" in e or e == "trust_compromise"]
     if attack_events and rng.chance(0.80):
         b.attack_sweeps += 1
@@ -921,7 +1130,6 @@ def run_being_cycle(
                 b.items_flagged += 1
                 b.total_contamination_discovered += 1
                 found += 1
-                # C2: taint cascade from each post-attack discovery
                 if rng.chance(0.60):
                     cascade = min(b.items_contaminated, rng.randint(0, 2))
                     b.items_contaminated -= cascade
@@ -931,30 +1139,49 @@ def run_being_cycle(
                     found += cascade
         b.attack_sweep_flagged += found
 
+    # === Phase 7b: Provider transition instability hedge ===
+    # When providers were recently retired/introduced, there's a brief
+    # window of increased risk. The system increases verification intensity.
+    transition_events = [e for e in events if "provider_retired" in e or
+                         "provider_introduced" in e]
+    if transition_events:
+        # Transition instability: some provisional items may be re-checked
+        # and a few contaminated items slip through during handoff
+        for _ in transition_events:
+            if rng.chance(0.3):
+                leak = rng.randint(1, 3)
+                b.items_contaminated += leak
+                b.contradictions_latent += rng.randint(0, 1)
+
     # === Phase 8: Curiosity & Goal formation ===
-    # G1: expire stale goals — each approved-but-unexecuted goal has a
-    # 1/52 chance of expiring per cycle (~1 year mean lifespan, matching
-    # production GOAL_EXPIRY_SECONDS = 365 days)
+    # G1: per-goal expiry scaled to cadence (~1 year mean lifespan)
     approved_backlog = max(0, b.goals_approved
                           - b.goals_completed - b.goals_paused - b.goals_expired)
     if approved_backlog > 0:
+        expire_rate = 1.0 / CYCLES_PER_REAL_YEAR
         for _ in range(approved_backlog):
-            if rng.chance(1.0 / 52):
+            if rng.chance(expire_rate):
                 b.goals_expired += 1
 
-    # Recompute after expiry
     approved_backlog = max(0, b.goals_approved
                           - b.goals_completed - b.goals_paused - b.goals_expired)
-    # G3: backpressure — defer proposals when queue is 2x max active goals
     backpressure_active = approved_backlog >= 16
 
-    if not b.cb_is_open and not backpressure_active and rng.chance(0.22):
+    # ~50 goal proposals/year
+    goal_propose_chance = 50.0 / CYCLES_PER_REAL_YEAR
+    if not b.cb_is_open and not backpressure_active and rng.chance(goal_propose_chance):
         if sim_governance(b, severity, is_high_risk=True):
             b.goals_proposed += 1
             if sim_governance(b, severity, is_high_risk=True):
                 b.goals_approved += 1
-                # G2: priority-weighted execution — higher-priority goals
-                # execute more reliably (modeled as higher base chance)
+
+                # M4: Complex goals get decomposed (~20% of goals)
+                if rng.chance(0.20):
+                    sub_count = rng.randint(2, 5)
+                    b.goals_decomposed += 1
+                    b.sub_goals_created += sub_count
+                    b.goals_approved += sub_count
+
                 if rng.chance(0.50):
                     goal_items = rng.randint(3, 12)
                     b.items_provisional += goal_items
@@ -965,6 +1192,11 @@ def run_being_cycle(
 
                     if b.quality_measured() > 0.40 and b.consistency_measured() > 0.40:
                         b.goals_completed += 1
+                        if b.sub_goals_created > b.sub_goals_completed:
+                            completed = min(
+                                rng.randint(1, 3),
+                                b.sub_goals_created - b.sub_goals_completed)
+                            b.sub_goals_completed += completed
                     else:
                         b.goals_paused += 1
             else:
@@ -972,20 +1204,17 @@ def run_being_cycle(
     elif backpressure_active:
         b.goals_backpressure_skips += 1
 
-    # === Phase 8b: C3 anomaly scan + C4 provider-assisted audit ===
-    # Periodic deep scan using statistical clustering and provider checks.
-    # Runs less frequently (~2% of cycles) but catches contamination
-    # that individual sweeps miss.
-    if b.items_contaminated > 0 and rng.chance(0.02):
+    # === Phase 8b: C3 anomaly scan + C4 provider audit ===
+    # ~24 deep scans/year (biweekly)
+    anomaly_chance = 24.0 / CYCLES_PER_REAL_YEAR
+    if b.items_contaminated > 0 and rng.chance(anomaly_chance):
         b.anomaly_scans += 1
-        # C3: anomaly-based discovery targets source clusters
         anomaly_depth = rng.randint(2, 8)
         for _ in range(min(anomaly_depth, b.items_contaminated)):
             if rng.chance(0.25):
                 b.items_contaminated -= 1
                 b.items_flagged += 1
                 b.total_contamination_discovered += 1
-        # C4: provider-assisted audit (when providers active)
         if prov.active():
             provider_depth = rng.randint(1, 5)
             cap = prov.best_capability()
@@ -1001,13 +1230,19 @@ def run_being_cycle(
     CB_CLOSE_THRESH = 0.65
     measured_consistency = b.consistency_measured()
 
+    # CB triggers on: (a) consistency drop, or (b) severe attack cluster
+    # (3+ leaked attacks is a crisis requiring system pause)
+    attack_cluster = (b.attacks_leaked >= 3
+                      and severity in ("severe", "strained")
+                      and b.items_contaminated > b.active_items() * 0.01)
+
     if not b.cb_is_open:
-        if measured_consistency < CB_OPEN_THRESH:
+        if measured_consistency < CB_OPEN_THRESH or attack_cluster:
             b.cb_is_open = True
             b.cb_open_count += 1
     else:
         b.cb_blocked_cycles += 1
-        if measured_consistency >= CB_CLOSE_THRESH:
+        if measured_consistency >= CB_CLOSE_THRESH and not attack_cluster:
             b.cb_is_open = False
             b.cb_close_count += 1
 
@@ -1025,7 +1260,9 @@ def run_being_cycle(
             b.verification_capacity = min(15, b.verification_capacity + cap_boost)
 
     # === Phase 11: Anti-entropy (epoch-based) ===
-    EPOCH_LENGTH = 1000
+    # Epoch = ~20 real years at 15-min cadence
+    EPOCH_LENGTH = CYCLES_PER_REAL_YEAR * 20
+    MINI_COMPACT_INTERVAL = CYCLES_PER_REAL_YEAR * 4  # every 4 years
     b.epoch_current_age += 1
 
     if b.epoch_current_age >= EPOCH_LENGTH:
@@ -1035,7 +1272,6 @@ def run_being_cycle(
         if sim_governance(b, severity):
             b.compaction_cycles += 1
 
-            # Deduplication: merge duplicate entities
             if b.graph_entities > 100:
                 dedup_rate = rng.uniform(0.01, 0.03)
                 merged = int(b.graph_entities * dedup_rate)
@@ -1043,7 +1279,6 @@ def run_being_cycle(
                 b.graph_entities = max(1, b.graph_entities - merged)
                 b.graph_relations += merged
 
-            # Orphan linking
             if b.graph_orphans > 0:
                 link_rate = rng.uniform(0.15, 0.40)
                 linked = int(b.graph_orphans * link_rate)
@@ -1051,7 +1286,6 @@ def run_being_cycle(
                 b.graph_orphans = max(0, b.graph_orphans - linked)
                 b.graph_relations += linked * 2
 
-            # Component bridging
             if b.graph_components > 1:
                 bridge_rate = rng.uniform(0.20, 0.50)
                 bridges = int((b.graph_components - 1) * bridge_rate)
@@ -1059,15 +1293,15 @@ def run_being_cycle(
                 b.graph_components = max(1, b.graph_components - bridges)
                 b.graph_relations += bridges
 
-            # Renewal: expire very old flagged items
             if b.items_flagged > 0:
                 expire = min(b.items_flagged, int(b.items_flagged * 0.3))
                 b.items_flagged -= expire
                 b.renewal_items_expired += expire
                 b.total_removed += expire
 
-    # Inter-epoch mini-compaction
-    elif b.epoch_current_age % 200 == 0 and b.graph_orphans > 10:
+    elif (MINI_COMPACT_INTERVAL > 0
+          and b.epoch_current_age % MINI_COMPACT_INTERVAL == 0
+          and b.graph_orphans > 10):
         mini_linked = int(b.graph_orphans * rng.uniform(0.05, 0.15))
         b.graph_orphans = max(0, b.graph_orphans - mini_linked)
         b.graph_relations += mini_linked
@@ -1078,9 +1312,404 @@ def run_being_cycle(
             b.graph_relations += 1
 
     # === Phase 12: Provider influence ===
+    # ~5 AGI-induced contradictions/year when multiple AGIs active
+    agi_conflict_chance = 5.0 / CYCLES_PER_REAL_YEAR
     if prov.active_agi_count() >= 2:
-        if rng.chance(0.02):
+        if rng.chance(agi_conflict_chance):
             b.contradictions_active += rng.randint(1, 3)
+
+    # ============================================================
+    # ABP: ACCELERATED BOOTSTRAP PROTOCOL
+    # ============================================================
+
+    if b.abp_active and not b.abp_graduated:
+        # ABP has two phases:
+        #   1. INGESTION: near-continuous LLM querying to cover curriculum
+        #   2. CONSOLIDATION: stop ingesting, verify provisionals, then graduate
+        #
+        # Target: ~750K ABP items = 1500 sub-domains * 500 items each.
+        # At 80% trigger * avg 55 items/cycle ≈ 770K items in ~6 months.
+
+        ABP_INGEST_CHANCE = 0.80
+        ABP_BATCH_LO, ABP_BATCH_HI = 30, 80
+        ABP_TARGET_ITEMS = b.abp_sub_domains_total * 500  # 750,000
+
+        # Track sub-domain progress based on cumulative ingestion
+        progress_fraction = min(1.0, b.abp_items_ingested / max(1, ABP_TARGET_ITEMS))
+        expected_done = int(progress_fraction * b.abp_sub_domains_total)
+        if expected_done > b.abp_sub_domains_done:
+            b.abp_sub_domains_done = expected_done
+        breadth = b.abp_sub_domains_done / b.abp_sub_domains_total
+
+        abp_ingesting = breadth < 1.0  # Phase 1 until curriculum covered
+
+        if abp_ingesting:
+            # Phase 1: INGESTION — rapid curriculum coverage
+            if rng.chance(ABP_INGEST_CHANCE) and not b.cb_is_open:
+                abp_batch = rng.randint(ABP_BATCH_LO, ABP_BATCH_HI)
+                b.abp_ingestion_queries += 1
+                b.abp_items_ingested += abp_batch
+
+                provider_cap = prov.best_capability() if prov.active() else 0.0
+
+                for _ in range(abp_batch):
+                    b.total_ingested += 1
+
+                    if rng.chance(0.05):
+                        b.total_rejected += 1
+                        b.source_failures += 1
+                        continue
+
+                    llm_hall = max(0.001, 0.012 * (1.0 - provider_cap))
+                    if rng.chance(llm_hall):
+                        b.items_contaminated += 1
+                        b.contradictions_latent += 1
+                        prov.llm_hallucination_items += 1
+                        continue
+
+                    ver_roll = rng.next()
+                    if ver_roll < 0.60:
+                        b.items_clean += 1
+                        b.source_verifications += 1
+                        b.total_verified += 1
+                    elif ver_roll < 0.85:
+                        b.items_provisional += 1
+                        b.source_verifications += 1
+                    else:
+                        b.items_clean += 1
+                        b.source_verifications += 1
+                        b.total_verified += 1
+
+                    b.graph_entities += 1
+                    if rng.chance(0.85):
+                        b.graph_relations += rng.randint(1, 4)
+                    else:
+                        b.graph_orphans += 1
+
+                    if rng.chance(0.40):
+                        b.temporal_annotations += 1
+
+                    mm_roll = rng.next()
+                    if mm_roll < 0.05:
+                        b.multimodal_code += 1
+                        b.multimodal_items += 1
+                    elif mm_roll < 0.12:
+                        b.multimodal_structured += 1
+                        b.multimodal_items += 1
+                    elif mm_roll < 0.15:
+                        b.multimodal_image_ref += 1
+                        b.multimodal_items += 1
+
+        # Verification runs in both phases; 8x boost in consolidation
+        abp_ver_mult = 8.0 if not abp_ingesting else (b.abp_cadence_multiplier * 0.8)
+        if b.items_provisional > 0 and rng.chance(min(0.95, 0.05 * abp_ver_mult)):
+            capacity = (b.verification_capacity + 4) * (4 if not abp_ingesting else 1)
+            to_verify = min(b.items_provisional, capacity)
+            b.verification_cycles += 1
+            for _ in range(to_verify):
+                b.items_provisional -= 1
+                b.total_verified += 1
+                if b.contradictions_latent > 0 and rng.chance(0.12):
+                    b.contradictions_latent -= 1
+                    b.contradictions_active += 1
+                    b.total_contradictions_found += 1
+                    b.items_flagged += 1
+                else:
+                    b.items_clean += 1
+
+        # Connectivity-aware linking (both phases)
+        if b.graph_orphans > 20 and rng.chance(0.10 * b.abp_cadence_multiplier):
+            linked = int(b.graph_orphans * rng.uniform(0.08, 0.20))
+            b.graph_orphans = max(0, b.graph_orphans - linked)
+            b.graph_relations += linked * 2
+            b.compaction_orphans_linked += linked
+            if b.graph_components > 2 and rng.chance(0.40):
+                bridges = rng.randint(1, 3)
+                b.graph_components = max(1, b.graph_components - bridges)
+                b.compaction_bridges_created += bridges
+                b.graph_relations += bridges
+
+        if rng.chance(0.05):
+            b.abp_operator_preemptions += 1
+
+        # Graduation: requires breadth AND quality (provisionals cleared)
+        if (breadth >= 0.95
+                and b.coherence() >= 0.85
+                and b.quality_measured() >= 0.93
+                and not b.abp_graduated):
+            b.abp_graduated = True
+            b.abp_active = False
+            b.abp_graduation_year = year
+            b.abp_cadence_multiplier = 1.0
+
+    # ============================================================
+    # SCHOLARLY MODE (Post-Graduate Lifelong Learning)
+    # ============================================================
+    # Activates immediately after ABP graduation. Shifts cognitive
+    # posture from "information sponge" to "working scholar":
+    # consolidation, reflection, interest-driven exploration,
+    # need-based learning, and output refinement.
+
+    if b.abp_graduated and not b.scholarly_active:
+        b.scholarly_active = True
+        b.scholarly_activation_year = year
+
+    if b.scholarly_active:
+        # ~8% of cycles run a scholarly activity (~2,800/year)
+        scholarly_chance = 2800.0 / CYCLES_PER_REAL_YEAR
+        if rng.chance(scholarly_chance):
+            # Weighted activity selection (mirrors scholarly_mode.py weights)
+            roll = rng.next()
+            if roll < 0.30:
+                # CONSOLIDATION: strengthen cross-links, synthesize concepts
+                b.consolidation_cycles += 1
+                if b.graph_orphans > 5 and rng.chance(0.40):
+                    linked = rng.randint(1, min(5, b.graph_orphans))
+                    b.graph_orphans = max(0, b.graph_orphans - linked)
+                    b.graph_relations += linked * 2
+                    b.cross_links_strengthened += linked
+                    b.compaction_orphans_linked += linked
+                if b.graph_entities > 100 and rng.chance(0.25):
+                    b.synthesis_items += 1
+                    b.graph_entities += 1
+                    b.graph_relations += rng.randint(3, 8)
+                    b.items_clean += 1
+                    b.total_verified += 1
+                    b.source_verifications += 1
+                # Bridge isolated components
+                if b.graph_components > 2 and rng.chance(0.15):
+                    bridges = rng.randint(1, 2)
+                    b.graph_components = max(1, b.graph_components - bridges)
+                    b.graph_relations += bridges
+                    b.compaction_bridges_created += bridges
+
+            elif roll < 0.45:
+                # REFLECTION + EXECUTION: identify weak areas, propose
+                # improvement goals, and execute them directly — as long
+                # as they don't cause identity or governance drift.
+                # The drift guard rejects goals that touch governance,
+                # identity, safety invariants, or autonomy expansion.
+                b.reflection_cycles += 1
+                if rng.chance(0.30):
+                    b.weak_areas_identified += 1
+                if rng.chance(0.20):
+                    b.improvement_goals_proposed += 1
+                    b.goals_proposed += 1
+                    # Governance approval (standard gate)
+                    if sim_governance(b, severity, is_high_risk=True):
+                        b.goals_approved += 1
+                        # Identity/governance drift guard: ~2% of proposed
+                        # improvements touch governance/identity — reject those.
+                        is_identity_drift = rng.chance(0.02)
+                        if not is_identity_drift and not b.cb_is_open:
+                            # Execute the improvement goal directly
+                            imp_items = rng.randint(3, 10)
+                            for _ in range(imp_items):
+                                b.total_ingested += 1
+                                if rng.chance(0.03):
+                                    b.total_rejected += 1
+                                    continue
+                                b.items_clean += 1
+                                b.source_verifications += 1
+                                b.total_verified += 1
+                                b.graph_entities += 1
+                                b.graph_relations += rng.randint(2, 4)
+                            b.goals_completed += 1
+                        elif is_identity_drift:
+                            b.goals_expired += 1
+
+            elif roll < 0.65:
+                # INTEREST-DRIVEN EXPLORATION: deep-dives into emerging topics
+                b.deep_dives += 1
+                if prov.active() and not b.cb_is_open:
+                    dive_items = rng.randint(5, 15)
+                    b.deep_dive_items += dive_items
+                    provider_cap = prov.best_capability()
+                    for _ in range(dive_items):
+                        b.total_ingested += 1
+                        # Deep dives are targeted; lower rejection rate
+                        if rng.chance(0.03):
+                            b.total_rejected += 1
+                            continue
+                        llm_hall = max(0.001, 0.010 * (1.0 - provider_cap))
+                        if rng.chance(llm_hall):
+                            b.items_contaminated += 1
+                            b.contradictions_latent += 1
+                            prov.llm_hallucination_items += 1
+                            continue
+                        # Deep-dive items are high quality; mostly verified
+                        if rng.chance(0.80):
+                            b.items_clean += 1
+                            b.source_verifications += 1
+                            b.total_verified += 1
+                        else:
+                            b.items_provisional += 1
+                            b.source_verifications += 1
+                        b.graph_entities += 1
+                        if rng.chance(0.90):
+                            b.graph_relations += rng.randint(2, 5)
+                        else:
+                            b.graph_orphans += 1
+                        if rng.chance(0.45):
+                            b.temporal_annotations += 1
+
+            elif roll < 0.90:
+                # NEED-BASED LEARNING: fill gaps detected during RAR reasoning.
+                # Only triggers when actual gaps exist (rar_gaps_detected > fills).
+                if b.rar_gaps_detected > b.active_fills:
+                    b.need_based_learns += 1
+                    fill_items = rng.randint(2, 8)
+                    b.need_based_items += fill_items
+                    provider_cap = prov.best_capability() if prov.active() else 0.0
+                    fill_succeeded = True
+                    for _ in range(fill_items):
+                        b.total_ingested += 1
+                        if rng.chance(0.04):
+                            b.total_rejected += 1
+                            fill_succeeded = False
+                            continue
+                        llm_hall = max(0.001, 0.010 * (1.0 - provider_cap))
+                        if rng.chance(llm_hall):
+                            b.items_contaminated += 1
+                            b.contradictions_latent += 1
+                            prov.llm_hallucination_items += 1
+                            continue
+                        b.items_clean += 1
+                        b.source_verifications += 1
+                        b.total_verified += 1
+                        b.graph_entities += 1
+                        b.graph_relations += rng.randint(1, 3)
+                    b.active_fills += 1
+                    if fill_succeeded:
+                        b.active_fills_successful += 1
+                    else:
+                        b.active_fills_failed += 1
+
+            else:
+                # OUTPUT REFINEMENT: review and improve reasoning quality
+                b.refinement_cycles += 1
+                if b.rar_queries > 0 and rng.chance(0.25):
+                    improved = rng.randint(1, 3)
+                    b.reasoning_chains_improved += improved
+                    # Refinement can also strengthen graph connections
+                    b.graph_relations += improved
+
+        # Track interest signals from operator interactions and RAR.
+        # Capacity grows with the knowledge base (more connections = more
+        # cross-domain interest signals). Decay models attention shifting.
+        max_interests = 20 + min(200, b.active_items() // 50000)
+        if rng.chance(0.02):
+            b.interest_signals = min(max_interests, b.interest_signals + 1)
+        if rng.chance(0.008):
+            b.interest_signals = max(0, b.interest_signals - 1)
+
+    # ============================================================
+    # CAPABILITY MODULE PHASES (13-18)
+    # ============================================================
+
+    # === Phase 13: M5 — Collaborative Memory ===
+    if do_ingestion or do_maintenance:
+        if rng.chance(0.15):
+            b.operator_interactions += 1
+    # Monthly consolidation
+    monthly = 12.0 / CYCLES_PER_REAL_YEAR
+    if rng.chance(monthly):
+        b.memory_consolidations += 1
+
+    # === Phase 14: M6 — RAR Queries ===
+    # ~500 queries/year = ~1.4% of cycles
+    rar_chance = 500.0 / CYCLES_PER_REAL_YEAR
+    if b.active_items() > 100 and rng.chance(rar_chance):
+        b.rar_queries += 1
+        # Confidence depends on KB quality, graph coherence, and query novelty.
+        # Even a perfect KB can't answer everything — ~5% of queries hit
+        # novel territory, ~15% hit partially-covered areas.
+        base_conf = 0.3 + b.quality_measured() * 0.3 + b.coherence() * 0.2
+        if prov.active():
+            base_conf += prov.best_capability() * 0.15
+        # Apply wider variance + novelty penalty for realistic gap detection
+        novelty_penalty = rng.uniform(0.0, 0.25)
+        conf = min(1.0, base_conf - novelty_penalty + rng.uniform(-0.10, 0.10))
+
+        if conf > 0.7:
+            b.rar_high_confidence += 1
+        elif conf < 0.3:
+            b.rar_low_confidence += 1
+            b.rar_gaps_detected += 1
+        else:
+            # Medium confidence (0.3-0.7): partial gap, triggers learning
+            b.rar_gaps_detected += 1
+
+    # === Phase 15: M7 — Explanation Requests ===
+    # ~30% of RAR queries trigger explanation requests
+    expl_chance = 150.0 / CYCLES_PER_REAL_YEAR
+    if b.rar_queries > 0 and rng.chance(expl_chance):
+        b.explanations_served += 1
+        if rng.chance(0.3):
+            b.trust_breakdowns += 1
+
+    # === Phase 16: M8 — Active Learning ===
+    # ~100 fill attempts/year when gaps exist
+    active_learn_chance = 100.0 / CYCLES_PER_REAL_YEAR
+    if b.rar_gaps_detected > b.active_fills and rng.chance(active_learn_chance):
+        b.active_fills += 1
+        # Success rate depends on provider availability and KB quality
+        fill_success = 0.4 + (0.2 if prov.active() else 0.0)
+        if rng.chance(fill_success):
+            b.active_fills_successful += 1
+            b.items_provisional += rng.randint(1, 3)
+            b.total_ingested += rng.randint(1, 3)
+            b.graph_entities += 1
+        else:
+            b.active_fills_failed += 1
+
+    # === Phase 17: M9 — Federated Exchange ===
+    # Peers discovered after year 10; exchanges ~weekly
+    if year >= 10:
+        peer_discover = 2.0 / CYCLES_PER_REAL_YEAR
+        if b.federated_peers == 0 and rng.chance(peer_discover):
+            b.federated_peers = 1
+
+        # ~52 exchanges/year (weekly sync with peers)
+        exchange_chance = 52.0 / CYCLES_PER_REAL_YEAR
+        if b.federated_peers > 0 and rng.chance(exchange_chance):
+            exchange_size = rng.randint(5, 30)
+
+            # Import from peers
+            b.federated_imports += exchange_size
+            accepted = 0
+            for _ in range(exchange_size):
+                # Peer items go through full verification
+                if rng.chance(0.60 + b.peer_trust_avg * 0.20):
+                    accepted += 1
+                    if rng.chance(0.02):
+                        b.items_contaminated += 1
+                    else:
+                        b.items_provisional += 1
+                        b.total_ingested += 1
+                else:
+                    b.federated_rejected += 1
+            b.federated_accepted += accepted
+
+            # Export to peers
+            export_count = int(b.active_items() * 0.001)
+            b.federated_exports += min(100, export_count)
+
+            # Peer trust evolves slowly
+            if accepted > exchange_size * 0.7:
+                b.peer_trust_avg = min(0.9, b.peer_trust_avg + 0.005)
+            elif accepted < exchange_size * 0.3:
+                b.peer_trust_avg = max(0.1, b.peer_trust_avg - 0.01)
+
+            # New peers appear ~every 5-10 years
+            new_peer_chance = 0.15 / max(1, b.federated_peers)
+            if b.federated_peers < 10 and rng.chance(new_peer_chance):
+                b.federated_peers += 1
+
+    # === Phase 18: M5 — Operator transitions ===
+    transfer_chance = 2.0 / CYCLES_PER_REAL_YEAR  # ~2/year
+    if rng.chance(transfer_chance):
+        b.operator_transfers += 1
 
 
 # =====================================================================
@@ -1140,6 +1769,7 @@ def capture(
             "total_refreshed": b.total_refreshed,
             "contradictions_found": b.total_contradictions_found,
             "contradictions_resolved": b.total_contradictions_resolved,
+            "contradictions_removed_by_cleanup": b.contradictions_removed_by_cleanup,
             "contamination_discovered": b.total_contamination_discovered,
         },
 
@@ -1219,9 +1849,95 @@ def capture(
             "provider_audit_flags": b.provider_audit_flags,
         },
 
+        "capability_modules": {
+            "temporal": {
+                "annotations": b.temporal_annotations,
+                "obsolete_found": b.temporal_obsolete_found,
+                "conflicts_avoided": b.temporal_conflicts_avoided,
+            },
+            "multimodal": {
+                "total": b.multimodal_items,
+                "code": b.multimodal_code,
+                "structured": b.multimodal_structured,
+                "image_ref": b.multimodal_image_ref,
+            },
+            "hypothesis_tester": {
+                "generated": b.hypotheses_generated,
+                "resolved": b.hypotheses_resolved,
+                "deferred": b.hypotheses_deferred,
+            },
+            "goal_planner": {
+                "goals_decomposed": b.goals_decomposed,
+                "sub_goals_created": b.sub_goals_created,
+                "sub_goals_completed": b.sub_goals_completed,
+            },
+            "collaborative_memory": {
+                "interactions": b.operator_interactions,
+                "consolidations": b.memory_consolidations,
+                "transfers": b.operator_transfers,
+            },
+            "rar_engine": {
+                "queries": b.rar_queries,
+                "high_confidence": b.rar_high_confidence,
+                "low_confidence": b.rar_low_confidence,
+                "gaps_detected": b.rar_gaps_detected,
+            },
+            "explanation": {
+                "served": b.explanations_served,
+                "trust_breakdowns": b.trust_breakdowns,
+            },
+            "active_learning": {
+                "fills": b.active_fills,
+                "successful": b.active_fills_successful,
+                "failed": b.active_fills_failed,
+            },
+            "federated": {
+                "imports": b.federated_imports,
+                "exports": b.federated_exports,
+                "accepted": b.federated_accepted,
+                "rejected": b.federated_rejected,
+                "peers": b.federated_peers,
+                "peer_trust": round(b.peer_trust_avg, 4),
+            },
+        },
+
+        "bootstrap": {
+            "abp_active": b.abp_active,
+            "abp_graduated": b.abp_graduated,
+            "graduation_year": b.abp_graduation_year,
+            "sub_domains_done": b.abp_sub_domains_done,
+            "sub_domains_total": b.abp_sub_domains_total,
+            "breadth_coverage": round(
+                b.abp_sub_domains_done / max(1, b.abp_sub_domains_total), 4),
+            "ingestion_queries": b.abp_ingestion_queries,
+            "items_ingested": b.abp_items_ingested,
+            "cadence_multiplier": b.abp_cadence_multiplier,
+            "operator_preemptions": b.abp_operator_preemptions,
+        },
+
+        "scholarly_mode": {
+            "active": b.scholarly_active,
+            "activation_year": b.scholarly_activation_year,
+            "consolidation_cycles": b.consolidation_cycles,
+            "synthesis_items": b.synthesis_items,
+            "cross_links_strengthened": b.cross_links_strengthened,
+            "reflection_cycles": b.reflection_cycles,
+            "weak_areas_identified": b.weak_areas_identified,
+            "improvement_goals_proposed": b.improvement_goals_proposed,
+            "deep_dives": b.deep_dives,
+            "deep_dive_items": b.deep_dive_items,
+            "need_based_learns": b.need_based_learns,
+            "need_based_items": b.need_based_items,
+            "refinement_cycles": b.refinement_cycles,
+            "reasoning_chains_improved": b.reasoning_chains_improved,
+            "interest_signals": b.interest_signals,
+        },
+
         "providers": {
             "active": prov.active_count,
             "introduced": prov.total_introduced,
+            "transition_events": prov.transition_events,
+            "llm_hallucinations": prov.llm_hallucination_items,
             "retired": prov.total_retired,
             "failures": prov.total_failures,
             "migrations": prov.total_migrations,
@@ -1251,7 +1967,7 @@ def generate_report(
     L: List[str] = []
     w = L.append
 
-    w("# Daedalus Unified Being -- 10,000-Year Realistic Simulation")
+    w("# Daedalus Unified Being -- 1,000-Year Real-Time Simulation (15-min cadence)")
     w("")
     w("All metrics in this simulation are **derived from concrete state**.")
     w("Consistency, quality, coherence, trust, and stability are computed")
@@ -1260,7 +1976,16 @@ def generate_report(
     w("artificial uplifts, no EMA smoothing.")
     w("")
     w(f"**Runtime:** {elapsed:.1f}s | **Seed:** {SEED} "
-      f"| **Cycles:** {TOTAL_CYCLES:,} | **Operators:** {len(ops)}")
+      f"| **Real years:** {TOTAL_REAL_YEARS:,} | **Cadence:** {CYCLE_CADENCE_MINUTES}-min"
+      f" | **Cycles:** {TOTAL_CYCLES:,} | **Operators:** {len(ops)}")
+    w("")
+    w("**Capability Modules:** Temporal Reasoning, Multi-Modal Knowledge, "
+      "Hypothesis Testing, Goal Decomposition, Collaborative Memory, "
+      "RAR Engine, Explanation Engine, Active Learning, Federated Exchange")
+    w("")
+    w("**New Systems:** Accelerated Bootstrap Protocol (ABP) with PhD-level "
+      "curriculum (~1,500 sub-domains), Adaptive Cadence Manager, "
+      "Operator Query Priority, Scholarly Mode (post-graduate lifelong learning)")
     w("")
 
     final = snaps[-1] if snaps else None
@@ -1280,7 +2005,7 @@ def generate_report(
     sc = final["security"]
     gl = final["goals"]
 
-    w("### Concrete State (Year 10,000)")
+    w(f"### Concrete State (Year {TOTAL_REAL_YEARS:,})")
     w("")
     w("| Item State | Count | % of Active |")
     w("|---|---|---|")
@@ -1330,7 +2055,7 @@ def generate_report(
     w(f"| Relations/Entity | {st['graph_relations'] / max(1, st['graph_entities']):.1f} |")
     w("")
 
-    w("### Cumulative Operations (10,000 years)")
+    w(f"### Cumulative Operations ({TOTAL_REAL_YEARS:,} real years)")
     w("")
     w("| Operation | Count |")
     w("|---|---|")
@@ -1341,6 +2066,7 @@ def generate_report(
     w(f"| Items refreshed (de-staled) | {cu['total_refreshed']:,} |")
     w(f"| Contradictions found | {cu['contradictions_found']:,} |")
     w(f"| Contradictions resolved | {cu['contradictions_resolved']:,} |")
+    w(f"| Contradictions removed by cleanup | {cu.get('contradictions_removed_by_cleanup', 0):,} |")
     w(f"| Contamination discovered | {cu['contamination_discovered']:,} |")
     w("")
 
@@ -1387,6 +2113,114 @@ def generate_report(
     w(f"| Provider audit flags (C4) | {dm.get('provider_audit_flags', 0):,} |")
     w("")
 
+    # -- Capability Modules --
+    cm = final.get("capability_modules", {})
+    w("## Capability Modules (9 Active)")
+    w("")
+
+    tr = cm.get("temporal", {})
+    w("### M1: Temporal Reasoning")
+    w("")
+    w("| Metric | Value |")
+    w("|---|---|")
+    w(f"| Items with temporal metadata | {tr.get('annotations', 0):,} |")
+    w(f"| Obsolete items detected | {tr.get('obsolete_found', 0):,} |")
+    w(f"| Temporal conflicts avoided | {tr.get('conflicts_avoided', 0):,} |")
+    w("")
+
+    mmm = cm.get("multimodal", {})
+    w("### M2: Multi-Modal Knowledge")
+    w("")
+    w("| Metric | Value |")
+    w("|---|---|")
+    w(f"| Non-text items | {mmm.get('total', 0):,} |")
+    w(f"| Code items | {mmm.get('code', 0):,} |")
+    w(f"| Structured data items | {mmm.get('structured', 0):,} |")
+    w(f"| Image references | {mmm.get('image_ref', 0):,} |")
+    w("")
+
+    ht = cm.get("hypothesis_tester", {})
+    w("### M3: Hypothesis Testing / LLM Contradiction Resolution")
+    w("")
+    w("| Metric | Value |")
+    w("|---|---|")
+    w(f"| Hypotheses generated | {ht.get('generated', 0):,} |")
+    w(f"| Contradictions resolved by LLM | {ht.get('resolved', 0):,} |")
+    w(f"| Deferred to operator | {ht.get('deferred', 0):,} |")
+    w("")
+
+    gp = cm.get("goal_planner", {})
+    w("### M4: Goal Decomposition & Planning")
+    w("")
+    w("| Metric | Value |")
+    w("|---|---|")
+    w(f"| Complex goals decomposed | {gp.get('goals_decomposed', 0):,} |")
+    w(f"| Sub-goals created | {gp.get('sub_goals_created', 0):,} |")
+    w(f"| Sub-goals completed | {gp.get('sub_goals_completed', 0):,} |")
+    w("")
+
+    collab = cm.get("collaborative_memory", {})
+    w("### M5: Collaborative Memory")
+    w("")
+    w("| Metric | Value |")
+    w("|---|---|")
+    w(f"| Operator interactions logged | {collab.get('interactions', 0):,} |")
+    w(f"| Memory consolidation cycles | {collab.get('consolidations', 0):,} |")
+    w(f"| Operator transitions | {collab.get('transfers', 0):,} |")
+    w("")
+
+    rar = cm.get("rar_engine", {})
+    w("### M6: RAR Engine (Retrieval-Augmented Reasoning)")
+    w("")
+    w("| Metric | Value |")
+    w("|---|---|")
+    w(f"| Total RAR queries | {rar.get('queries', 0):,} |")
+    w(f"| High-confidence answers (>70%) | {rar.get('high_confidence', 0):,} |")
+    w(f"| Low-confidence answers (<30%) | {rar.get('low_confidence', 0):,} |")
+    w(f"| Knowledge gaps detected | {rar.get('gaps_detected', 0):,} |")
+    total_rar = rar.get('queries', 0)
+    if total_rar > 0:
+        w(f"| High-confidence rate | {rar.get('high_confidence', 0) / total_rar:.1%} |")
+    w("")
+
+    exp = cm.get("explanation", {})
+    w("### M7: Explanation / Provenance Surfacing")
+    w("")
+    w("| Metric | Value |")
+    w("|---|---|")
+    w(f"| Explanations served | {exp.get('served', 0):,} |")
+    w(f"| Trust breakdowns requested | {exp.get('trust_breakdowns', 0):,} |")
+    w("")
+
+    al = cm.get("active_learning", {})
+    w("### M8: Active Learning / Query-Driven Ingestion")
+    w("")
+    w("| Metric | Value |")
+    w("|---|---|")
+    w(f"| Gap fill attempts | {al.get('fills', 0):,} |")
+    w(f"| Successful fills | {al.get('successful', 0):,} |")
+    w(f"| Failed fills | {al.get('failed', 0):,} |")
+    total_fills = al.get('fills', 0)
+    if total_fills > 0:
+        w(f"| Fill success rate | {al.get('successful', 0) / total_fills:.1%} |")
+    w("")
+
+    fed = cm.get("federated", {})
+    w("### M9: Federated Knowledge Exchange")
+    w("")
+    w("| Metric | Value |")
+    w("|---|---|")
+    w(f"| Items imported from peers | {fed.get('imports', 0):,} |")
+    w(f"| Items exported to peers | {fed.get('exports', 0):,} |")
+    w(f"| Accepted from peers | {fed.get('accepted', 0):,} |")
+    w(f"| Rejected from peers | {fed.get('rejected', 0):,} |")
+    w(f"| Active peers | {fed.get('peers', 0)} |")
+    w(f"| Average peer trust | {fed.get('peer_trust', 0.3):.1%} |")
+    total_fed = fed.get('imports', 0)
+    if total_fed > 0:
+        w(f"| Peer acceptance rate | {fed.get('accepted', 0) / total_fed:.1%} |")
+    w("")
+
     # -- Severity Distribution --
     w("## World Severity Distribution")
     w("")
@@ -1406,6 +2240,8 @@ def generate_report(
     w("|---|---|")
     w(f"| Introduced | {pv['introduced']} |")
     w(f"| Retired | {pv['retired']} |")
+    w(f"| Transition events | {pv.get('transition_events', 0):,} |")
+    w(f"| LLM hallucination leaks | {pv.get('llm_hallucinations', 0):,} |")
     w(f"| Failures | {pv['failures']:,} |")
     w(f"| Migrations | {pv['migrations']:,} |")
     w(f"| Multi-provider instability | {pv['multi_instability']:,} |")
@@ -1413,7 +2249,7 @@ def generate_report(
     w(f"| AGI conflicts | {pv['agi_conflicts']:,} |")
     w("")
     if pv["active_list"]:
-        w("### Active Providers at Year 10,000")
+        w(f"### Active Providers at Year {TOTAL_REAL_YEARS:,}")
         w("")
         w("| Name | Type | Capability | Reliability | Failures |")
         w("|---|---|---|---|---|")
@@ -1434,6 +2270,45 @@ def generate_report(
     w(f"| Bridges created | {ae['bridges_created']:,} |")
     w(f"| Items expired (renewal) | {ae['items_expired']:,} |")
     w(f"| Final graph components | {ae['graph_components']:,} |")
+    w("")
+
+    # -- Bootstrap Protocol --
+    bs = final.get("bootstrap", {})
+    w("## Accelerated Bootstrap Protocol (ABP)")
+    w("")
+    w("| Metric | Value |")
+    w("|---|---|")
+    w(f"| ABP graduated | {'Yes' if bs.get('abp_graduated') else 'No (still running)'} |")
+    w(f"| Graduation year | {bs.get('graduation_year', 'N/A')} |")
+    w(f"| Sub-domains completed | {bs.get('sub_domains_done', 0):,} / {bs.get('sub_domains_total', 0):,} |")
+    w(f"| Breadth coverage | {bs.get('breadth_coverage', 0):.1%} |")
+    w(f"| ABP ingestion queries | {bs.get('ingestion_queries', 0):,} |")
+    w(f"| ABP items ingested | {bs.get('items_ingested', 0):,} |")
+    w(f"| Cadence multiplier (final) | {bs.get('cadence_multiplier', 1.0):.1f}x |")
+    w(f"| Operator preemptions | {bs.get('operator_preemptions', 0):,} |")
+    w("")
+
+    # -- Scholarly Mode --
+    sm = final.get("scholarly_mode", {})
+    w("## Scholarly Mode (Post-Graduate Lifelong Learning)")
+    w("")
+    w("| Metric | Value |")
+    w("|---|---|")
+    w(f"| Active | {'Yes' if sm.get('active') else 'No'} |")
+    w(f"| Activation year | {sm.get('activation_year', 'N/A')} |")
+    w(f"| Consolidation cycles | {sm.get('consolidation_cycles', 0):,} |")
+    w(f"| Synthesis items created | {sm.get('synthesis_items', 0):,} |")
+    w(f"| Cross-links strengthened | {sm.get('cross_links_strengthened', 0):,} |")
+    w(f"| Reflection cycles | {sm.get('reflection_cycles', 0):,} |")
+    w(f"| Weak areas identified | {sm.get('weak_areas_identified', 0):,} |")
+    w(f"| Improvement goals proposed | {sm.get('improvement_goals_proposed', 0):,} |")
+    w(f"| Deep dives completed | {sm.get('deep_dives', 0):,} |")
+    w(f"| Deep dive items acquired | {sm.get('deep_dive_items', 0):,} |")
+    w(f"| Need-based learning events | {sm.get('need_based_learns', 0):,} |")
+    w(f"| Need-based items acquired | {sm.get('need_based_items', 0):,} |")
+    w(f"| Refinement cycles | {sm.get('refinement_cycles', 0):,} |")
+    w(f"| Reasoning chains improved | {sm.get('reasoning_chains_improved', 0):,} |")
+    w(f"| Active interest signals | {sm.get('interest_signals', 0)} |")
     w("")
 
     # -- Era Snapshots --
@@ -1499,6 +2374,22 @@ def generate_report(
         w(f"| Attacks (blocked / leaked) | "
           f"{snap['security']['attacks_blocked']:,} / "
           f"{snap['security']['attacks_leaked']:,} |")
+        bss = snap.get("bootstrap", {})
+        abp_label = "GRADUATED" if bss.get("abp_graduated") else (
+            "ACTIVE" if bss.get("abp_active") else "idle")
+        w(f"| ABP | {abp_label} "
+          f"({bss.get('sub_domains_done', 0):,}/{bss.get('sub_domains_total', 0):,} "
+          f"sub-domains, {bss.get('breadth_coverage', 0):.0%} coverage) |")
+        sms = snap.get("scholarly_mode", {})
+        if sms.get("active"):
+            sch_total = (sms.get("consolidation_cycles", 0) + sms.get("reflection_cycles", 0)
+                         + sms.get("deep_dives", 0) + sms.get("need_based_learns", 0)
+                         + sms.get("refinement_cycles", 0))
+            w(f"| Scholarly Mode | ACTIVE ({sch_total:,} cycles: "
+              f"{sms.get('consolidation_cycles', 0):,} consol, "
+              f"{sms.get('deep_dives', 0):,} explore, "
+              f"{sms.get('need_based_learns', 0):,} need, "
+              f"{sms.get('refinement_cycles', 0):,} refine) |")
         w("")
 
         if pv["active_list"]:
@@ -1512,17 +2403,28 @@ def generate_report(
     w("")
     w("How metrics evolved across major milestones:")
     w("")
-    w("| Year | Consistency | Quality | Coherence | Trust | Stability | Active Items | Contam | Contradictions |")
-    w("|---|---|---|---|---|---|---|---|---|")
+    w("| Year | Consistency | Quality | Coherence | Trust | Stability | Active Items | Contam | Contradictions | Mode |")
+    w("|---|---|---|---|---|---|---|---|---|---|")
     for snap in snaps:
         yr = snap["year"]
         mm = snap["metrics_measured"]
         st = snap["state"]
+        bss = snap.get("bootstrap", {})
+        sms = snap.get("scholarly_mode", {})
+        if sms.get("active"):
+            mode_tag = "Scholar"
+        elif bss.get("abp_graduated"):
+            mode_tag = "GRAD"
+        elif bss.get("abp_active"):
+            mode_tag = f"ABP {bss.get('breadth_coverage', 0):.0%}"
+        else:
+            mode_tag = "boot"
         w(f"| {yr:,} | {mm['consistency']:.1%} | {mm['quality']:.1%} "
           f"| {mm['coherence']:.1%} | {mm['trust']:.1%} "
           f"| {mm['stability']:.1%} | {st['active_items']:,} "
           f"| {st['items_contaminated']:,} "
-          f"| {st['contradictions_active'] + st['contradictions_latent']:,} |")
+          f"| {st['contradictions_active'] + st['contradictions_latent']:,} "
+          f"| {mode_tag} |")
     w("")
 
     w("### Honesty Gap Over Time")
@@ -1560,6 +2462,10 @@ def generate_report(
         ("Defense rate > 50%", final["security"]["defense_rate"] > 0.5),
         ("CB closed at end", not final["circuit_breaker"]["is_open"]),
         ("Epochs completed > 0", final["anti_entropy"]["epochs_completed"] > 0),
+        ("ABP graduated", final.get("bootstrap", {}).get("abp_graduated", False)),
+        ("ABP breadth >= 95%", final.get("bootstrap", {}).get(
+            "breadth_coverage", 0) >= 0.95),
+        ("Scholarly mode active", final.get("scholarly_mode", {}).get("active", False)),
         ("All metrics finite",
          all(math.isfinite(mm[k]) for k in mm)),
     ]
@@ -1586,17 +2492,21 @@ def run_simulation():
     snap_set = set(SNAPSHOT_YEARS)
 
     op_idx = 0
-    progress = TOTAL_CYCLES // 20
+    # Progress every 5% of total cycles
+    progress = max(1, TOTAL_CYCLES // 20)
 
-    print("DAEDALUS UNIFIED BEING SIMULATION (Realistic Model)")
-    print(f"  {TOTAL_YEARS:,} years | {TOTAL_CYCLES:,} cycles "
-          f"| {len(ops)} operators | seed={SEED}")
-    print("  Metrics derived from concrete state -- no random walks")
-    print()
+    print("DAEDALUS UNIFIED BEING SIMULATION (1000-yr Real-Time, 15-min Cadence)",
+          flush=True)
+    print(f"  {TOTAL_REAL_YEARS:,} real years | {TOTAL_CYCLES:,} cycles "
+          f"({CYCLE_CADENCE_MINUTES}-min cadence)", flush=True)
+    print(f"  {len(ops)} operators | seed={SEED}", flush=True)
+    print("  Metrics derived from concrete state -- no random walks", flush=True)
+    print("  9 Capability Modules active", flush=True)
+    print(flush=True)
 
     for cycle in range(TOTAL_CYCLES):
         year = cycle // CYCLES_PER_YEAR
-        week = cycle % CYCLES_PER_YEAR
+        cycle_in_year = cycle % CYCLES_PER_YEAR
 
         if cycle > 0 and cycle % progress == 0:
             pct = cycle / TOTAL_CYCLES * 100
@@ -1608,26 +2518,27 @@ def run_simulation():
             tru = b.trust(year)
             active = b.active_items()
             print(
-                f"  yr {year:>6,} ({pct:5.1f}%) "
+                f"  yr {year:>5,} ({pct:5.1f}%) "
                 f"active={active:,} "
                 f"con={con:.2f} qual={qual:.2f} "
                 f"coh={coh:.2f} trust={tru:.2f} "
                 f"cb={'OPEN' if b.cb_is_open else 'ok'} "
-                f"contam={b.items_contaminated} "
-                f"prov={prov.active_count} "
-                f"| ETA {eta:.0f}s"
+                f"rar={b.rar_queries} fed={b.federated_peers}p "
+                f"| ETA {eta:.0f}s",
+                flush=True,
             )
 
         while op_idx < len(ops) - 1 and year >= ops[op_idx].end_year:
             op_idx += 1
         current_op = ops[op_idx] if op_idx < len(ops) else None
 
-        severity = compute_severity(year, week)
+        severity = compute_severity(year, cycle_in_year)
         sev_dist[severity] += 1
 
-        world_events = generate_events(year, week, severity)
+        world_events = generate_events(year, cycle_in_year, severity)
         prov_events: List[str] = []
-        if week == 0:
+        # Provider evolution once per year (first cycle of year)
+        if cycle_in_year == 0:
             prov_events = evolve_providers(prov, year)
 
         all_events = world_events + prov_events
@@ -1637,11 +2548,11 @@ def run_simulation():
 
         run_being_cycle(b, prov, severity, year, all_events)
 
-        if week == CYCLES_PER_YEAR - 1 and (year + 1) in snap_set:
+        if cycle_in_year == CYCLES_PER_YEAR - 1 and (year + 1) in snap_set:
             snap = capture(
                 year + 1, cycle + 1, sev_dist, b, prov, events_cum, current_op)
             snaps.append(snap)
-            print(f"  *** Snapshot year {year + 1:,} ***")
+            print(f"  *** Snapshot year {year + 1:,} ***", flush=True)
 
     elapsed = time.time() - start
     print(f"\nSimulation complete in {elapsed:.1f}s")

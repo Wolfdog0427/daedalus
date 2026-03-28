@@ -50,9 +50,9 @@ class SHOGovernorBridge:
             patch_history=patch_history,
         )
 
-        allowed_tier = decision["allowed_tier"]
-        proposal_id = decision["proposal_id"]
-        should_generate = decision["should_generate_proposal"]
+        allowed_tier = decision.get("allowed_tier", 1)
+        proposal_id = decision.get("proposal_id")
+        should_generate = decision.get("should_generate_proposal", False)
 
         patch_result = None
 
@@ -77,5 +77,5 @@ class SHOGovernorBridge:
             "allowed_tier": allowed_tier,
             "proposal_id": proposal_id,
             "patch_result": patch_result,
-            "governor_state": decision["state"],
+            "governor_state": decision.get("state", {}),
         }

@@ -20,21 +20,11 @@ from typing import Dict, Any
 # Correct imports
 from knowledge.ingestion import KNOWLEDGE_DIR, KNOWLEDGE_FILE, ingest_text
 from knowledge.retrieval import INDEX_FILE
+from knowledge._atomic_io import knowledge_file_lock as _storage_lock
 
 
-def replace_item(item_id: str, new_item: Dict[str, Any]) -> None:
-    """
-    Replace an existing item in the knowledge store with a new version.
-    This is append-only: the old item is marked superseded in the index.
-    """
-
-    KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Append new item
-    with KNOWLEDGE_FILE.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(new_item, ensure_ascii=False) + "\n")
-
-    # Update index
+def _mark_superseded_unlocked(item_id: str) -> None:
+    """Mark an item as superseded — caller must already hold _storage_lock."""
     index = {}
     if INDEX_FILE.exists():
         try:
@@ -47,7 +37,36 @@ def replace_item(item_id: str, new_item: Dict[str, Any]) -> None:
         "timestamp": time.time(),
     }
 
-    INDEX_FILE.write_text(json.dumps(index, indent=2), encoding="utf-8")
+    try:
+        from knowledge._atomic_io import atomic_write_json
+        atomic_write_json(INDEX_FILE, index)
+    except ImportError:
+        INDEX_FILE.write_text(json.dumps(index, indent=2), encoding="utf-8")
+
+
+def _mark_superseded(item_id: str) -> None:
+    """Mark an item as superseded in the index (acquires lock)."""
+    with _storage_lock:
+        _mark_superseded_unlocked(item_id)
+
+
+def replace_item(item_id: str, new_item: Dict[str, Any]) -> None:
+    """
+    Replace an existing item in the knowledge store with a new version.
+    This is append-only: the old item is marked superseded in the index.
+    """
+    with _storage_lock:
+        KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
+
+        serialized = json.dumps(new_item, ensure_ascii=False) + "\n"
+
+        with KNOWLEDGE_FILE.open("a", encoding="utf-8") as f:
+            f.write(serialized)
+
+        try:
+            _mark_superseded_unlocked(item_id)
+        except Exception:
+            pass
 
 
 def replace_item_from_text(
@@ -61,20 +80,14 @@ def replace_item_from_text(
     the new item's ID. Used by verification_pipeline and trust_scoring
     when they decide an existing item should be replaced.
     """
-    new_id = ingest_text(new_text, source=source, metadata={
-        "replaces": old_id,
-        "replacement_reason": reason,
-        "verification_status": "verified",
-    })
+    with _storage_lock:
+        new_id = ingest_text(new_text, source=source, metadata={
+            "replaces": old_id,
+            "replacement_reason": reason,
+            "verification_status": "verified",
+        })
 
-    replace_item(old_id, {
-        "id": new_id,
-        "text": new_text,
-        "source": source,
-        "supersedes": old_id,
-        "reason": reason,
-        "created_at": time.time(),
-    })
+        _mark_superseded_unlocked(old_id)
 
     return new_id
 
@@ -105,10 +118,8 @@ def get_storage_usage() -> Dict[str, Any]:
 
 def maintenance_cycle() -> Dict[str, Any]:
     """
-    Run a storage maintenance cycle:
-    - Compact superseded items
-    - Rebuild index if needed
-    - Report on reclaimed space
+    Run a storage maintenance cycle — currently read-only.
+    Reports on superseded items that could be compacted.
     """
     index = {}
     if INDEX_FILE.exists():
@@ -138,7 +149,7 @@ def save_version_snapshot(candidate: Dict[str, Any]) -> str:
 
 def save_cockpit_snapshot(data: Dict[str, Any]) -> str:
     """
-    Save a cockpit snapshot for SHO.
+    Save a cockpit snapshot for SHO (atomic write).
     """
     cockpit_dir = Path("data/cockpit")
     cockpit_dir.mkdir(parents=True, exist_ok=True)
@@ -146,7 +157,7 @@ def save_cockpit_snapshot(data: Dict[str, Any]) -> str:
     snapshot_id = str(int(time.time() * 1000))
     path = cockpit_dir / f"{snapshot_id}.json"
 
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    from knowledge._atomic_io import atomic_write_json
+    atomic_write_json(path, data)
 
     return snapshot_id

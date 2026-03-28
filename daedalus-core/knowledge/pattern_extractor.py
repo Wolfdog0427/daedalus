@@ -32,9 +32,9 @@ from knowledge.retrieval import _iter_items
 
 ENTITY_PATTERN = re.compile(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b")
 RELATION_PATTERNS = [
-    re.compile(r"(.+?)\s+is\s+(a|an|the)\s+(.+?)\."),
-    re.compile(r"(.+?)\s+has\s+(.+?)\."),
-    re.compile(r"(.+?)\s+causes\s+(.+?)\."),
+    ("is_a", re.compile(r"(.+?)\s+is\s+(?:a|an|the)\s+(.+?)\.")),
+    ("has", re.compile(r"(.+?)\s+has\s+(.+?)\.")),
+    ("causes", re.compile(r"(.+?)\s+causes\s+(.+?)\.")),
 ]
 
 
@@ -51,14 +51,11 @@ def extract_relations(text: str) -> List[Tuple[str, str, str]]:
     Returns triples: (subject, relation, object)
     """
     triples = []
-    for pattern in RELATION_PATTERNS:
+    for rel_name, pattern in RELATION_PATTERNS:
         for match in pattern.findall(text):
-            if len(match) == 3:
-                subj, rel, obj = match
-                triples.append((subj.strip(), rel.strip(), obj.strip()))
-            elif len(match) == 2:
+            if len(match) == 2:
                 subj, obj = match
-                triples.append((subj.strip(), "has", obj.strip()))
+                triples.append((subj.strip(), rel_name, obj.strip()))
     return triples
 
 

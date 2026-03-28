@@ -23,6 +23,19 @@ class RealtimeDiagnoser:
       structured health report.
     """
 
+    def propose_fix(self, report: FailureReport):
+        """Generate an ImprovementProposal from a failure report."""
+        from core.contracts import ImprovementProposal
+        subsystem = report.details.get("subsystem", "unknown")
+        return ImprovementProposal(
+            description=f"Auto-fix for {report.failure_type} in {subsystem}",
+            target_subsystem=subsystem,
+            proposal_type="bugfix",
+            estimated_complexity="low",
+            risk_level="low",
+            expected_benefit=0.3,
+        )
+
     def analyze_interaction(self, snapshot: Dict[str, Any]) -> Optional[FailureReport]:
         failure_type = snapshot.get("error_type", "") or ""
 

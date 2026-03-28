@@ -1,5 +1,5 @@
 import unittest
-from runtime.goal_manager import GoalManager
+from runtime.execution.goal_manager import GoalManager
 
 
 class TestGoalManager(unittest.TestCase):

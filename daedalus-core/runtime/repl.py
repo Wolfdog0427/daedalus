@@ -35,6 +35,11 @@ from typing import Dict, Any, Optional, Tuple
 import copy
 import os
 
+try:
+    import readline  # noqa: F401 — enables arrow-key history in input()
+except ImportError:
+    pass
+
 # --- Execution Layer ---
 from runtime.execution.execution import ExecutionEngine
 from runtime.execution.goal_manager import GoalManager
@@ -493,7 +498,7 @@ def _run_pipeline(
         pass
 
     run_background_self_test()
-    analyze_last_action_for_watch_anomalies()
+    analyze_last_action_for_watch_anomalies(store)
 
     # Snapshot after for cockpit / state delta
     state_after = state
@@ -527,7 +532,11 @@ def _run_pipeline(
     # SELF-DIAGNOSIS: build enriched cockpit snapshot
     # --------------------------------------------------------
     def _safe_attr(obj: Any, name: str, default: Any = None) -> Any:
-        return getattr(obj, name, default) if obj is not None else default
+        if obj is None:
+            return default
+        if isinstance(obj, dict):
+            return obj.get(name, default)
+        return getattr(obj, name, default)
 
     snapshot: CockpitSnapshot = {
         # Core interaction
@@ -643,6 +652,26 @@ def _process_line(
     # EXIT
     if lower in ("exit", "quit"):
         raise SystemExit
+
+    # NOTIFICATIONS
+    if lower in ("notifications", "show notifications", "notifs"):
+        try:
+            from runtime.notification_center import list_unread, list_all
+            show_all = lower == "show notifications"
+            items = list_all() if show_all else list_unread()
+            if not items:
+                print("📬 No notifications." if show_all else "📬 No unread notifications.")
+            else:
+                print(f"📬 {len(items)} notification(s):\n")
+                for n in items:
+                    ts = n.get("timestamp", "")
+                    cat = n.get("category", "info")
+                    msg = n.get("message", "")
+                    nid = n.get("id", "?")
+                    print(f"  [{cat.upper()}] {msg}  (id: {nid}, {ts})")
+        except Exception as exc:
+            print(f"⚠ Could not load notifications: {exc}")
+        return plan_mode, dashboard_sort, dashboard_filter
 
     # COMMAND REGISTRY
     dispatched = dispatch_command(user_input)
@@ -820,7 +849,14 @@ def run_repl() -> None:
     dashboard_sort = "default"
     dashboard_filter = "all"
 
-    print("Assistant ready. Type 'exit' to quit.")
+    print("Assistant ready. Type 'help' for commands, 'exit' to quit.")
+    try:
+        from runtime.notification_center import list_unread
+        unread = list_unread()
+        if unread:
+            print(f"\n📬 You have {len(unread)} unread notification(s). Type 'notifications' to view.")
+    except Exception:
+        pass
 
     while True:
         try:
@@ -842,8 +878,8 @@ def run_repl() -> None:
         except KeyboardInterrupt:
             print("\nInterrupted. Type 'exit' to quit.")
         except Exception as e:
-            if is_enabled():
-                print("❗ An error occurred. Fallback manager is enabled.")
+            if is_enabled("fuzzy_repair"):
+                print(f"❗ An error occurred (fallback active): {e}")
             else:
                 print(f"❗ An error occurred: {e}")
 

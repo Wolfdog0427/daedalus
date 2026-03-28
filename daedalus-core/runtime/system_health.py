@@ -29,6 +29,7 @@ class SystemHealth:
         self.state: Dict[str, Any] = {
             "drift": {},
             "stability": {},
+            "diagnostics": {},
             "weakest_subsystem": {},
             "autonomy": {},
             "patch_history": {
@@ -96,6 +97,10 @@ class SystemHealth:
     def update_weakest_subsystem(self, ws: Dict[str, Any]) -> None:
         self.state["weakest_subsystem"] = ws
         log_event("system_health", "Weakest subsystem updated")
+
+    def update_diagnostics(self, diagnostics: Dict[str, Any]) -> None:
+        self.state["diagnostics"] = diagnostics
+        log_event("system_health", "Diagnostics updated")
 
     def update_reliability(self, subsystems: Dict[str, Any], actions: Dict[str, Any]) -> None:
         self.state["reliability"]["subsystems"] = subsystems

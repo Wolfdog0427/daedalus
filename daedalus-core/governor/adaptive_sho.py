@@ -25,19 +25,39 @@ def _now_iso() -> str:
 def _load(path: str) -> Dict[str, Any]:
     if not os.path.exists(path):
         return {}
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, ValueError, OSError):
+        return {}
+
+
+def _clamp01(val: Any) -> float:
+    try:
+        return max(0.0, min(1.0, float(val)))
+    except (TypeError, ValueError):
+        return 0.5
+
+
+def _sanitize_subsystem(name: str) -> str:
+    sanitized = name.replace("\x00", "")
+    sanitized = sanitized.replace("..", "").replace("/", "_").replace("\\", "_")
+    if not sanitized:
+        raise ValueError(f"Invalid subsystem name: {name!r}")
+    return sanitized
 
 
 def score_subsystem(subsystem: str, diagnostics: Dict[str, Any]) -> float:
-    diag_score = diagnostics.get("score", 0.0)
-
+    diag_score = diagnostics.get("score") or 0.0
+    subsystem = _sanitize_subsystem(subsystem)
     mem_path = os.path.join(SUBSYSTEM_MEMORY, f"{subsystem}.json")
     mem = _load(mem_path)
 
-    success_rate = mem.get("success_rate", 0.5)
-    avg_score = mem.get("avg_score", 0.0)
-    rollback_rate = mem.get("rollback_rate", 0.0)
+    success_rate = mem.get("success_rate")
+    success_rate = _clamp01(success_rate if success_rate is not None else 0.5)
+    avg_score = _clamp01(mem.get("avg_score") or 0.0)
+    rollback_rate = _clamp01(mem.get("rollback_rate") or 0.0)
 
     reliability = (
         success_rate * 0.6 +
@@ -50,12 +70,14 @@ def score_subsystem(subsystem: str, diagnostics: Dict[str, Any]) -> float:
 
 
 def score_action_type(action_type: str) -> float:
+    action_type = _sanitize_subsystem(action_type)
     mem_path = os.path.join(ACTION_MEMORY, f"{action_type}.json")
     mem = _load(mem_path)
 
-    success_rate = mem.get("success_rate", 0.5)
-    avg_score = mem.get("avg_score", 0.0)
-    rollback_rate = mem.get("rollback_rate", 0.0)
+    success_rate = mem.get("success_rate")
+    success_rate = _clamp01(success_rate if success_rate is not None else 0.5)
+    avg_score = _clamp01(mem.get("avg_score") or 0.0)
+    rollback_rate = _clamp01(mem.get("rollback_rate") or 0.0)
 
     return (
         success_rate * 0.6 +
@@ -133,7 +155,8 @@ def generate_adaptive_proposal(
             }
         )
 
-    base_stability_score = stability.get("score", 0.5)
+    _raw = stability.get("score")
+    base_stability_score = _raw if _raw is not None else 0.5
     tier = choose_tier_from_deltas(
         base_stability_score=base_stability_score,
         predicted_stability_delta_total=predicted_stability_delta_total,
@@ -143,7 +166,8 @@ def generate_adaptive_proposal(
     for action in planned_actions:
         action["tier"] = tier
 
-    drift_score = drift.get("score", 0.5)
+    _raw = drift.get("score")
+    drift_score = _raw if _raw is not None else 0.5
     confidence = (
         weakest_rel * 0.4 +
         action_score * 0.25 +

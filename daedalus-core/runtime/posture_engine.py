@@ -108,11 +108,12 @@ def request_posture(
                     "flags": [],
                     "reversible": True,
                 })
-                if not verdict.get("allowed", True):
+                if not verdict.get("allowed", False):
                     allowed = False
                     rationale = f"governance: {verdict.get('reason', 'blocked')}"
         except Exception:
-            pass
+            allowed = False
+            rationale = "governance: evaluation failed — fail-closed"
 
     if not allowed:
         result = {

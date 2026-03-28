@@ -94,7 +94,7 @@ class ContextualResolver:
             if active_goal is not None:
                 try:
                     idx = [g["id"] for g in goals].index(active_goal)
-                    target_idx = idx + (ordinal - 1)
+                    target_idx = ordinal - 1
                     if 0 <= target_idx < len(goals):
                         args["goal_id"] = goals[target_idx]["id"]
                         self._log(f"Resolved ordinal goal → {args['goal_id']}")

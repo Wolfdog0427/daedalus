@@ -1,7 +1,22 @@
+"""
+DEPRECATED — early prototype stub.
+
+The production identity system is implemented across:
+  - runtime/identity_coherence.py      (mismatch detection & resolution)
+  - runtime/identity_continuity_engine.py (per-posture continuity)
+  - runtime/expression_engine.py        (8-stage expression pipeline)
+  - runtime/self_alignment_engine.py    (coherence corrections)
+  - governance/safety_invariants.py     (constitutional floor)
+  - governance/drift_detector.py        (5-dimension drift monitoring)
+  - governance/runtime_binding.py       (runtime ↔ governance contract)
+
+This file is retained for backward compatibility only.
+"""
+
+
 class IdentityEngine:
-    """
-    Defines the assistant's stable communication style and identity.
-    """
+    """Deprecated: see runtime/identity_coherence.py and
+    runtime/expression_engine.py for the production implementation."""
 
     def __init__(self):
         self.style = {
@@ -10,8 +25,4 @@ class IdentityEngine:
         }
 
     def apply_identity(self, text: str) -> str:
-        """
-        For now, this just returns the text unchanged.
-        Later, it can enforce tone and style.
-        """
         return text

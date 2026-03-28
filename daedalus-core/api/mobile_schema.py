@@ -25,7 +25,7 @@ class AppConfig(BaseModel):
 
     layoutVariant: str = Field(
         default="default",
-        pattern="^(default|compact)$",
+        pattern="^(default|compact|comfortable)$",
         description="UI layout variant: 'default' or 'compact'."
     )
 

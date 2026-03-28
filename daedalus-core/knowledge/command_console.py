@@ -94,6 +94,10 @@ def _handle_special_commands(cmd: str) -> bool:
         print("Exiting console.")
         sys.exit(0)
 
+    if c in ("help", "?", "commands"):
+        print(BANNER)
+        return True
+
     if "dashboard" in c:
         print(dashboard_summary())
         return True
@@ -153,6 +157,5 @@ def start_console():
             "result": result,
         })
 
-        # Display result
         print("\n=== RESULT ===")
-        _print_json(result)
+        print(result)

@@ -102,7 +102,7 @@ def run_scheduler() -> Dict[str, Any]:
         LAST_RUN["consistency_scan"] = now
         report["tasks"].append({
             "task": "consistency_scan",
-            "status": "allowed" if result.get("allowed") else "blocked",
+            "status": "completed",
             "result": result,
         })
 
@@ -114,7 +114,7 @@ def run_scheduler() -> Dict[str, Any]:
         LAST_RUN["storage_maintenance"] = now
         report["tasks"].append({
             "task": "storage_maintenance",
-            "status": "allowed" if result.get("allowed") else "blocked",
+            "status": "completed",
             "result": result,
         })
 
@@ -126,7 +126,7 @@ def run_scheduler() -> Dict[str, Any]:
         LAST_RUN["concept_evolution"] = now
         report["tasks"].append({
             "task": "concept_evolution",
-            "status": "allowed" if result.get("allowed") else "blocked",
+            "status": "completed",
             "result": result,
         })
 

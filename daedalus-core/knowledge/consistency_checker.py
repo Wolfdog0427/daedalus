@@ -59,8 +59,9 @@ def scan_for_contradictions(limit: int = 1000) -> List[Dict[str, Any]]:
     contradictions = []
 
     for item in sample:
+        item_id = item.get("id", "")
         text = item.get("text", "")
-        if not text.strip():
+        if not text.strip() or not item_id:
             continue
         try:
             from knowledge.retrieval import search_knowledge
@@ -69,17 +70,17 @@ def scan_for_contradictions(limit: int = 1000) -> List[Dict[str, Any]]:
             neighbors = []
 
         for n in neighbors:
-            if n.id == item.get("id"):
+            if n.id == item_id:
                 continue
             if detect_contradiction(text, n.text):
                 contradictions.append(
                     {
-                        "item_a": item["id"],
+                        "item_a": item_id,
                         "item_b": n.id,
                         "text_a": text[:200],
                         "text_b": n.text[:200],
                         "score_a": compute_trust_score(item),
-                        "score_b": compute_trust_score({"id": n.id, "text": n.text}),
+                        "score_b": compute_trust_score({"id": n.id, "text": n.text, "source": n.source, "metadata": n.metadata}),
                     }
                 )
                 break  # one contradiction per sample item is enough
@@ -97,11 +98,14 @@ def scan_for_low_trust(threshold: float = 0.40, limit: int = 2000) -> List[Dict[
     """
     low = []
     for item in list(_iter_items())[:limit]:
+        item_id = item.get("id", "")
+        if not item_id:
+            continue
         score = compute_trust_score(item)
         if score < threshold:
             low.append(
                 {
-                    "id": item["id"],
+                    "id": item_id,
                     "score": score,
                     "source": item.get("source", ""),
                     "snippet": item.get("text", "")[:200],
@@ -123,11 +127,14 @@ def scan_for_duplicates(limit: int = 2000) -> List[Tuple[str, str]]:
     duplicates = []
 
     for item in items:
+        item_id = item.get("id", "")
+        if not item_id:
+            continue
         key = item.get("text", "")[:200]
         if key in seen:
-            duplicates.append((seen[key], item["id"]))
+            duplicates.append((seen[key], item_id))
         else:
-            seen[key] = item["id"]
+            seen[key] = item_id
 
     return duplicates
 
@@ -147,9 +154,12 @@ def scan_relationship_consistency(limit: int = 2000) -> Dict[str, Any]:
     relations = defaultdict(list)
 
     for item in items:
+        item_id = item.get("id", "")
+        if not item_id:
+            continue
         text = item.get("text", "")
         for subj, rel, obj in extract_relations(text):
-            relations[subj].append((rel, obj, item["id"]))
+            relations[subj].append((rel, obj, item_id))
 
     conflicts = []
     cycles = []
@@ -205,14 +215,16 @@ def scan_for_outdated(limit: int = 2000) -> List[Dict[str, Any]]:
     outdated = []
 
     for item in items:
+        item_id = item.get("id", "")
+        if not item_id:
+            continue
         score = compute_trust_score(item)
         if score < 0.50:
-            # Look for better replacements
             neighbors = extract_entities(item.get("text", ""))
             if neighbors:
                 outdated.append(
                     {
-                        "id": item["id"],
+                        "id": item_id,
                         "score": score,
                         "snippet": item.get("text", "")[:200],
                     }
@@ -274,7 +286,7 @@ def _resolve_relationship_conflict(conflict: Dict[str, Any]) -> bool:
 
     Returns True if the conflict was resolved.
     """
-    from knowledge.knowledge_graph import _load_graph, _save_graph
+    from knowledge.knowledge_graph import _load_graph, _save_graph, _graph_lock
 
     entity = conflict.get("entity")
     relation = conflict.get("relation")
@@ -284,29 +296,30 @@ def _resolve_relationship_conflict(conflict: Dict[str, Any]) -> bool:
     if not all([entity, relation, obj_a, obj_b]):
         return False
 
-    graph = _load_graph()
-    edges = graph.get(entity, [])
-    if not edges:
-        return False
+    with _graph_lock:
+        graph = _load_graph()
+        edges = graph.get(entity, [])
+        if not edges:
+            return False
 
-    edge_a = None
-    edge_b = None
-    for e in edges:
-        if e.get("relation") == relation:
-            if e.get("object") == obj_a and edge_a is None:
-                edge_a = e
-            elif e.get("object") == obj_b and edge_b is None:
-                edge_b = e
+        edge_a = None
+        edge_b = None
+        for e in edges:
+            if e.get("relation") == relation:
+                if e.get("object") == obj_a and edge_a is None:
+                    edge_a = e
+                elif e.get("object") == obj_b and edge_b is None:
+                    edge_b = e
 
-    if edge_a is None or edge_b is None:
-        return False
+        if edge_a is None or edge_b is None:
+            return False
 
-    trust_a = edge_a.get("trust", 0.5)
-    trust_b = edge_b.get("trust", 0.5)
+        trust_a = edge_a.get("trust", 0.5)
+        trust_b = edge_b.get("trust", 0.5)
 
-    loser = edge_b if trust_a >= trust_b else edge_a
-    graph[entity] = [e for e in edges if e is not loser]
-    _save_graph(graph)
+        loser = edge_b if trust_a >= trust_b else edge_a
+        graph[entity] = [e for e in edges if e is not loser]
+        _save_graph(graph)
     return True
 
 
@@ -406,7 +419,8 @@ def run_active_consolidation(consistency: float, coherence: float) -> Dict[str, 
                 loser_id = c["item_b"]
             else:
                 loser_id = c["item_a"]
-            replace_item(loser_id, {"text": "", "metadata": {"removed_by": "consolidation"}})
+            from knowledge.storage_manager import _mark_superseded
+            _mark_superseded(loser_id)
             resolved_contradictions += 1
             removed_items += 1
         except Exception:
@@ -416,7 +430,8 @@ def run_active_consolidation(consistency: float, coherence: float) -> Dict[str, 
     duplicates = scan_for_duplicates(limit=scan_limit)
     for dup_a, dup_b in duplicates[:duplicate_cap]:
         try:
-            replace_item(dup_b, {"text": "", "metadata": {"merged_into": dup_a}})
+            from knowledge.storage_manager import _mark_superseded
+            _mark_superseded(dup_b)
             merged_duplicates += 1
             removed_items += 1
         except Exception:

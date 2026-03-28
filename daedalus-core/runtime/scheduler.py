@@ -30,10 +30,10 @@ def scheduler_tick(governor) -> Dict[str, Any]:
     if _META_AVAILABLE and score >= 0.3:
         try:
             meta_report = do_meta_cycle()
-            if meta_report.get("allowed", True):
+            if meta_report.get("allowed", False):
                 result["meta_cycle"] = {
                     "status": "completed",
-                    "actions": [a["type"] for a in meta_report.get("actions", [])],
+                    "actions": [a.get("type", "unknown") for a in meta_report.get("actions", [])],
                 }
             else:
                 result["meta_cycle"] = {"status": "blocked_by_governor"}

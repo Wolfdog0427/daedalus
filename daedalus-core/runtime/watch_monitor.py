@@ -55,8 +55,9 @@ def _is_real_alert(msg: str) -> bool:
     return True
 
 
-def analyze_last_action_for_watch_anomalies(auto_repair: bool = True) -> None:
-    store = StateStore()
+def analyze_last_action_for_watch_anomalies(store=None, auto_repair: bool = True) -> None:
+    if store is None:
+        store = StateStore()
 
     if not store.history:
         return

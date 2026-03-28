@@ -32,8 +32,6 @@ def should_recommend_tier2(
         return True
     if weakest_risk in ("medium", "high"):
         return True
-    if failed_high_level_cycles > 3:
-        return False
     return False
 
 
@@ -50,8 +48,6 @@ def should_recommend_tier3(
         return True
     if failed_tier2_cycles >= 3 and drift_level in ("medium", "high"):
         return True
-    if failed_high_level_cycles > 5:
-        return False
     return False
 
 

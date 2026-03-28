@@ -47,6 +47,20 @@ except ImportError:
     _PACER_AVAILABLE = False
 
 try:
+    from knowledge.bootstrap_protocol import get_bootstrap, is_abp_active, ABPPhase
+    _BOOTSTRAP_AVAILABLE = True
+except ImportError:
+    _BOOTSTRAP_AVAILABLE = False
+
+try:
+    from knowledge.adaptive_cadence import (
+        get_cadence_manager, CadenceTier, CadenceMode,
+    )
+    _CADENCE_AVAILABLE = True
+except ImportError:
+    _CADENCE_AVAILABLE = False
+
+try:
     from knowledge.source_integrity import (
         get_unswept_attack_windows,
         sweep_attack_window,
@@ -56,6 +70,16 @@ try:
     _INTEGRITY_AVAILABLE = True
 except ImportError:
     _INTEGRITY_AVAILABLE = False
+
+try:
+    from knowledge.scholarly_mode import (
+        is_scholarly_active,
+        activate_scholarly_mode,
+        get_scholarly_manager,
+    )
+    _SCHOLARLY_AVAILABLE = True
+except ImportError:
+    _SCHOLARLY_AVAILABLE = False
 
 
 # ------------------------------------------------------------
@@ -699,7 +723,116 @@ def run_meta_cycle(claim: str | None = None) -> Dict[str, Any]:
             pass
 
     # --------------------------------------------------------
-    # 2e. Anti-Entropy: Epoch management + graph compaction
+    # 2e. Capability module maintenance
+    # --------------------------------------------------------
+
+    # Temporal obsolescence sweep
+    try:
+        from knowledge.integration_layer import do_temporal_maintenance
+        t_result = do_temporal_maintenance()
+        if t_result.get("result", {}).get("obsolete_found", 0) > 0:
+            report["actions"].append({"type": "temporal_maintenance", "result": t_result})
+    except (ImportError, Exception):
+        pass
+
+    # Collaborative memory consolidation
+    try:
+        from knowledge.integration_layer import do_memory_consolidation
+        m_result = do_memory_consolidation()
+        if m_result.get("result", {}).get("processed", 0) > 0:
+            report["actions"].append({"type": "memory_consolidation", "result": m_result})
+    except (ImportError, Exception):
+        pass
+
+    # LLM-powered batch hypothesis resolution (when contradictions found)
+    if before["confidence"]["consistency"] < 0.95:
+        try:
+            from knowledge.integration_layer import do_batch_hypothesis_resolve
+            from knowledge.consistency_checker import scan_for_contradictions
+            scan_result = scan_for_contradictions()
+            contradictions = []
+            for c_item in scan_result[:5]:
+                contradictions.append({
+                    "text_a": str(c_item.get("text_a", c_item.get("text", "")))[:500],
+                    "text_b": str(c_item.get("text_b", c_item.get("conflicting_text", "")))[:500],
+                })
+            if contradictions:
+                h_result = do_batch_hypothesis_resolve(contradictions)
+                report["actions"].append({"type": "hypothesis_resolution", "result": h_result})
+        except (ImportError, Exception):
+            pass
+
+    # --------------------------------------------------------
+    # 2f-pre. Adaptive cadence check + ABP cycle
+    # --------------------------------------------------------
+    if _CADENCE_AVAILABLE:
+        cadence = get_cadence_manager()
+        cadence.check_attack_timeout()
+
+        if _severity_context.is_stressed():
+            if cadence.mode != CadenceMode.ATTACK_RESPONSE:
+                cadence.set_mode(CadenceMode.ATTACK_RESPONSE)
+                report["actions"].append({
+                    "type": "cadence_mode_change",
+                    "result": {"new_mode": "attack_response"},
+                })
+        elif cadence.mode == CadenceMode.ATTACK_RESPONSE:
+            cadence.set_mode(CadenceMode.NORMAL)
+
+    if _BOOTSTRAP_AVAILABLE and is_abp_active():
+        try:
+            abp = get_bootstrap()
+            abp_result = _il.do_bootstrap_cycle()
+            if abp_result.get("result", {}).get("targets_processed", 0) > 0:
+                report["actions"].append({
+                    "type": "abp_learning_cycle", "result": abp_result})
+
+            system_metrics = {
+                "coherence": before["confidence"]["graph_coherence"],
+                "stability": before["confidence"].get("stability", 0.0),
+                "quality": before["confidence"]["knowledge_quality"],
+            }
+            if abp.check_global_graduation(system_metrics):
+                grad_result = abp.graduate()
+                report["actions"].append({
+                    "type": "abp_graduated", "result": grad_result})
+                if _CADENCE_AVAILABLE:
+                    get_cadence_manager().set_mode(CadenceMode.NORMAL)
+                # Transition to scholarly mode upon ABP graduation
+                if _SCHOLARLY_AVAILABLE and not is_scholarly_active():
+                    sch_result = _il.do_activate_scholarly_mode()
+                    report["actions"].append({
+                        "type": "scholarly_mode_activated",
+                        "result": sch_result})
+        except Exception as e:
+            report["actions"].append({
+                "type": "abp_cycle", "result": {"error": str(e)}})
+
+    # --------------------------------------------------------
+    # 2e-bis. Scholarly Mode: post-graduate lifelong learning
+    # --------------------------------------------------------
+    if _SCHOLARLY_AVAILABLE and is_scholarly_active():
+        try:
+            system_state = {
+                "coherence": before["confidence"]["graph_coherence"],
+                "stale_ratio": 0.0,
+                "gap_rate": 0.0,
+                "pending_contradictions": before.get("issues", {}).get(
+                    "contradictions_active", 0),
+            }
+            sch_result = _il.do_scholarly_cycle(system_state)
+            sch_data = sch_result.get("result", {})
+            if sch_data.get("activity"):
+                report["actions"].append({
+                    "type": "scholarly_cycle",
+                    "activity": sch_data.get("activity"),
+                    "result": sch_data})
+        except Exception as e:
+            report["actions"].append({
+                "type": "scholarly_cycle", "result": {"error": str(e)}})
+
+    # --------------------------------------------------------
+    # 2f. Anti-Entropy: Epoch management + graph compaction
     # --------------------------------------------------------
     try:
         epoch_st_result = _il.do_epoch_status()
@@ -818,5 +951,23 @@ def meta_status() -> Dict[str, Any]:
         status["entropy_pressure"] = budget["entropy_pressure"]
     except (ImportError, Exception):
         pass
+
+    if _BOOTSTRAP_AVAILABLE:
+        try:
+            status["bootstrap"] = get_bootstrap().status()
+        except Exception:
+            pass
+
+    if _CADENCE_AVAILABLE:
+        try:
+            status["adaptive_cadence"] = get_cadence_manager().status()
+        except Exception:
+            pass
+
+    if _SCHOLARLY_AVAILABLE:
+        try:
+            status["scholarly_mode"] = get_scholarly_manager().status()
+        except Exception:
+            pass
 
     return status

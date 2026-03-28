@@ -213,6 +213,11 @@ def prune_orphans(
         entities.pop(entity, None)
         graph.pop(entity, None)
 
+    if pruned:
+        for subj in list(graph):
+            edges = graph[subj]
+            graph[subj] = [e for e in edges if e.get("object") not in pruned]
+
     return {
         "true_orphans_removed": len(true_orphans),
         "low_quality_removed": len(low_quality),
@@ -377,28 +382,29 @@ def run_compaction(
         _save_graph,
         _load_entities,
         _save_entities,
-        get_connected_components,
+        _graph_lock,
     )
 
     start_time = time.time()
-    graph = _load_graph()
-    entities = _load_entities()
+    with _graph_lock:
+        graph = _load_graph()
+        entities = _load_entities()
 
-    pre_entities = len(entities)
-    pre_edges = sum(len(edges) for edges in graph.values())
-    pre_components = len(get_connected_components())
+        pre_entities = len(entities)
+        pre_edges = sum(len(edges) for edges in graph.values())
+        pre_components = len(_find_components(graph))
 
-    phase1 = dedup_entities(graph, entities, merge_limit=merge_limit)
-    phase2 = prune_orphans(graph, entities, min_trust=min_orphan_trust)
-    phase3 = bridge_fragments(graph, entities, max_bridges=bridge_limit)
-    phase4 = prune_low_quality_edges(graph, min_trust=min_edge_trust)
+        phase1 = dedup_entities(graph, entities, merge_limit=merge_limit)
+        phase2 = prune_orphans(graph, entities, min_trust=min_orphan_trust)
+        phase3 = bridge_fragments(graph, entities, max_bridges=bridge_limit)
+        phase4 = prune_low_quality_edges(graph, min_trust=min_edge_trust)
 
-    _save_graph(graph)
-    _save_entities(entities)
+        _save_graph(graph)
+        _save_entities(entities)
 
-    post_entities = len(entities)
-    post_edges = sum(len(edges) for edges in graph.values())
-    post_components = len(get_connected_components())
+        post_entities = len(entities)
+        post_edges = sum(len(edges) for edges in graph.values())
+        post_components = len(_find_components(graph))
 
     elapsed = time.time() - start_time
 

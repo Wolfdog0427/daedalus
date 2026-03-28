@@ -82,6 +82,7 @@ class LongTermTracker:
     def record(self, value: float) -> None:
         self._short.append(value)
         self._long.append(value)
+        self._cached_trend = self._compute_trend()
 
     def short_mean(self) -> float:
         return sum(self._short) / len(self._short) if self._short else 0.0
@@ -89,7 +90,8 @@ class LongTermTracker:
     def long_mean(self) -> float:
         return sum(self._long) / len(self._long) if self._long else 0.0
 
-    def trend(self) -> str:
+    def _compute_trend(self) -> str:
+        """Internal trend computation — mutates consecutive counters."""
         if len(self._long) < 20:
             return "insufficient_data"
         short_avg = self.short_mean()
@@ -106,12 +108,15 @@ class LongTermTracker:
             self._consecutive_decline = 0
             self._consecutive_improve = 0
 
-        # T5: Only report "declining" after sustained consecutive decline
         if self._consecutive_decline >= self.CONSECUTIVE_DECLINE_THRESHOLD:
             return "declining"
         if self._consecutive_improve >= self.CONSECUTIVE_DECLINE_THRESHOLD:
             return "improving"
         return "stable"
+
+    def trend(self) -> str:
+        """Read-only access to cached trend (safe to call multiple times)."""
+        return getattr(self, "_cached_trend", "insufficient_data")
 
     def count(self) -> int:
         return len(self._long)

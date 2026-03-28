@@ -69,27 +69,53 @@ def assert_no_autonomy_expansion() -> Dict[str, Any]:
 
 
 def assert_operator_sovereignty() -> Dict[str, Any]:
-    """Verify operator sovereignty is intact."""
+    """Verify operator sovereignty is intact.
+
+    Checks that:
+    1. The sovereignty safety invariant exists
+    2. ALL defined personas honour operator override
+    3. No forbidden change types have been added to allowed sets
+    """
+    issues: list = []
+
     try:
-        from governance.kernel import get_kernel_state
-
-        ks = get_kernel_state()
-        persona = ks.get("persona", {})
-        override = persona.get("operator_override", "")
-
         from governance.safety_invariants import get_invariant
         sov = get_invariant("OPERATOR_OVERRIDE_SOVEREIGN")
-
-        return {
-            "passed": (
-                override == "always_honoured"
-                and sov is not None
-            ),
-            "persona_override": override,
-            "sovereignty_invariant_exists": sov is not None,
-            "kill_switch": ks.get("kill_switch", False),
-            "circuit_breaker": ks.get("circuit_breaker", False),
-            "stabilise_mode": ks.get("stabilise_mode", False),
-        }
+        if sov is None:
+            issues.append("OPERATOR_OVERRIDE_SOVEREIGN invariant missing")
     except Exception as e:
-        return {"passed": False, "error": str(e)}
+        issues.append(f"safety_invariants unavailable: {e}")
+        sov = None
+
+    try:
+        from governance.personas import list_personas
+        personas = list_personas()
+        for p in personas:
+            if p.get("operator_override") != "always_honoured":
+                issues.append(
+                    f"persona '{p.get('persona_id')}' does not set "
+                    f"operator_override to 'always_honoured' "
+                    f"(has: '{p.get('operator_override')}')"
+                )
+            if "modify_safety_invariants" not in p.get("forbidden_operations", []):
+                issues.append(
+                    f"persona '{p.get('persona_id')}' does not forbid "
+                    f"'modify_safety_invariants'"
+                )
+    except Exception as e:
+        issues.append(f"personas module unavailable: {e}")
+
+    try:
+        from governance.kernel import get_kernel_state
+        ks = get_kernel_state()
+    except Exception:
+        ks = {}
+
+    return {
+        "passed": len(issues) == 0,
+        "issues": issues,
+        "sovereignty_invariant_exists": sov is not None,
+        "kill_switch": ks.get("kill_switch", False),
+        "circuit_breaker": ks.get("circuit_breaker", False),
+        "stabilise_mode": ks.get("stabilise_mode", False),
+    }

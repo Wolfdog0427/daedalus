@@ -1,4 +1,4 @@
-# runtime/execution.py
+# runtime/execution/execution.py
 import json
 from typing import Any, Dict, List, Optional
 
@@ -46,9 +46,11 @@ def render_goals(tree: List[Dict[str, Any]], indent: int = 0) -> List[str]:
     lines: List[str] = []
     for node in tree:
         prefix = " " * indent
-        title = node.get("goal", "<untitled>")
+        title = node.get("name", node.get("goal", "<untitled>"))
         gid = node.get("id", "?")
-        lines.append(f"{prefix}- {title} (id: {gid})")
+        done = node.get("done", node.get("completed", False))
+        marker = " [✓]" if done else ""
+        lines.append(f"{prefix}- {title} (id: {gid}){marker}")
 
         sub = node.get("subgoals", [])
         if sub:
@@ -62,7 +64,7 @@ def render_plan_for_goal(goal: Dict[str, Any]) -> List[str]:
     Render the plan for a single goal, including steps, notes, and block reasons.
     """
     lines: List[str] = []
-    title = goal.get("goal", "<untitled>")
+    title = goal.get("name", goal.get("goal", "<untitled>"))
     lines.append(f"📋 Plan for: {title}")
 
     steps = goal.get("steps", [])
@@ -72,15 +74,15 @@ def render_plan_for_goal(goal: Dict[str, Any]) -> List[str]:
 
     for step in steps:
         num = step.get("number")
-        stitle = step.get("title", "")
-        status = step.get("status", "pending")
+        stitle = step.get("description", step.get("title", ""))
+        done = step.get("done", False)
         notes = step.get("notes", [])
         block_reason = step.get("block_reason")
 
         suffix = ""
-        if status == "completed":
+        if done:
             suffix = " [✓ completed]"
-        elif status == "blocked":
+        elif block_reason:
             suffix = " [⚠ blocked]"
 
         lines.append(f"{num}. {stitle}{suffix}")
@@ -197,8 +199,10 @@ class ExecutionEngine:
             if not desc:
                 return "⚠ add_step: missing description."
 
-            new_step_id = self.goal_manager.add_step(desc, state)
-            self._update_context(state, step_id=new_step_id, action="add_step")
+            step = self.goal_manager.add_step(desc, state)
+            if not step:
+                return "⚠ add_step: no active goal. Create a goal first."
+            self._update_context(state, step_id=step.get("id"), action="add_step")
             return f"✓ Step added\nTitle: {desc}"
 
         # ----------------------------------------------------
@@ -262,17 +266,99 @@ class ExecutionEngine:
             return "\n".join(render_plan_for_goal(goal))
 
         # ----------------------------------------------------
-        # SHOW GOALS
+        # SHOW GOALS / LIST GOALS (operator task goals)
         # ----------------------------------------------------
-        if intent == "show_goals":
+        if intent in ("show_goals", "list_goals"):
             tree = state.get("goals_tree", [])
             if not tree:
-                return "📋 No goals yet."
+                return "📋 No operator task goals yet. (For knowledge learning goals, use the knowledge console.)"
 
             self._update_context(state, action="show_goals")
-            lines = ["📋 Goals:"]
+            lines = ["📋 Operator Task Goals:"]
             lines.extend(render_goals(tree))
             return "\n".join(lines)
+
+        # ----------------------------------------------------
+        # ADD GOAL (alias for create_goal)
+        # ----------------------------------------------------
+        if intent == "add_goal":
+            name = args.get("name")
+            if not name:
+                return "⚠ add_goal: missing name."
+            new_goal_id = self.goal_manager.set_goal(name, state)
+            self._update_context(state, goal_id=new_goal_id, action="add_goal")
+            return f"✓ Goal created\nTitle: {name}"
+
+        # ----------------------------------------------------
+        # COMPLETE GOAL
+        # ----------------------------------------------------
+        if intent == "complete_goal":
+            gid = args.get("goal_id")
+            if gid is None:
+                gid = state.get("active_goal_id")
+            if gid is None:
+                return "⚠ complete_goal: no goal specified and no active goal."
+            goal = self.goal_manager.get_goal(gid, state)
+            if goal is None:
+                return f"⚠ Goal {gid} does not exist."
+            goal["done"] = True
+            self._update_context(state, goal_id=gid, action="complete_goal")
+            return f"✓ Goal {gid} marked complete"
+
+        # ----------------------------------------------------
+        # DELETE GOAL
+        # ----------------------------------------------------
+        if intent == "delete_goal":
+            gid = args.get("goal_id")
+            if gid is None:
+                return "⚠ delete_goal: missing goal_id."
+            tree = state.get("goals_tree", [])
+            before = len(tree)
+            state["goals_tree"] = [g for g in tree if g.get("id") != gid]
+            if len(state["goals_tree"]) == before:
+                return f"⚠ Goal {gid} does not exist."
+            if state.get("active_goal_id") == gid:
+                state["active_goal_id"] = None
+            self._update_context(state, goal_id=gid, action="delete_goal")
+            return f"✓ Goal {gid} deleted"
+
+        # ----------------------------------------------------
+        # ARCHIVE / UNARCHIVE GOAL
+        # ----------------------------------------------------
+        if intent == "archive_goal":
+            gid = args.get("goal_id")
+            if gid is None:
+                return "⚠ archive_goal: missing goal_id."
+            goal = self.goal_manager.get_goal(gid, state)
+            if goal is None:
+                return f"⚠ Goal {gid} does not exist."
+            goal["archived"] = True
+            self._update_context(state, goal_id=gid, action="archive_goal")
+            return f"✓ Goal {gid} archived"
+
+        if intent == "unarchive_goal":
+            gid = args.get("goal_id")
+            if gid is None:
+                return "⚠ unarchive_goal: missing goal_id."
+            goal = self.goal_manager.get_goal(gid, state)
+            if goal is None:
+                return f"⚠ Goal {gid} does not exist."
+            goal.pop("archived", None)
+            self._update_context(state, goal_id=gid, action="unarchive_goal")
+            return f"✓ Goal {gid} unarchived"
+
+        # ----------------------------------------------------
+        # GOALS SORT / FILTER
+        # ----------------------------------------------------
+        if intent == "set_goals_sort":
+            mode = args.get("mode", "default")
+            state["goals_sort"] = mode
+            return f"✓ Goals sort set to: {mode}"
+
+        if intent == "set_goals_filter":
+            flt = args.get("filter", "all")
+            state["goals_filter"] = flt
+            return f"✓ Goals filter set to: {flt}"
 
         # ----------------------------------------------------
         # HELP
@@ -441,6 +527,122 @@ class ExecutionEngine:
                 return json.dumps(get_sho_report(), indent=2, default=str)
             except Exception:
                 return "⚠ SHO report unavailable (see logs)."
+
+        # ----------------------------------------------------
+        # MOVE STEP
+        # ----------------------------------------------------
+        if intent == "move_step":
+            num = args.get("step_number")
+            new_pos = args.get("new_position")
+            if num is None or new_pos is None:
+                return "⚠ move_step: missing step_number or new_position."
+            step_id = self._step_id_from_number(num, state)
+            if step_id is None:
+                return f"⚠ Step {num} does not exist."
+            ok = self.goal_manager.move_step_by_id(step_id, new_pos, state)
+            if not ok:
+                return f"⚠ Could not move step {num}."
+            self._update_context(state, step_id=step_id, action="move_step")
+            return f"✓ Step {num} moved to position {new_pos}"
+
+        # ----------------------------------------------------
+        # NEXT STEP
+        # ----------------------------------------------------
+        if intent == "next_step":
+            steps = self.goal_manager.get_active_steps(state)
+            for step in steps:
+                if not step.get("done"):
+                    num = step.get("number", "?")
+                    desc = step.get("description", "")
+                    self._update_context(state, step_id=step["id"], action="next_step")
+                    return f"📌 Next step: #{num} — {desc}"
+            return "✓ All steps complete!"
+
+        # ----------------------------------------------------
+        # PLAN MODE
+        # ----------------------------------------------------
+        if intent == "set_plan_mode":
+            mode = args.get("mode", "pretty")
+            state["plan_mode"] = mode
+            return f"✓ Plan mode set to: {mode}"
+
+        if intent == "show_plan_mode":
+            mode = state.get("plan_mode", "pretty")
+            return f"Current plan mode: {mode}"
+
+        # ----------------------------------------------------
+        # WATCHPOINTS
+        # ----------------------------------------------------
+        if intent == "add_watchpoint":
+            path = args.get("path")
+            if not path:
+                return "⚠ add_watchpoint: missing path."
+            watchpoints = state.setdefault("watchpoints", [])
+            if path not in watchpoints:
+                watchpoints.append(path)
+            return f"✓ Watching: {path}"
+
+        if intent == "remove_watchpoint":
+            path = args.get("path")
+            if not path:
+                return "⚠ remove_watchpoint: missing path."
+            watchpoints = state.get("watchpoints", [])
+            if path in watchpoints:
+                watchpoints.remove(path)
+                return f"✓ Stopped watching: {path}"
+            return f"⚠ Watchpoint '{path}' not found."
+
+        if intent == "list_watchpoints":
+            watchpoints = state.get("watchpoints", [])
+            if not watchpoints:
+                return "📋 No active watchpoints."
+            lines = ["📋 Active Watchpoints:"]
+            for wp in watchpoints:
+                lines.append(f"  • {wp}")
+            return "\n".join(lines)
+
+        # ----------------------------------------------------
+        # CHECKPOINTS
+        # ----------------------------------------------------
+        if intent == "save_checkpoint":
+            import copy as _copy
+            name = args.get("name", "default")
+            checkpoints = state.setdefault("_checkpoints", {})
+            checkpoints[name] = _copy.deepcopy({
+                k: v for k, v in state.items() if not k.startswith("_")
+            })
+            return f"✓ Checkpoint saved: {name}"
+
+        if intent == "restore_checkpoint":
+            import copy as _copy
+            name = args.get("name", "default")
+            checkpoints = state.get("_checkpoints", {})
+            if name not in checkpoints:
+                return f"⚠ Checkpoint '{name}' not found."
+            saved = _copy.deepcopy(checkpoints[name])
+            for k in list(state.keys()):
+                if not k.startswith("_"):
+                    state.pop(k, None)
+            state.update(saved)
+            return f"✓ Checkpoint restored: {name}"
+
+        if intent == "list_checkpoints":
+            checkpoints = state.get("_checkpoints", {})
+            if not checkpoints:
+                return "📋 No saved checkpoints."
+            lines = ["📋 Saved Checkpoints:"]
+            for name in checkpoints:
+                lines.append(f"  • {name}")
+            return "\n".join(lines)
+
+        # ----------------------------------------------------
+        # UNDO / REDO
+        # ----------------------------------------------------
+        if intent == "undo":
+            return "⚠ Undo is not yet available. Use 'restore checkpoint' to revert state."
+
+        if intent == "redo":
+            return "⚠ Redo is not yet available."
 
         # ----------------------------------------------------
         # UNKNOWN

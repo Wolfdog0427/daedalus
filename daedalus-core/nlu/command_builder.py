@@ -1,24 +1,25 @@
 # nlu/command_builder.py
 
-from typing import Dict
+from typing import Any, Dict
 
 class CommandBuilder:
-    def build(self, classified: Dict[str, any]) -> Dict[str, any]:
+    def build(self, classified: Dict[str, Any]) -> Dict[str, Any]:
         intent = classified.get("canonical_intent")
+        repaired = classified.get("normalized_text", classified.get("repaired", ""))
 
         if not intent:
             return {
-                "raw": classified["raw"],
+                "raw": classified.get("raw", ""),
                 "intent": "unknown",
                 "args": {},
-                "repaired": classified["cleaned"],
+                "repaired": repaired,
                 "repair_confidence": 0.5,
             }
 
         return {
-            "raw": classified["raw"],
+            "raw": classified.get("raw", ""),
             "intent": intent,
-            "args": {},  # Phase 2 will add argument extraction
-            "repaired": classified["cleaned"],
+            "args": {},
+            "repaired": repaired,
             "repair_confidence": 1.0,
         }

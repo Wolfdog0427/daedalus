@@ -6,8 +6,35 @@ from typing import Any, Dict, List, Optional, TypedDict
 
 class CockpitSnapshot(TypedDict, total=False):
     user_input: str
+    clean_input: str
     parsed_intent: str
     resolver_target: str
+    result: str
+
+    nlu_repr: str
+    nlu_intent: Optional[str]
+    nlu_entities: Optional[Any]
+    nlu_confidence: Optional[float]
+    nlu_ambiguous: Optional[bool]
+
+    firewall_repr: str
+    firewall_allowed: Optional[bool]
+    firewall_reason: Optional[str]
+
+    resolved_repr: str
+    resolver_rule: Optional[str]
+    resolver_fallback: Optional[bool]
+
+    final_repr: str
+    handler_name: Optional[str]
+    handler_module: Optional[str]
+
+    sanitize_report: Any
+    hostility_score: Any
+
+    state_changed: bool
+    changed_keys: List[str]
+
     error_type: str
     error_message: str
     subsystem: str
@@ -35,6 +62,8 @@ class ImprovementPlan:
     change_budget_lines: int
     safety_invariants: List[str]
     night_mode: bool = False
+    blocked: bool = False
+    block_reason: str = ""
 
 
 @dataclass
@@ -73,6 +102,8 @@ class CandidateSummary:
     metrics: Dict[str, Any]
     risks: List[str]
     recommendation: str       # "apply" | "reject" | "review"
+    vetoed: bool = False
+    veto_reason: str = ""
 
 
 # ---------- Night mode / proposals ----------

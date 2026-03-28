@@ -5,6 +5,8 @@ def step_exists(goals, step_num):
 
 def is_step_completed(goals, step_num):
     steps = goals.get("active_steps", [])
+    if not (1 <= step_num <= len(steps)):
+        return False
     step = steps[step_num - 1]
     return step.get("completed", False)
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from runtime.state_sources import fetch_state
-from runtime.system_health import SystemHealth
 
 _last_watch_anomaly_lines: List[str] = []
 _last_doctor_report_lines: List[str] = []
@@ -79,16 +78,12 @@ def summarize_health() -> Dict[str, Any]:
     diagnostics = state["diagnostics"]
     patch_history = state["patch_history"]
 
-    health = SystemHealth()
-    health.update_drift(drift)
-    health.update_stability(stability)
-    health.update_diagnostics(diagnostics)
-    health.update_patch_history(patch_history)
-
-    readiness_avg = diagnostics["readiness"]["average"]
-    blocked = diagnostics["summary"]["blocked_actions"]
-    verif_fail = diagnostics["summary"]["verification_failures"]
-    drift_warnings = diagnostics["drift_warnings"]
+    readiness_data = diagnostics.get("readiness", {}) if isinstance(diagnostics, dict) else {}
+    summary_data = diagnostics.get("summary", {}) if isinstance(diagnostics, dict) else {}
+    readiness_avg = readiness_data.get("average", 0.0)
+    blocked = summary_data.get("blocked_actions", 0)
+    verif_fail = summary_data.get("verification_failures", 0)
+    drift_warnings = diagnostics.get("drift_warnings", []) if isinstance(diagnostics, dict) else []
 
     return {
         "drift": {

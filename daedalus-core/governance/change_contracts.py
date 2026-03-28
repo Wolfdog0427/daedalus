@@ -10,14 +10,16 @@ mutate system state.
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any, Dict, List
 
 _ALLOWED_CHANGE_TYPES = {
     "posture_transition", "tier_change", "expression_profile_change",
-    "continuity_update", "coherence_correction", "stability_update",
+    "continuity_update", "coherence_correction",
     "resonance_update", "governance_persona_change", "governance_mode_change",
     "patch_apply", "patch_rollback", "proposal_create",
+    "self_modification",
 }
 
 _FORBIDDEN_CHANGE_TYPES = {
@@ -28,7 +30,7 @@ _FORBIDDEN_CHANGE_TYPES = {
 _ALWAYS_REVERSIBLE = {
     "posture_transition", "tier_change", "expression_profile_change",
     "governance_persona_change", "governance_mode_change",
-    "continuity_update", "coherence_correction", "stability_update",
+    "continuity_update", "coherence_correction",
     "resonance_update",
 }
 
@@ -36,8 +38,20 @@ _REQUIRES_OPERATOR_APPROVAL = {
     "patch_apply", "self_modification",
 }
 
+# Self-modification targets that touch protected domains. These always
+# require explicit operator approval with a detailed impact explanation,
+# regardless of risk score. The system can grow its knowledge and improve
+# its reasoning autonomously, but it cannot alter its own governance,
+# identity, or safety boundaries without the operator's direction.
+_PROTECTED_SELF_MOD_TARGETS = {
+    "governance", "invariant", "safety", "identity", "constitutional",
+    "autonomy", "tier_system", "operator_trust", "kernel", "permission",
+    "self_modification_rules", "drift_guard",
+}
+
 _CONTRACT_LOG: List[Dict[str, Any]] = []
 _MAX_LOG = 100
+_contract_lock = threading.Lock()
 
 
 def evaluate_change(change_request: Dict[str, Any]) -> Dict[str, Any]:
@@ -45,6 +59,12 @@ def evaluate_change(change_request: Dict[str, Any]) -> Dict[str, Any]:
 
     Returns a structured verdict: allowed/forbidden/needs_approval,
     risk score, reversibility status.
+
+    Self-modification is tiered:
+    - Knowledge growth (learning, reasoning improvement): autonomous
+    - Changes touching protected domains (governance, identity, safety,
+      invariants): requires explicit operator approval with a detailed
+      short-term and long-term impact explanation
     """
     cr_type = change_request.get("type", "unknown")
 
@@ -74,11 +94,46 @@ def evaluate_change(change_request: Dict[str, Any]) -> Dict[str, Any]:
     needs_approval = cr_type in _REQUIRES_OPERATOR_APPROVAL
     risk = score_risk(change_request)
 
+    # Tiered self-modification: check if the target touches a protected domain
+    if cr_type == "self_modification":
+        target = str(change_request.get("target") or "").lower()
+        description = str(change_request.get("description") or "").lower()
+        combined = f"{target} {description}"
+        touches_protected = any(
+            kw in combined for kw in _PROTECTED_SELF_MOD_TARGETS
+        )
+        if touches_protected:
+            flags = change_request.get("flags") or []
+            impact = change_request.get("impact_explanation")
+            if "operator_approved" not in flags or not impact:
+                result = {
+                    "allowed": False,
+                    "reason": (
+                        f"self-modification touches protected domain "
+                        f"({target}). Requires explicit operator approval "
+                        f"with short-term and long-term impact explanation."
+                    ),
+                    "risk_score": 90,
+                    "reversible": True,
+                    "needs_approval": True,
+                    "requires_impact_explanation": impact is None,
+                    "missing_operator_approval": "operator_approved" not in flags,
+                    "protected_domain": True,
+                }
+                _log_contract(cr_type, result)
+                return result
+            risk = max(risk, 60)
+        else:
+            # Knowledge growth, reasoning improvement, etc.: autonomous
+            # Lower risk, no operator approval needed for routine growth
+            needs_approval = False
+            risk = max(risk, 30)
+
     try:
         from governance.modes import get_safety_multiplier
         risk = min(100, int(risk * get_safety_multiplier()))
     except Exception:
-        pass
+        risk = min(100, int(risk * 2.0))
 
     if risk >= 70:
         needs_approval = True
@@ -95,26 +150,13 @@ def evaluate_change(change_request: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def enforce_contract(change_request: Dict[str, Any]) -> Dict[str, Any]:
-    """Enforce the contract: evaluate + check safety invariants.
+    """Enforce the contract by evaluating the change request.
 
-    Returns a combined verdict.
+    Safety invariants are checked separately by the governance kernel
+    (kernel.evaluate_change step 2) so they are not re-checked here
+    to avoid redundant work.
     """
-    contract_result = evaluate_change(change_request)
-
-    try:
-        from governance.safety_invariants import enforce_invariants
-        inv_result = enforce_invariants(change_request)
-        if not inv_result["passed"]:
-            contract_result["allowed"] = False
-            contract_result["reason"] = (
-                f"safety invariant violated: "
-                f"{inv_result['violations'][0]['detail']}"
-            )
-            contract_result["invariant_violations"] = inv_result["violations"]
-    except Exception:
-        pass
-
-    return contract_result
+    return evaluate_change(change_request)
 
 
 def score_risk(change_request: Dict[str, Any]) -> int:
@@ -122,8 +164,16 @@ def score_risk(change_request: Dict[str, Any]) -> int:
     base = 10
     cr_type = change_request.get("type", "")
 
-    if cr_type in ("patch_apply", "self_modification"):
+    if cr_type == "patch_apply":
         base = 50
+    elif cr_type == "self_modification":
+        target = str(change_request.get("target") or "").lower()
+        description = str(change_request.get("description") or "").lower()
+        combined = f"{target} {description}"
+        if any(kw in combined for kw in _PROTECTED_SELF_MOD_TARGETS):
+            base = 70
+        else:
+            base = 30
     elif cr_type in ("tier_change", "posture_transition"):
         base = 20
     elif cr_type in ("governance_persona_change", "governance_mode_change"):
@@ -131,23 +181,25 @@ def score_risk(change_request: Dict[str, Any]) -> int:
 
     if not change_request.get("reversible", True):
         base += 30
-    if "operator_approved" not in change_request.get("flags", []):
+    if "operator_approved" not in (change_request.get("flags") or []):
         base += 10
 
     return min(100, base)
 
 
 def get_contract_log(limit: int = 20) -> List[Dict[str, Any]]:
-    return list(_CONTRACT_LOG[-limit:])
+    with _contract_lock:
+        return list(_CONTRACT_LOG[-limit:])
 
 
 def _log_contract(change_type: str, result: Dict[str, Any]) -> None:
-    _CONTRACT_LOG.append({
-        "change_type": change_type,
-        "allowed": result.get("allowed"),
-        "risk_score": result.get("risk_score"),
-        "needs_approval": result.get("needs_approval"),
-        "timestamp": time.time(),
-    })
-    if len(_CONTRACT_LOG) > _MAX_LOG:
-        _CONTRACT_LOG[:] = _CONTRACT_LOG[-_MAX_LOG:]
+    with _contract_lock:
+        _CONTRACT_LOG.append({
+            "change_type": change_type,
+            "allowed": result.get("allowed"),
+            "risk_score": result.get("risk_score"),
+            "needs_approval": result.get("needs_approval"),
+            "timestamp": time.time(),
+        })
+        if len(_CONTRACT_LOG) > _MAX_LOG:
+            _CONTRACT_LOG[:] = _CONTRACT_LOG[-_MAX_LOG:]

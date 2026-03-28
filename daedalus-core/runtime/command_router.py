@@ -460,20 +460,4 @@ def handle_command(
     REPL 3.0 calls this after NLU + Firewall + ContextResolver.
     """
 
-    intent = cmd.get("intent")
-
-    # Structured commands (registered via decorator)
-    if intent in COMMAND_REGISTRY:
-        handler = COMMAND_REGISTRY[intent]["handler"]
-        return handler(
-            state=state,
-            execution=execution,
-            goal_manager=goal_manager,
-            plan_renderer=plan_renderer,
-            dashboard=dashboard,
-            plan_mode=plan_mode,
-            args=cmd.get("args", {}),
-        )
-
-    # Legacy commands (execution engine)
     return execution.execute(cmd, state)

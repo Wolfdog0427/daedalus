@@ -14,11 +14,13 @@ This module does NOT perform any self-modification.
 
 from __future__ import annotations
 
+import threading
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 import os
 import json
 
+_log_lock = threading.Lock()
 
 LOG_DIR = os.path.join("data", "logs")
 LOG_PATH = os.path.join(LOG_DIR, "events.jsonl")
@@ -29,7 +31,8 @@ def _ensure_dir() -> None:
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    from datetime import timezone
+    return datetime.now(timezone.utc).isoformat()
 
 
 def log_event(
@@ -50,8 +53,9 @@ def log_event(
         "metadata": metadata or {},
     }
 
-    with open(LOG_PATH, "a", encoding="utf-8") as f:
-        f.write(json.dumps(entry) + "\n")
+    with _log_lock:
+        with open(LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
 
     return entry
 
@@ -69,7 +73,12 @@ def list_logs(limit: Optional[int] = None) -> List[Dict[str, Any]]:
     with open(LOG_PATH, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
-    entries = [json.loads(line) for line in lines]
+    entries: List[Dict[str, Any]] = []
+    for line in lines:
+        try:
+            entries.append(json.loads(line))
+        except (json.JSONDecodeError, ValueError):
+            continue
 
     if limit is not None:
         return entries[-limit:]
@@ -94,7 +103,7 @@ def filter_logs(
     if contains:
         logs = [l for l in logs if contains.lower() in l["message"].lower()]
 
-    if limit:
+    if limit is not None:
         logs = logs[-limit:]
 
     return logs

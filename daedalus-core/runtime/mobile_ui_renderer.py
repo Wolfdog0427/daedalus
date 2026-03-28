@@ -63,7 +63,7 @@ class MobileUIRenderer:
     def _render_card(self, card: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "component": "Card",
-            "title": card["title"],
+            "title": card.get("title", "(untitled)"),
             "style": card.get("style", "default"),
             "content": self._render_card_content(card),
         }
@@ -82,14 +82,14 @@ class MobileUIRenderer:
             return {
                 "type": "score",
                 "value": card["score"],
-                "components": card["components"],
+                "components": card.get("components", []),
             }
 
         if card.get("style") == "governor":
             return {
                 "type": "governor_state",
-                "tier": card["tier"],
-                "strict_mode": card["strict_mode"],
+                "tier": card.get("tier", "?"),
+                "strict_mode": card.get("strict_mode", False),
             }
 
         return {"type": "empty"}
@@ -101,7 +101,7 @@ class MobileUIRenderer:
     def _render_panel(self, panel: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "component": "Panel",
-            "title": panel["title"],
+            "title": panel.get("title", "(untitled)"),
             "items": self._render_panel_items(panel),
             "actions": self._render_panel_actions(panel),
         }

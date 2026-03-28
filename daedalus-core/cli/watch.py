@@ -7,7 +7,7 @@ import os
 from typing import Dict, Any
 
 from api.ui_gateway import handle_request
-from governor.autonomy_governor import governor
+from governor.singleton import governor
 
 
 CONFIG_PATH = "config/governor_thresholds.json"
@@ -76,7 +76,6 @@ def watch(interval: float = 2.0) -> None:
     while True:
         status = handle_request({"command": "status", "args": {}})
         readiness = handle_request({"command": "readiness", "args": {}})
-        gov_state = handle_request({"command": "governor_thresholds", "args": {}})
 
         os.system("cls" if os.name == "nt" else "clear")
 
@@ -101,17 +100,9 @@ def watch(interval: float = 2.0) -> None:
         print("")
 
         # ------------------------------------------------------------
-        # Governor Thresholds Panel
+        # Governor Thresholds Panel (unified — live + persistence)
         # ------------------------------------------------------------
         print(_render_thresholds_panel())
-        print("")
-
-        # ------------------------------------------------------------
-        # Governor State Panel
-        # ------------------------------------------------------------
-        print("Governor State")
-        print("--------------")
-        print(json.dumps(gov_state.get("payload", {}), indent=2))
         print("")
 
         time.sleep(interval)

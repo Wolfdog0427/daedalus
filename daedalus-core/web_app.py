@@ -1,13 +1,16 @@
 # web_app.py
 
 """
-FastAPI Web API for the Cognitive System.
+DEPRECATED — This standalone FastAPI app is superseded by:
+  - api/http_api.py        (primary FastAPI "Assistant Core API")
+  - runtime/web_router.py  (Intelligence Kernel API, mounted at /api)
+  - server/kernel_http_api.py (Starlette gateway)
 
-This module is optional — it only activates if FastAPI is installed.
-Provides:
-- /dashboard  → system dashboard summary
-- /stability  → run stability enforcement
-- /improve    → trigger a self-healing improvement cycle
+Do NOT import this module in new code.  It is retained only for
+backward-compatibility with any external tools that may reference it.
+
+Original description:
+FastAPI Web API for the Cognitive System.
 """
 
 from __future__ import annotations
@@ -70,6 +73,7 @@ else:
         """
         Trigger one or more self-healing improvement cycles.
         """
+        cycles = max(1, min(cycles, 100))
         results = []
         for _ in range(cycles):
             results.append(run_improvement_cycle(goal=goal))

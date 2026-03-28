@@ -5,14 +5,14 @@ from __future__ import annotations
 import os
 import json
 from typing import Any, Dict, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 DELTA_LOG_PATH = os.path.join("data", "learning", "delta_validation.jsonl")
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _ensure_dir(path: str) -> None:

@@ -107,14 +107,15 @@ class FileVersionManager(VersionManager):
         candidate_id = self._new_candidate_id()
         ts = datetime.utcnow().isoformat() + "Z"
 
+        plan = candidate.plan
         entry = {
             "candidate_id": candidate_id,
             "timestamp": ts,
-            "proposal_type": candidate.proposal_type,
-            "description": candidate.description,
-            "expected_benefit": candidate.expected_benefit,
-            "change_budget_files": candidate.change_budget_files,
-            "change_budget_lines": candidate.change_budget_lines,
+            "recommendation": candidate.recommendation,
+            "best_cycle_index": candidate.best_cycle_index,
+            "risks": candidate.risks,
+            "change_budget_files": plan.change_budget_files if plan else 0,
+            "change_budget_lines": plan.change_budget_lines if plan else 0,
         }
 
         self.index["candidates"].append(entry)
@@ -176,9 +177,10 @@ class FileVersionManager(VersionManager):
         lines = ["Recorded candidates:"]
         for c in candidates:
             lines.append(f"- {c['candidate_id']}")
-            lines.append(f"    ts:   {c['timestamp']}")
-            lines.append(f"    type: {c['proposal_type']}")
-            lines.append(f"    desc: {c['description']}")
-            lines.append(f"    expected_benefit: {c['expected_benefit']}")
-            lines.append(f"    budget: {c['change_budget_files']} files, {c['change_budget_lines']} lines")
+            lines.append(f"    ts:             {c['timestamp']}")
+            lines.append(f"    recommendation: {c.get('recommendation', '?')}")
+            lines.append(f"    best_cycle:     {c.get('best_cycle_index', '?')}")
+            lines.append(f"    risks:          {c.get('risks', [])}")
+            lines.append(f"    budget:         {c.get('change_budget_files', 0)} files, "
+                         f"{c.get('change_budget_lines', 0)} lines")
         return "\n".join(lines)

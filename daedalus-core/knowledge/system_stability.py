@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Dict, Any
 
-from knowledge.dignostics import analyze_audit_log
+from knowledge.diagnostics import analyze_audit_log
 
 
 def compute_system_stability() -> Dict[str, Any]:
@@ -19,10 +19,10 @@ def compute_system_stability() -> Dict[str, Any]:
 
     diag = analyze_audit_log(limit=2000)
 
-    readiness_avg = diag["readiness"]["average"]
-    verification_failures = diag["summary"]["verification_failures"]
-    blocked_actions = diag["summary"]["blocked_actions"]
-    drift_warnings = diag["drift_warnings"]
+    readiness_avg = diag.get("readiness", {}).get("average")
+    verification_failures = diag.get("summary", {}).get("verification_failures", 0)
+    blocked_actions = diag.get("summary", {}).get("blocked_actions", 0)
+    drift_warnings = diag.get("drift_warnings", [])
 
     # -----------------------------
     # Stability Score

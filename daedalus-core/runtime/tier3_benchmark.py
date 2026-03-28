@@ -13,6 +13,7 @@ import time
 from typing import Any, Dict, List
 
 _BENCHMARK_LOG: List[Dict[str, Any]] = []
+_MAX_LOG = 200
 
 
 def get_benchmark_log(limit: int = 20) -> List[Dict[str, Any]]:
@@ -144,6 +145,8 @@ def benchmark_system() -> Dict[str, Any]:
         "n_strengths": len(strengths), "n_weaknesses": len(weaknesses),
         "timestamp": result["timestamp"],
     })
+    if len(_BENCHMARK_LOG) > _MAX_LOG:
+        _BENCHMARK_LOG[:] = _BENCHMARK_LOG[-_MAX_LOG:]
     _add_insight(
         "benchmark_report",
         f"system benchmark: {grade} ({score}/100), "
@@ -222,6 +225,8 @@ def benchmark_environment(env_id: str) -> Dict[str, Any]:
         "grade": scorecard.get("grade", "?"),
         "timestamp": result["timestamp"],
     })
+    if len(_BENCHMARK_LOG) > _MAX_LOG:
+        _BENCHMARK_LOG[:] = _BENCHMARK_LOG[-_MAX_LOG:]
     _add_insight(
         "benchmark_report",
         f"env '{env_name}' benchmark: {scorecard.get('grade', '?')}",
@@ -299,6 +304,8 @@ def benchmark_policy(policy_id: str) -> Dict[str, Any]:
         "grade": scorecard.get("grade", "?"),
         "timestamp": result["timestamp"],
     })
+    if len(_BENCHMARK_LOG) > _MAX_LOG:
+        _BENCHMARK_LOG[:] = _BENCHMARK_LOG[-_MAX_LOG:]
     _add_insight(
         "benchmark_report",
         f"policy '{pol_name}' benchmark: {scorecard.get('grade', '?')}",

@@ -44,8 +44,9 @@ from collections import deque
 class MetricWindow:
     """Fixed-size sliding window for numeric metrics."""
 
-    def __init__(self, max_size: int = 100) -> None:
+    def __init__(self, max_size: int = 100, higher_is_better: bool = False) -> None:
         self._values: deque = deque(maxlen=max_size)
+        self._higher_is_better = higher_is_better
 
     def record(self, value: float) -> None:
         self._values.append((time.time(), value))
@@ -95,6 +96,8 @@ class MetricWindow:
         threshold = max(older_avg * 0.05, 0.001)
         if abs(delta) < threshold:
             return "stable"
+        if self._higher_is_better:
+            return "improving" if delta > 0 else "degrading"
         return "improving" if delta < 0 else "degrading"
 
 
@@ -112,7 +115,7 @@ class PipelineMetrics:
         self.self_model_latency = MetricWindow()
         self.retrieval_latency = MetricWindow()
         self.evolution_latency = MetricWindow()
-        self.batch_throughput = MetricWindow()
+        self.batch_throughput = MetricWindow(higher_is_better=True)
         self.storage_io_latency = MetricWindow()
 
     def record_ingestion(self, latency_ms: float) -> None:
@@ -203,9 +206,9 @@ class QualitySignals:
     """
 
     def __init__(self) -> None:
-        self.consistency = MetricWindow(max_size=200)
-        self.coherence = MetricWindow(max_size=200)
-        self.knowledge_quality = MetricWindow(max_size=200)
+        self.consistency = MetricWindow(max_size=200, higher_is_better=True)
+        self.coherence = MetricWindow(max_size=200, higher_is_better=True)
+        self.knowledge_quality = MetricWindow(max_size=200, higher_is_better=True)
 
     def record(self, consistency: float, coherence: float, quality: float) -> None:
         self.consistency.record(consistency)

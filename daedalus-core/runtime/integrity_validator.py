@@ -1,6 +1,7 @@
 # runtime/integrity_validator.py
 
 from __future__ import annotations
+import threading
 from typing import Dict, Any, Optional
 import time
 
@@ -27,7 +28,10 @@ class IntegrityValidator:
       - Enforce governor safety rules
     """
 
+    _MAX_LOG = 500
+
     def __init__(self):
+        self._lock = threading.Lock()
         self.validation_log = []
         self.last_validation: Optional[Dict[str, Any]] = None
 
@@ -125,6 +129,9 @@ class IntegrityValidator:
         for entry in snapshot_engine.list_all():
             sid = entry["id"]
             snap = snapshot_engine.get(sid)
+            if snap is None:
+                issues.append({"snapshot": sid, "issues": ["snapshot evicted"]})
+                continue
             result = self._validate_snapshot(snap)
             if not result["valid"]:
                 issues.append({"snapshot": sid, "issues": result["issues"]})
@@ -141,17 +148,26 @@ class IntegrityValidator:
             "issues": issues,
         }
 
-        # Log validation
-        self.validation_log.append(result)
-        self.last_validation = result
+        with self._lock:
+            self.validation_log.append(result)
+            if len(self.validation_log) > self._MAX_LOG:
+                self.validation_log[:] = self.validation_log[-self._MAX_LOG:]
+            self.last_validation = result
 
         return result
 
     def get_last_validation(self) -> Optional[Dict[str, Any]]:
-        return self.last_validation
+        with self._lock:
+            return self.last_validation
 
     def get_validation_log(self):
-        return list(self.validation_log)
+        with self._lock:
+            return list(self.validation_log)
+
+    def clear_log(self) -> None:
+        with self._lock:
+            self.validation_log.clear()
+            self.last_validation = None
 
 
 # ------------------------------------------------------------

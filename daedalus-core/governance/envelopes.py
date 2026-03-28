@@ -38,15 +38,14 @@ def compute_envelope() -> Dict[str, Any]:
     threshold = mode.get("patch_approval_threshold", "operator_required")
     if threshold == "blocked":
         allowed = set()
-        forbidden.add("apply_patch")
+        forbidden.add("patch_apply")
 
     risk_posture = persona.get("risk_posture", "moderate")
-    safety_mult = mode.get("safety_multiplier", 1.0)
+    safety_mult = max(0.01, mode.get("safety_multiplier", 1.0))
 
     risk_ceiling = {
         "low": 30, "moderate": 60, "neutral": 50,
     }.get(risk_posture, 60)
-    risk_ceiling = max(10, int(risk_ceiling / safety_mult))
 
     return {
         "persona_id": pid,
@@ -63,9 +62,16 @@ def compute_envelope() -> Dict[str, Any]:
 
 
 def is_operation_allowed_by_envelope(operation: str) -> bool:
-    """Check whether *operation* is allowed under the active envelope."""
+    """Check whether *operation* is allowed under the active envelope.
+
+    When the allowlist is empty **and** `patch_approval_threshold` is
+    ``"blocked"``, nothing is allowed.  Otherwise an empty allowlist is
+    treated as "no restrictions beyond the forbidden set".
+    """
     env = compute_envelope()
     if operation in env["forbidden_operations"]:
         return False
     allowed = env["allowed_operations"]
-    return not allowed or operation in allowed
+    if not allowed:
+        return env.get("patch_approval_threshold") != "blocked"
+    return operation in allowed

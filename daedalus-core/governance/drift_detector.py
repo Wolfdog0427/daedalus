@@ -9,11 +9,14 @@ and never mutates system state.
 
 from __future__ import annotations
 
+import math
+import threading
 import time
 from typing import Any, Dict, List
 
 _DRIFT_LOG: List[Dict[str, Any]] = []
 _MAX_LOG = 50
+_drift_lock = threading.Lock()
 
 
 def compute_drift_report() -> Dict[str, Any]:
@@ -26,8 +29,16 @@ def compute_drift_report() -> Dict[str, Any]:
     dimensions["coherence"] = _detect_coherence_drift()
     dimensions["stability"] = _detect_stability_drift()
 
+    unavailable_count = sum(
+        1 for d in dimensions.values() if d.get("detail") == "unavailable"
+    )
     total = sum(d.get("drift_score", 0) for d in dimensions.values())
+    total += unavailable_count * 10
+    if math.isnan(total) or math.isinf(total):
+        total = len(dimensions) * 20.0
     avg = round(total / max(len(dimensions), 1), 2)
+    if math.isnan(avg) or math.isinf(avg):
+        avg = 100.0
 
     try:
         from governance.modes import get_drift_sensitivity
@@ -44,20 +55,22 @@ def compute_drift_report() -> Dict[str, Any]:
         "timestamp": time.time(),
     }
 
-    _DRIFT_LOG.append({
-        "total": report["total_drift_score"],
-        "average": report["average_drift_score"],
-        "alert": report["alert"],
-        "timestamp": report["timestamp"],
-    })
-    if len(_DRIFT_LOG) > _MAX_LOG:
-        _DRIFT_LOG[:] = _DRIFT_LOG[-_MAX_LOG:]
+    with _drift_lock:
+        _DRIFT_LOG.append({
+            "total": report["total_drift_score"],
+            "average": report["average_drift_score"],
+            "alert": report["alert"],
+            "timestamp": report["timestamp"],
+        })
+        if len(_DRIFT_LOG) > _MAX_LOG:
+            _DRIFT_LOG[:] = _DRIFT_LOG[-_MAX_LOG:]
 
     return report
 
 
 def get_drift_log(limit: int = 20) -> List[Dict[str, Any]]:
-    return list(_DRIFT_LOG[-limit:])
+    with _drift_lock:
+        return list(_DRIFT_LOG[-limit:])
 
 
 # ------------------------------------------------------------------

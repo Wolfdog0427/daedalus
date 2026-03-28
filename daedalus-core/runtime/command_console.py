@@ -11,7 +11,6 @@ from runtime.restoration_engine import restoration_engine
 from runtime.integrity_validator import integrity_validator
 from runtime.integrity_score_engine import integrity_score_engine
 
-# FIXED
 from governor.singleton import governor
 
 
@@ -118,23 +117,23 @@ class CommandConsole:
     # ------------------------------------------------------------
 
     def clear_execution_log(self) -> Dict[str, Any]:
-        execution_engine.execution_log.clear()
+        execution_engine.clear_log()
         return {"execution_log_cleared": True}
 
     def clear_rollback_log(self) -> Dict[str, Any]:
-        rollback_engine.rollback_log.clear()
+        rollback_engine.clear_log()
         return {"rollback_log_cleared": True}
 
     def clear_restoration_log(self) -> Dict[str, Any]:
-        restoration_engine.restoration_log.clear()
+        restoration_engine.clear_log()
         return {"restoration_log_cleared": True}
 
     def clear_validation_log(self) -> Dict[str, Any]:
-        integrity_validator.validation_log.clear()
+        integrity_validator.clear_log()
         return {"validation_log_cleared": True}
 
     def clear_integrity_score_history(self) -> Dict[str, Any]:
-        integrity_score_engine.score_history.clear()
+        integrity_score_engine.clear_log()
         return {"integrity_score_history_cleared": True}
 
 

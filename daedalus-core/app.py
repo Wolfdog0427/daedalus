@@ -32,7 +32,7 @@ def startup_health_check() -> None:
     print_health_summary()
 
 
-def start_http_server(host: str = "0.0.0.0", port: int = 8000) -> None:
+def start_http_server(host: str = "127.0.0.1", port: int = 8000) -> None:
     """
     Start the HTTP API server.
     """
@@ -48,29 +48,47 @@ def start_cli() -> None:
     cli_main()
 
 
+def start_knowledge_console() -> None:
+    """
+    Start the interactive knowledge-side command console.
+    """
+    from knowledge.command_console import start_console
+    start_console()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Assistant Core Application")
     parser.add_argument(
         "mode",
-        choices=["http", "cli", "health"],
-        help="Start mode: http server, CLI console, or health check",
+        choices=["http", "cli", "console", "health"],
+        help="Start mode: http server, CLI, knowledge console, or health check",
     )
-    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
 
     ns = parser.parse_args()
 
-    # Always run diagnostics first
-    startup_health_check()
+    if ns.mode in ("http", "health"):
+        startup_health_check()
 
     if ns.mode == "http":
         start_http_server(ns.host, ns.port)
 
     elif ns.mode == "cli":
+        try:
+            startup_health_check()
+        except SystemExit:
+            print("⚠ Startup health check failed — entering CLI in degraded mode.")
         start_cli()
 
+    elif ns.mode == "console":
+        try:
+            startup_health_check()
+        except SystemExit:
+            print("⚠ Startup health check failed — entering console in degraded mode.")
+        start_knowledge_console()
+
     elif ns.mode == "health":
-        # Diagnostics + summary already printed
         return
 
 

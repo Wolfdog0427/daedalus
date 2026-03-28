@@ -1,6 +1,7 @@
 # governor/autonomy_governor.py
 
 from __future__ import annotations
+import threading
 from typing import Dict, Any
 
 from governor.governor_trace import record_governor_event
@@ -13,10 +14,12 @@ class AutonomyGovernor:
     """
 
     def __init__(self):
+        self._lock = threading.Lock()
+
         # ------------------------------------------------------------
         # Default thresholds (may be overridden by persisted values)
         # ------------------------------------------------------------
-        self.drift_threshold_escalate = "low"
+        self.drift_threshold_escalate = "medium"
         self.drift_threshold_deescalate = "medium"
 
         self.stability_threshold_escalate = "low"
@@ -35,45 +38,50 @@ class AutonomyGovernor:
     # State Access
     # ------------------------------------------------------------
     def get_state(self) -> Dict[str, Any]:
-        return {
-            "tier": self.tier,
-            "strict_mode": self.strict_mode,
-            "thresholds": {
-                "drift_threshold_escalate": self.drift_threshold_escalate,
-                "drift_threshold_deescalate": self.drift_threshold_deescalate,
-                "stability_threshold_escalate": self.stability_threshold_escalate,
-                "stability_threshold_deescalate": self.stability_threshold_deescalate,
-                "readiness_min_for_escalation": self.readiness_min_for_escalation,
-                "readiness_min_for_autonomous": self.readiness_min_for_autonomous,
-            },
-        }
+        with self._lock:
+            return {
+                "tier": self.tier,
+                "strict_mode": self.strict_mode,
+                "thresholds": {
+                    "drift_threshold_escalate": self.drift_threshold_escalate,
+                    "drift_threshold_deescalate": self.drift_threshold_deescalate,
+                    "stability_threshold_escalate": self.stability_threshold_escalate,
+                    "stability_threshold_deescalate": self.stability_threshold_deescalate,
+                    "readiness_min_for_escalation": self.readiness_min_for_escalation,
+                    "readiness_min_for_autonomous": self.readiness_min_for_autonomous,
+                },
+            }
 
     # ------------------------------------------------------------
     # Tier Management
     # ------------------------------------------------------------
     def escalate(self, reason: str) -> None:
-        if self.strict_mode and self.tier >= 3:
-            return
+        with self._lock:
+            if self.strict_mode and self.tier >= 3:
+                return
 
-        old = self.tier
-        self.tier = min(3, self.tier + 1)
+            old = self.tier
+            self.tier = min(3, self.tier + 1)
+            new_tier = self.tier
 
         record_governor_event("tier_escalated", {
             "from": old,
-            "to": self.tier,
+            "to": new_tier,
             "reason": reason,
         })
 
     def deescalate(self, reason: str) -> None:
-        if self.strict_mode and self.tier <= 1:
-            return
+        with self._lock:
+            if self.strict_mode and self.tier <= 1:
+                return
 
-        old = self.tier
-        self.tier = max(1, self.tier - 1)
+            old = self.tier
+            self.tier = max(1, self.tier - 1)
+            new_tier = self.tier
 
         record_governor_event("tier_deescalated", {
             "from": old,
-            "to": self.tier,
+            "to": new_tier,
             "reason": reason,
         })
 
@@ -81,8 +89,9 @@ class AutonomyGovernor:
     # Strict Mode
     # ------------------------------------------------------------
     def set_strict_mode(self, enabled: bool) -> None:
-        old = self.strict_mode
-        self.strict_mode = enabled
+        with self._lock:
+            old = self.strict_mode
+            self.strict_mode = enabled
 
         record_governor_event("strict_mode_changed", {
             "from": old,

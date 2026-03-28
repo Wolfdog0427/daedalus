@@ -99,43 +99,44 @@ def merge_concepts(a: str, b: str) -> Dict[str, Any]:
     - All relations pointing to B are redirected to A
     - T3: Actively resolves contradictions between A and B's items
     """
-    from knowledge.knowledge_graph import _load_graph, _save_graph, _load_entities, _save_entities
+    from knowledge.knowledge_graph import _load_graph, _save_graph, _load_entities, _save_entities, _graph_lock
 
-    graph = _load_graph()
-    entities = _load_entities()
+    with _graph_lock:
+        graph = _load_graph()
+        entities = _load_entities()
 
-    # Redirect edges
-    redirected = 0
-    for subj, edges in graph.items():
-        for edge in edges:
-            if edge["object"] == b:
-                edge["object"] = a
-                redirected += 1
+        # Redirect edges
+        redirected = 0
+        for subj, edges in graph.items():
+            for edge in edges:
+                if edge["object"] == b:
+                    edge["object"] = a
+                    redirected += 1
 
-    # T3: Resolve contradictions between A's and B's edge sets
-    contradictions_resolved = 0
-    if a in graph and b in graph:
-        a_rels = {(e["relation"], e["object"]): e for e in graph.get(a, [])}
-        b_rels = {(e["relation"], e["object"]): e for e in graph.get(b, [])}
-        for key in set(a_rels) & set(b_rels):
-            a_edge = a_rels[key]
-            b_edge = b_rels[key]
-            if a_edge.get("trust", 0) < b_edge.get("trust", 0):
-                a_edge["trust"] = b_edge["trust"]
-            contradictions_resolved += 1
+        # T3: Resolve contradictions between A's and B's edge sets
+        contradictions_resolved = 0
+        if a in graph and b in graph:
+            a_rels = {(e["relation"], e["object"]): e for e in graph.get(a, [])}
+            b_rels = {(e["relation"], e["object"]): e for e in graph.get(b, [])}
+            for key in set(a_rels) & set(b_rels):
+                a_edge = a_rels[key]
+                b_edge = b_rels[key]
+                if a_edge.get("trust", 0) < b_edge.get("trust", 0):
+                    a_edge["trust"] = b_edge["trust"]
+                contradictions_resolved += 1
 
-    # Merge entity metadata
-    if b in entities:
-        if a not in entities:
-            entities[a] = entities[b]
-        else:
-            entities[a]["occurrences"] += entities[b]["occurrences"]
-            entities[a]["sources"].extend(entities[b]["sources"])
+        # Merge entity metadata
+        if b in entities:
+            if a not in entities:
+                entities[a] = entities[b]
+            else:
+                entities[a]["occurrences"] += entities[b]["occurrences"]
+                entities[a]["sources"].extend(entities[b]["sources"])
 
-        del entities[b]
+            del entities[b]
 
-    _save_graph(graph)
-    _save_entities(entities)
+        _save_graph(graph)
+        _save_entities(entities)
 
     return {
         "action": "merged",
@@ -194,45 +195,67 @@ def refine_relationships(entity: str) -> Dict[str, Any]:
 
     Persists updated trust values back to the graph.
     """
-    from knowledge.knowledge_graph import _load_graph, _save_graph
+    from knowledge.knowledge_graph import _load_graph, _save_graph, _graph_lock
 
-    graph = _load_graph()
-    edges = graph.get(entity, [])
-    refined = []
+    with _graph_lock:
+        graph = _load_graph()
+        edges = graph.get(entity, [])
+        refined = []
 
-    cluster = get_connected_components()
-    cluster_for_entity = None
-    for comp in cluster:
-        if entity in comp:
-            cluster_for_entity = comp
-            break
+        # Compute connected components inline to avoid re-acquiring _graph_lock
+        adjacency: dict = {}
+        for subj, subj_edges in graph.items():
+            for e in subj_edges:
+                obj = e.get("object", "")
+                adjacency.setdefault(subj, set()).add(obj)
+                adjacency.setdefault(obj, set()).add(subj)
 
-    for edge in edges:
-        trust = edge["trust"]
-        relation = edge["relation"]
-        obj = edge["object"]
+        visited: set = set()
+        cluster_for_entity = None
+        for node in adjacency:
+            if node in visited:
+                continue
+            component: set = set()
+            stack = [node]
+            while stack:
+                current = stack.pop()
+                if current in visited:
+                    continue
+                visited.add(current)
+                component.add(current)
+                for neighbor in adjacency.get(current, set()):
+                    if neighbor not in visited:
+                        stack.append(neighbor)
+            if entity in component:
+                cluster_for_entity = component
+                break
 
-        if cluster_for_entity:
-            freq = sum(
-                1 for e in cluster_for_entity
-                for r, o in get_relations_for(e)
-                if r == relation and o == obj
-            )
-        else:
-            freq = 1
+        for edge in edges:
+            trust = edge["trust"]
+            relation = edge["relation"]
+            obj = edge["object"]
 
-        new_strength = min(1.0, trust * 0.7 + (freq / 10) * 0.3)
+            if cluster_for_entity:
+                freq = sum(
+                    1 for e in cluster_for_entity
+                    for r, o in [(ed["relation"], ed["object"]) for ed in graph.get(e, [])]
+                    if r == relation and o == obj
+                )
+            else:
+                freq = 1
 
-        edge["trust"] = new_strength
+            new_strength = min(1.0, trust * 0.7 + (freq / 10) * 0.3)
 
-        refined.append({
-            "relation": relation,
-            "object": obj,
-            "old_trust": trust,
-            "new_trust": new_strength,
-        })
+            edge["trust"] = new_strength
 
-    _save_graph(graph)
+            refined.append({
+                "relation": relation,
+                "object": obj,
+                "old_trust": trust,
+                "new_trust": new_strength,
+            })
+
+        _save_graph(graph)
 
     return {
         "entity": entity,

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import threading
 from typing import Dict, Any, Optional
 import time
 
@@ -34,7 +35,10 @@ class ExecutionEngine:
       - Run post-engagement checks after execution
     """
 
+    _MAX_LOG = 500
+
     def __init__(self):
+        self._lock = threading.Lock()
         self.execution_log = []
         self.last_execution: Optional[Dict[str, Any]] = None
 
@@ -98,49 +102,57 @@ class ExecutionEngine:
         # --------------------------------------------------------
         hem_maybe_enter("execution_engine_tick")
 
-        if not self._governor_allows_execution():
-            # Even if we don't execute, we still close out HEM cleanly
-            hem_transition_to_postcheck()
-            hem_run_post_engagement_checks()
-            return None
+        try:
+            if not self._governor_allows_execution():
+                return None
 
-        # Find approved proposals
-        approved = [
-            p for p in proposal_review.list_all()
-            if p.get("status") == "approved"
-        ]
+            # Find approved proposals
+            approved = [
+                p for p in proposal_review.list_all()
+                if p.get("status") == "approved"
+            ]
 
-        if not approved:
-            hem_transition_to_postcheck()
-            hem_run_post_engagement_checks()
-            return None
+            if not approved:
+                return None
 
-        # Execute the first approved proposal
-        proposal = approved[0]
+            # Execute the first approved proposal
+            proposal = approved[0]
 
-        # Perform execution
-        result = self._execute_action(proposal)
+            # Perform execution
+            result = self._execute_action(proposal)
 
-        # Mark proposal as executed
-        proposal_review.mark_executed(proposal["id"])
+            # Mark proposal as executed
+            proposal_review.mark_executed(proposal["id"])
 
-        # Log execution
-        self.execution_log.append(result)
-        self.last_execution = result
+            with self._lock:
+                self.execution_log.append(result)
+                if len(self.execution_log) > self._MAX_LOG:
+                    self.execution_log[:] = self.execution_log[-self._MAX_LOG:]
+                self.last_execution = result
 
-        # --------------------------------------------------------
-        # HEM: Post-checks after execution
-        # --------------------------------------------------------
-        hem_transition_to_postcheck()
-        hem_run_post_engagement_checks()
-
-        return result
+            return result
+        finally:
+            try:
+                hem_transition_to_postcheck()
+            except Exception:
+                pass
+            try:
+                hem_run_post_engagement_checks()
+            except Exception:
+                pass
 
     def get_last_execution(self) -> Optional[Dict[str, Any]]:
-        return self.last_execution
+        with self._lock:
+            return self.last_execution
 
     def get_execution_log(self):
-        return list(self.execution_log)
+        with self._lock:
+            return list(self.execution_log)
+
+    def clear_log(self) -> None:
+        with self._lock:
+            self.execution_log.clear()
+            self.last_execution = None
 
 
 # ------------------------------------------------------------

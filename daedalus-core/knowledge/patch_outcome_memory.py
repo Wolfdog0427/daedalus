@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import json
+import tempfile
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -21,17 +22,44 @@ def _ensure(path: str) -> None:
     os.makedirs(path, exist_ok=True)
 
 
+_MAX_HISTORY = 500
+
+
+def _safe_name(name: str) -> str:
+    """Reject path separators and traversal sequences."""
+    sanitized = name.replace("\x00", "")
+    sanitized = sanitized.replace("..", "").replace("/", "_").replace("\\", "_")
+    if not sanitized:
+        raise ValueError(f"Invalid name: {name!r}")
+    return sanitized
+
+
 def _load(path: str) -> Dict[str, Any]:
     if not os.path.exists(path):
         return {}
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, OSError, ValueError):
+        return {}
 
 
 def _save(path: str, data: Dict[str, Any]) -> None:
     _ensure(os.path.dirname(path))
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    fd, tmp = tempfile.mkstemp(
+        dir=os.path.dirname(path), suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 # ---------------------------------------------------------
@@ -69,7 +97,8 @@ def update_subsystem_memory(
     """
     Update subsystem reliability profile.
     """
-    path = os.path.join(SUBSYSTEM_MEMORY, f"{subsystem}.json")
+    safe_subsystem = _safe_name(subsystem)
+    path = os.path.join(SUBSYSTEM_MEMORY, f"{safe_subsystem}.json")
     data = _load(path)
 
     score = score_outcome(patch_result)
@@ -86,7 +115,7 @@ def update_subsystem_memory(
         }
     )
 
-    data["history"] = history
+    data["history"] = history[-_MAX_HISTORY:]
     data["success_rate"] = _compute_success_rate(history)
     data["avg_score"] = _compute_avg_score(history)
     data["rollback_rate"] = _compute_rollback_rate(history)
@@ -107,7 +136,8 @@ def update_action_memory(
     """
     Update action-type reliability profile.
     """
-    path = os.path.join(ACTION_MEMORY, f"{action_type}.json")
+    safe_action_type = _safe_name(action_type)
+    path = os.path.join(ACTION_MEMORY, f"{safe_action_type}.json")
     data = _load(path)
 
     score = score_outcome(patch_result)
@@ -123,7 +153,7 @@ def update_action_memory(
         }
     )
 
-    data["history"] = history
+    data["history"] = history[-_MAX_HISTORY:]
     data["success_rate"] = _compute_success_rate(history)
     data["avg_score"] = _compute_avg_score(history)
     data["rollback_rate"] = _compute_rollback_rate(history)
@@ -154,7 +184,7 @@ def _compute_rollback_rate(history: List[Dict[str, Any]]) -> float:
     rollbacks = sum(
         1
         for h in history
-        if h["patch_result"]["details"].get("rolled_back")
+        if h.get("patch_result", {}).get("details", {}).get("rolled_back")
     )
     return rollbacks / len(history)
 
@@ -170,7 +200,7 @@ def record_outcome(
     """
     Record the outcome of a patch attempt into subsystem and action memory.
     """
-    validation = patch_result["details"].get("validation", {})
+    validation = patch_result.get("details", {}).get("validation", {})
 
     for action in plan.get("planned_actions", []):
         subsystem = action.get("target")

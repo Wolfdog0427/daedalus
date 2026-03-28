@@ -1,6 +1,7 @@
 # runtime/telemetry_history.py
 
 from __future__ import annotations
+import threading
 from typing import Dict, Any, List, Optional
 import time
 
@@ -21,6 +22,7 @@ class TelemetryHistory:
     def __init__(self, max_entries: int = 500):
         self.max_entries = max_entries
         self.entries: List[Dict[str, Any]] = []
+        self._lock = threading.Lock()
 
     # ------------------------------------------------------------
     # Core storage
@@ -34,32 +36,33 @@ class TelemetryHistory:
             "recorded_at": time.time(),
             "snapshot": snapshot,
         }
-
-        self.entries.append(snapshot_with_timestamp)
-
-        # Enforce rolling window
-        if len(self.entries) > self.max_entries:
-            self.entries.pop(0)
+        with self._lock:
+            self.entries.append(snapshot_with_timestamp)
+            if len(self.entries) > self.max_entries:
+                self.entries.pop(0)
 
     def latest(self) -> Optional[Dict[str, Any]]:
         """
         Return the most recent telemetry snapshot.
         """
-        if not self.entries:
-            return None
-        return self.entries[-1]
+        with self._lock:
+            if not self.entries:
+                return None
+            return self.entries[-1]
 
     def all(self) -> List[Dict[str, Any]]:
         """
         Return the full history buffer.
         """
-        return list(self.entries)
+        with self._lock:
+            return list(self.entries)
 
     def recent(self, n: int = 20) -> List[Dict[str, Any]]:
         """
         Return the last n snapshots.
         """
-        return self.entries[-n:]
+        with self._lock:
+            return list(self.entries[-n:])
 
     # ------------------------------------------------------------
     # Trend helpers
@@ -70,7 +73,8 @@ class TelemetryHistory:
         Generic extractor for nested fields in snapshots.
         key_path example: ["metrics", "readiness"]
         """
-        source = self.entries if n is None else self.entries[-n:]
+        with self._lock:
+            source = list(self.entries) if n is None else list(self.entries[-n:])
         results = []
 
         for entry in source:
@@ -119,7 +123,8 @@ class TelemetryHistory:
         Returns a list of {before, after, timestamp} for each tier change.
         """
         transitions = []
-        recent_entries = self.entries[-n:]
+        with self._lock:
+            recent_entries = list(self.entries[-n:])
 
         last_tier = None
         for entry in recent_entries:

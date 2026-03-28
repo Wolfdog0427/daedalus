@@ -24,6 +24,9 @@ def complete_step(goals, step_num=None):
     if step_num is None:
         step_num = get_current_step_index(goals)
 
+    if step_num is None:
+        return goals, "No current step (goal may be completed)."
+
     if not step_exists(goals, step_num):
         return goals, f"Step {step_num} does not exist."
 
@@ -41,7 +44,10 @@ def complete_step(goals, step_num=None):
 
     # Auto-advance
     next_index = get_next_step_index(goals, step_num)
-    goals["current_step_index"] = next_index
+    if next_index is None:
+        goals["current_step_index"] = step_num
+        return goals, f"Step {step_num} complete. Earlier incomplete steps remain."
 
-    next_step_text = steps[next_index - 1]["text"]
+    goals["current_step_index"] = next_index
+    next_step_text = steps[next_index - 1].get("text", f"Step {next_index}")
     return goals, f"Step {step_num} complete. Next step: {next_step_text}"

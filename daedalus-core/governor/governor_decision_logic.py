@@ -55,7 +55,10 @@ def evaluate_signals(
     drift_level = _normalize_level(drift.get("level", "medium"))
     stability_level = _normalize_level(stability.get("level", "medium"))
 
-    thresholds = governor.get_state()["thresholds"]
+    gov_state = governor.get_state()
+    thresholds = gov_state["thresholds"]
+    current_tier = gov_state["tier"]
+    strict_mode = gov_state["strict_mode"]
 
     decision: Literal["escalate", "deescalate", "hold"] = "hold"
     reason: Optional[str] = None
@@ -78,19 +81,11 @@ def evaluate_signals(
     stability_escalate_th = thresholds["stability_threshold_escalate"]
     stability_deescalate_th = thresholds["stability_threshold_deescalate"]
 
-    # Escalation conditions
     drift_wants_escalate = _level_ge(drift_level, drift_escalate_th)
     stability_wants_escalate = _level_le(stability_level, stability_escalate_th)
 
-    # Deescalation conditions
     drift_wants_deescalate = _level_le(drift_level, drift_deescalate_th)
     stability_wants_deescalate = _level_ge(stability_level, stability_deescalate_th)
-
-    # --------------------------------------------------------
-    # Decide action (pure)
-    # --------------------------------------------------------
-    current_tier = governor.tier
-    strict_mode = governor.strict_mode
 
     # 1) Escalation path
     if drift_wants_escalate or stability_wants_escalate:

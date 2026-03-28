@@ -1,6 +1,6 @@
 # runtime/semantic_firewall.py
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import difflib
 
 
@@ -21,8 +21,12 @@ class SemanticFirewall:
         "add_goal",
         "add_step",
         "complete_step",
+        "complete_goal",
         "delete_step",
+        "delete_goal",
+        "move_step",
         "rename_step",
+        "reset_state",
         "switch_goal",
         "show_plan",
         "show_goals",
@@ -97,7 +101,7 @@ class SemanticFirewall:
     # Fuzzy intent matching
     # --------------------------------------------------------
     @classmethod
-    def _fuzzy_match_intent(cls, intent: str) -> str:
+    def _fuzzy_match_intent(cls, intent: str) -> Optional[str]:
         """
         Attempt to fuzzy-match an unknown intent to a known safe intent.
 

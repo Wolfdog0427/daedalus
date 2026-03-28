@@ -1,10 +1,10 @@
 # nlu/semantic_normalizer.py
 
 import re
-from typing import Dict, List
+from typing import Any, Dict, List
 
 class SemanticNormalizer:
-    def normalize(self, text: str) -> Dict[str, any]:
+    def normalize(self, text: str) -> Dict[str, Any]:
         cleaned = text.strip().lower()
         cleaned = re.sub(r"\s+", " ", cleaned)
 

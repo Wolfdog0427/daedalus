@@ -28,6 +28,11 @@ _GOVERNED_CHANGE_TYPES = {
     "patch_apply",
     "patch_rollback",
     "self_modification",
+    "proposal_create",
+    "expression_profile_change",
+    "continuity_update",
+    "coherence_correction",
+    "resonance_update",
 }
 
 # Change types unconditionally forbidden — kernel will also block these,
@@ -91,12 +96,24 @@ def describe_binding() -> Dict[str, Any]:
     }
 
 
+def is_known_change_type(change_type: str) -> bool:
+    """Return True if a change type is in any recognized category."""
+    return change_type in (
+        _GOVERNED_CHANGE_TYPES | _FORBIDDEN_CHANGE_TYPES | _RUNTIME_LOCAL_OPERATIONS
+    )
+
+
 def requires_governance_review(
     change_type: str,
     metadata: Dict[str, Any] | None = None,
 ) -> bool:
-    """Return True if a change type requires kernel evaluation."""
-    return change_type in _GOVERNED_CHANGE_TYPES
+    """Return True if a change type requires kernel evaluation.
+
+    Unknown change types are treated as governed (fail-closed).
+    """
+    if change_type in _GOVERNED_CHANGE_TYPES:
+        return True
+    return not is_known_change_type(change_type)
 
 
 def is_governance_forbidden(
@@ -106,7 +123,7 @@ def is_governance_forbidden(
     """Return True if a change type is unconditionally forbidden."""
     if change_type in _FORBIDDEN_CHANGE_TYPES:
         return True
-    flags = set((metadata or {}).get("flags", []))
+    flags = set((metadata or {}).get("flags") or [])
     return bool(flags & {"expand_autonomy", "bypass_safety",
                          "persist_personal_data", "emotional_inference",
                          "psychological_model"})

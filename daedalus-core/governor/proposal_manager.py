@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 import uuid
@@ -11,7 +12,11 @@ from .state_store import (
     save_proposals,
     load_state,
     save_state,
+    _state_file_lock,
 )
+
+_proposal_file_lock = _state_file_lock
+_MAX_PROPOSALS = 500
 
 
 def _now_iso() -> str:
@@ -34,9 +39,20 @@ def load_proposal_by_id(proposal_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _update_state_pending(proposal_id: str, add: bool) -> None:
+_MAX_RECENT_DECISIONS = 100
+
+
+def _update_state_pending_and_record(
+    proposal_id: str,
+    add: bool,
+    status: str,
+    tier: int,
+    decided_by: str,
+    decided_at: str,
+) -> None:
     """
-    Add or remove a proposal ID from the state's pending list.
+    Atomically update the pending list and record the decision in a single
+    load/save cycle to prevent inconsistent state on crash.
     """
     state = load_state()
     pending = state["proposals"]["pending"]
@@ -48,20 +64,6 @@ def _update_state_pending(proposal_id: str, add: bool) -> None:
         if proposal_id in pending:
             pending.remove(proposal_id)
 
-    save_state(state)
-
-
-def _record_recent_decision(
-    proposal_id: str,
-    status: str,
-    tier: int,
-    decided_by: str,
-    decided_at: str,
-) -> None:
-    """
-    Append a recent decision entry to the state.
-    """
-    state = load_state()
     state["proposals"]["recent_decisions"].append(
         {
             "id": proposal_id,
@@ -71,6 +73,9 @@ def _record_recent_decision(
             "decided_at": decided_at,
         }
     )
+    if len(state["proposals"]["recent_decisions"]) > _MAX_RECENT_DECISIONS:
+        state["proposals"]["recent_decisions"] = state["proposals"]["recent_decisions"][-_MAX_RECENT_DECISIONS:]
+
     save_state(state)
 
 
@@ -95,37 +100,48 @@ def create_proposal(
     """
     Create a new proposal, persist it, and register it as pending.
     """
-    proposals = load_proposals()
+    with _proposal_file_lock:
+        proposals = load_proposals()
 
-    proposal_id = f"prop-{uuid.uuid4()}"
-    proposal = {
-        "id": proposal_id,
-        "created_at": _now_iso(),
-        "source_cycle_id": source_cycle_id,
-        "tier_requested": tier_requested,
-        "subsystem": subsystem,
-        "risk_level": risk_level,
-        "priority": priority,
-        "drift_context": drift_context,
-        "diagnostics_summary": diagnostics_summary,
-        "proposal_summary": proposal_summary,
-        "justification": justification,
-        "planned_actions": planned_actions,
-        "expected_impact": expected_impact,
-        "sandbox_preview": sandbox_preview,
-        "status": "pending",
-        "decision": {
-            "decided_by": None,
-            "decided_at": None,
-            "reason": None,
-        },
-    }
+        proposal_id = f"prop-{uuid.uuid4()}"
+        proposal = {
+            "id": proposal_id,
+            "created_at": _now_iso(),
+            "source_cycle_id": source_cycle_id,
+            "tier_requested": tier_requested,
+            "subsystem": subsystem,
+            "risk_level": risk_level,
+            "priority": priority,
+            "drift_context": drift_context,
+            "diagnostics_summary": diagnostics_summary,
+            "proposal_summary": proposal_summary,
+            "justification": justification,
+            "planned_actions": planned_actions,
+            "expected_impact": expected_impact,
+            "sandbox_preview": sandbox_preview,
+            "status": "pending",
+            "decision": {
+                "decided_by": None,
+                "decided_at": None,
+                "reason": None,
+            },
+        }
 
-    proposals.append(proposal)
-    save_proposals(proposals)
+        proposals.append(proposal)
+        pruned_ids: set = set()
+        if len(proposals) > _MAX_PROPOSALS:
+            pruned_ids = {p["id"] for p in proposals[:-_MAX_PROPOSALS]}
+            proposals[:] = proposals[-_MAX_PROPOSALS:]
+        save_proposals(proposals)
 
-    # Register as pending
-    _update_state_pending(proposal_id, add=True)
+        state = load_state()
+        pending = state["proposals"]["pending"]
+        if pruned_ids:
+            pending = [pid for pid in pending if pid not in pruned_ids]
+        if proposal_id not in pending:
+            pending.append(proposal_id)
+        state["proposals"]["pending"] = pending
+        save_state(state)
 
     return proposal
 
@@ -155,35 +171,33 @@ def update_proposal_status(
     """
     Update the status of a proposal and record the decision in state.
     """
-    proposals = load_proposals()
-    updated: Optional[Dict[str, Any]] = None
+    with _proposal_file_lock:
+        proposals = load_proposals()
+        updated: Optional[Dict[str, Any]] = None
 
-    for p in proposals:
-        if p.get("id") == proposal_id:
-            p["status"] = status
-            p["decision"] = {
-                "decided_by": decided_by,
-                "decided_at": _now_iso(),
-                "reason": reason,
-            }
-            updated = p
-            break
+        for p in proposals:
+            if p.get("id") == proposal_id:
+                p["status"] = status
+                p["decision"] = {
+                    "decided_by": decided_by,
+                    "decided_at": _now_iso(),
+                    "reason": reason,
+                }
+                updated = p
+                break
 
-    if updated is None:
-        return None
+        if updated is None:
+            return None
 
-    save_proposals(proposals)
+        save_proposals(proposals)
 
-    # Update pending list
-    _update_state_pending(proposal_id, add=(status == "pending"))
-
-    # Record recent decision
-    _record_recent_decision(
-        proposal_id=proposal_id,
-        status=status,
-        tier=updated.get("tier_requested"),
-        decided_by=decided_by,
-        decided_at=updated["decision"]["decided_at"],
-    )
+        _update_state_pending_and_record(
+            proposal_id=proposal_id,
+            add=(status == "pending"),
+            status=status,
+            tier=updated.get("tier_requested"),
+            decided_by=decided_by,
+            decided_at=updated["decision"]["decided_at"],
+        )
 
     return updated

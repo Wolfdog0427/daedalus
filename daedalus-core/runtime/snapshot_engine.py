@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 from typing import Dict, Any, Optional
+import copy
+import threading
 import time
 
-# FIXED
 from governor.singleton import governor
 
 
@@ -21,17 +22,22 @@ class SnapshotEngine:
       - Enforce governor safety rules
     """
 
+    _MAX_SNAPSHOTS = 200
+
     def __init__(self):
+        self._lock = threading.Lock()
         self.snapshots: Dict[str, Dict[str, Any]] = {}
         self.snapshot_order: list[str] = []
         self.last_snapshot_id: Optional[str] = None
+        self._counter = 0
 
     # ------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------
 
     def _new_id(self) -> str:
-        return f"snapshot_{int(time.time() * 1000)}"
+        self._counter += 1
+        return f"snapshot_{int(time.time() * 1000)}_{self._counter}"
 
     def _governor_allows_snapshot(self) -> bool:
         """
@@ -58,17 +64,22 @@ class SnapshotEngine:
         if not self._governor_allows_snapshot():
             return None
 
-        sid = self._new_id()
+        with self._lock:
+            sid = self._new_id()
 
-        self.snapshots[sid] = {
-            "timestamp": time.time(),
-            "state": state,
-        }
+            self.snapshots[sid] = {
+                "timestamp": time.time(),
+                "state": copy.deepcopy(state),
+            }
 
-        self.snapshot_order.append(sid)
-        self.last_snapshot_id = sid
+            self.snapshot_order.append(sid)
+            self.last_snapshot_id = sid
 
-        return sid
+            if len(self.snapshot_order) > self._MAX_SNAPSHOTS:
+                evict_id = self.snapshot_order.pop(0)
+                self.snapshots.pop(evict_id, None)
+
+            return sid
 
     # ------------------------------------------------------------
     # Snapshot Diff
@@ -78,12 +89,12 @@ class SnapshotEngine:
         """
         Compute a shallow diff between two snapshots.
         """
+        with self._lock:
+            if sid_a not in self.snapshots or sid_b not in self.snapshots:
+                return None
 
-        if sid_a not in self.snapshots or sid_b not in self.snapshots:
-            return None
-
-        a = self.snapshots[sid_a]["state"]
-        b = self.snapshots[sid_b]["state"]
+            a = copy.deepcopy(self.snapshots[sid_a]["state"])
+            b = copy.deepcopy(self.snapshots[sid_b]["state"])
 
         diff = {
             "added": {},
@@ -91,17 +102,14 @@ class SnapshotEngine:
             "changed": {},
         }
 
-        # Detect added keys
         for key in b:
             if key not in a:
                 diff["added"][key] = b[key]
 
-        # Detect removed keys
         for key in a:
             if key not in b:
                 diff["removed"][key] = a[key]
 
-        # Detect changed keys
         for key in a:
             if key in b and a[key] != b[key]:
                 diff["changed"][key] = {
@@ -116,18 +124,31 @@ class SnapshotEngine:
     # ------------------------------------------------------------
 
     def get(self, sid: str) -> Optional[Dict[str, Any]]:
-        return self.snapshots.get(sid)
+        with self._lock:
+            snap = self.snapshots.get(sid)
+            return copy.deepcopy(snap) if snap is not None else None
 
     def latest(self) -> Optional[Dict[str, Any]]:
-        if not self.last_snapshot_id:
-            return None
-        return self.snapshots[self.last_snapshot_id]
+        with self._lock:
+            if not self.last_snapshot_id:
+                return None
+            snap = self.snapshots.get(self.last_snapshot_id)
+            return copy.deepcopy(snap) if snap is not None else None
+
+    def restore(self, sid: str) -> Optional[Dict[str, Any]]:
+        """Restore a previously captured snapshot. Returns a deep copy or None."""
+        with self._lock:
+            snap = self.snapshots.get(sid)
+            if snap is None:
+                return None
+            return copy.deepcopy(snap["state"])
 
     def list_all(self):
-        return [
-            {"id": sid, **self.snapshots[sid]}
-            for sid in self.snapshot_order
-        ]
+        with self._lock:
+            return [
+                {"id": sid, **copy.deepcopy(self.snapshots[sid])}
+                for sid in self.snapshot_order
+            ]
 
 
 # ------------------------------------------------------------

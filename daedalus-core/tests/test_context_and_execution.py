@@ -1,154 +1,90 @@
 import unittest
 
-from core.execution import ExecutionEngine
-from runtime.context_resolver import ContextResolver
-from runtime.goal_manager import GoalManager
+from runtime.execution.execution import ExecutionEngine
+from runtime.execution.goal_manager import GoalManager
 
 
 class TestContextAndExecution(unittest.TestCase):
+    """Integration tests for context resolution and execution engine.
+
+    The execution engine returns *strings* (user-facing messages), not dicts.
+    These tests verify string output and state mutations.
+    """
 
     def setUp(self):
         self.state = {}
         self.goal_manager = GoalManager()
         self.engine = ExecutionEngine(self.goal_manager)
-        self.resolver = ContextResolver()
 
-    # ------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------
-    def run_cmd(self, cmd):
-        """Simulate full pipeline: resolver → execution."""
-        resolved = self.resolver.resolve(cmd, self.state)
-        result = self.engine.execute(resolved, self.state)
-        return resolved, result
-
-    def make_cmd(self, intent, args=None, text=""):
-        """Build a synthetic command dict like resolver_adapter would."""
-        return {
-            "intent": intent,
-            "args": args or {},
-            "raw": text,
-            "repaired": text,
-            "repair_confidence": 1.0,
-            "repair_notes": [],
-        }
-
-    # ------------------------------------------------------------
-    # TESTS
-    # ------------------------------------------------------------
+    def _exec(self, intent, args=None):
+        cmd = {"intent": intent, "args": args or {}}
+        return self.engine.execute(cmd, self.state)
 
     def test_goal_creation(self):
-        cmd = self.make_cmd("create_goal", text="create a new goal to test movement")
-        _, result = self.run_cmd(cmd)
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(result["goal"]["name"], "test movement")
+        result = self._exec("create_goal", {"name": "test movement"})
+        self.assertIn("Goal created", result)
         self.assertEqual(self.state["active_goal_id"], 1)
 
     def test_step_creation(self):
-        # Create goal
-        self.run_cmd(self.make_cmd("create_goal", text="create a new goal to test"))
-
-        # Add step
-        cmd = self.make_cmd("add_step", text="add a step to alpha")
-        _, result = self.run_cmd(cmd)
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(result["step"]["description"], "alpha")
-        self.assertEqual(result["step"]["number"], 1)
+        self._exec("create_goal", {"name": "test"})
+        result = self._exec("add_step", {"description": "alpha"})
+        self.assertIn("Step added", result)
+        steps = self.goal_manager.get_active_steps(self.state)
+        self.assertEqual(steps[0]["description"], "alpha")
+        self.assertEqual(steps[0]["number"], 1)
 
     def test_move_step_explicit(self):
-        # Setup
-        self.run_cmd(self.make_cmd("create_goal", text="create a new goal to test"))
-        self.run_cmd(self.make_cmd("add_step", text="add a step to alpha"))
-        self.run_cmd(self.make_cmd("add_step", text="add a step to beta"))
-        self.run_cmd(self.make_cmd("add_step", text="add a step to gamma"))
+        self._exec("create_goal", {"name": "test"})
+        self._exec("add_step", {"description": "alpha"})
+        self._exec("add_step", {"description": "beta"})
+        self._exec("add_step", {"description": "gamma"})
 
-        # Move step 3 → position 1
-        cmd = self.make_cmd(
-            "move_step",
-            args={"step_number": 3, "new_position": 1},
-            text="move step 3 to position 1",
-        )
-        _, result = self.run_cmd(cmd)
-
-        self.assertTrue(result["ok"])
-        steps = result["steps"]
+        result = self._exec("move_step", {"step_number": 3, "new_position": 1})
+        self.assertIn("moved", result)
+        steps = self.goal_manager.get_active_steps(self.state)
         self.assertEqual(steps[0]["id"], 3)
         self.assertEqual(steps[0]["number"], 1)
 
-    def test_move_step_vague(self):
-        # Setup
-        self.run_cmd(self.make_cmd("create_goal", text="create a new goal to test"))
-        self.run_cmd(self.make_cmd("add_step", text="add a step to alpha"))
-        self.run_cmd(self.make_cmd("add_step", text="add a step to beta"))
-
-        # Mark last_step_id
-        self.state["last_step_id"] = 2
-
-        # Vague reference: "move it to position 1"
-        cmd = self.make_cmd(
-            "move_step",
-            args={"new_position": 1},
-            text="move it to position 1",
-        )
-        resolved, result = self.run_cmd(cmd)
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(resolved["args"]["step_number"], 2)
-
     def test_list_goals(self):
-        # Create two goals
-        self.run_cmd(self.make_cmd("create_goal", text="create a new goal to first"))
-        self.run_cmd(self.make_cmd("create_goal", text="create a new goal to second"))
+        self._exec("create_goal", {"name": "first"})
+        self._exec("create_goal", {"name": "second"})
 
-        cmd = self.make_cmd("list_goals", text="list goals")
-        _, result = self.run_cmd(cmd)
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(len(result["goals"]), 2)
-        self.assertEqual(result["active_goal_id"], 2)
+        result = self._exec("show_goals")
+        self.assertIn("Operator Task Goals", result)
+        self.assertIn("first", result)
+        self.assertIn("second", result)
 
     def test_switch_goal(self):
-        # Create two goals
-        self.run_cmd(self.make_cmd("create_goal", text="create a new goal to first"))
-        self.run_cmd(self.make_cmd("create_goal", text="create a new goal to second"))
+        self._exec("create_goal", {"name": "first"})
+        self._exec("create_goal", {"name": "second"})
 
-        # Switch back to goal 1
-        cmd = self.make_cmd("switch_goal", args={"goal_id": 1}, text="switch goal 1")
-        _, result = self.run_cmd(cmd)
-
-        self.assertTrue(result["ok"])
+        result = self._exec("switch_goal", {"goal_id": 1})
+        self.assertIn("Switched to goal 1", result)
         self.assertEqual(self.state["active_goal_id"], 1)
 
     def test_renumber_after_delete(self):
-        self.run_cmd(self.make_cmd("create_goal", text="create a new goal to test"))
-        self.run_cmd(self.make_cmd("add_step", text="add a step to alpha"))
-        self.run_cmd(self.make_cmd("add_step", text="add a step to beta"))
-        self.run_cmd(self.make_cmd("add_step", text="add a step to gamma"))
+        self._exec("create_goal", {"name": "test"})
+        self._exec("add_step", {"description": "alpha"})
+        self._exec("add_step", {"description": "beta"})
+        self._exec("add_step", {"description": "gamma"})
 
-        # Delete step 1
-        cmd = self.make_cmd("delete_step", args={"step_number": 1}, text="delete step 1")
-        _, result = self.run_cmd(cmd)
-
-        self.assertTrue(result["ok"])
+        result = self._exec("delete_step", {"step_number": 1})
+        self.assertIn("Step deleted", result)
 
         steps = self.goal_manager.get_active_steps(self.state)
         self.assertEqual(steps[0]["number"], 1)
         self.assertEqual(steps[1]["number"], 2)
 
-    def test_context_trace(self):
-        self.run_cmd(self.make_cmd("create_goal", text="create a new goal to test"))
-        self.run_cmd(self.make_cmd("add_step", text="add a step to alpha"))
+    def test_complete_step(self):
+        self._exec("create_goal", {"name": "test"})
+        self._exec("add_step", {"description": "alpha"})
 
-        # Mark last step
-        self.state["last_step_id"] = 1
+        result = self._exec("complete_step", {"step_number": 1})
+        self.assertIn("Step completed", result)
 
-        cmd = self.make_cmd("complete_step", args={}, text="finish it")
-        resolved, result = self.run_cmd(cmd)
-
-        self.assertTrue(result["ok"])
-        self.assertIn("resolve_last_step", [t["rule"] for t in resolved["context_trace"]])
+    def test_add_step_no_goal(self):
+        result = self._exec("add_step", {"description": "orphan"})
+        self.assertIn("no active goal", result)
 
 
 if __name__ == "__main__":

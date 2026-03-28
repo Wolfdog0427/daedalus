@@ -22,13 +22,15 @@ The CuriosityEngine owns the lifecycle logic.
 from __future__ import annotations
 
 import json
-import os
+import threading
 import time
 import hashlib
 from dataclasses import dataclass, field, asdict
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 from knowledge._atomic_io import atomic_write_json
+
+_goals_lock = threading.Lock()
 
 
 # ------------------------------------------------------------
@@ -67,8 +69,8 @@ class KnowledgeGoal:
     A structured intention to acquire knowledge about a topic.
 
     Lifecycle: proposed -> approved -> in_progress -> completed
-                                   \-> rejected
-                                   \-> paused (quality gate tripped)
+                                   \\-> rejected
+                                   \\-> paused (quality gate tripped)
     """
     id: str
     topic: str
@@ -114,7 +116,8 @@ def generate_goal_id(topic: str, source: str) -> str:
 def _load_goals() -> List[Dict[str, Any]]:
     _ensure_storage()
     try:
-        return json.loads(GOALS_FILE.read_text(encoding="utf-8"))
+        data = json.loads(GOALS_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
     except Exception:
         return []
 
@@ -125,22 +128,23 @@ def _save_goals(goals: List[Dict[str, Any]]) -> None:
 
 
 def save_goal(goal: KnowledgeGoal) -> None:
-    goals = _load_goals()
-    goal.updated_at = time.time()
+    with _goals_lock:
+        goals = _load_goals()
+        goal.updated_at = time.time()
 
-    existing_idx = None
-    for i, g in enumerate(goals):
-        if g.get("id") == goal.id:
-            existing_idx = i
-            break
+        existing_idx = None
+        for i, g in enumerate(goals):
+            if g.get("id") == goal.id:
+                existing_idx = i
+                break
 
-    data = asdict(goal)
-    if existing_idx is not None:
-        goals[existing_idx] = data
-    else:
-        goals.append(data)
+        data = asdict(goal)
+        if existing_idx is not None:
+            goals[existing_idx] = data
+        else:
+            goals.append(data)
 
-    _save_goals(goals)
+        _save_goals(goals)
 
 
 def load_goal(goal_id: str) -> Optional[KnowledgeGoal]:
@@ -158,28 +162,48 @@ def list_goals(
     if status:
         goals = [g for g in goals if g.get("status") == status]
     goals = goals[:limit]
-    return [_dict_to_goal(g) for g in goals]
+    return [g_obj for g in goals if (g_obj := _dict_to_goal(g)) is not None]
+
+
+_VALID_TRANSITIONS: Dict[str, set] = {
+    "proposed": {"approved", "rejected", "expired"},
+    "approved": {"in_progress", "rejected", "expired"},
+    "in_progress": {"completed", "rejected", "expired"},
+    "completed": set(),
+    "rejected": set(),
+    "expired": set(),
+}
 
 
 def update_goal_status(goal_id: str, status: str) -> bool:
-    goals = _load_goals()
-    for g in goals:
-        if g.get("id") == goal_id:
-            g["status"] = status
-            g["updated_at"] = time.time()
-            _save_goals(goals)
-            return True
-    return False
+    with _goals_lock:
+        goals = _load_goals()
+        for g in goals:
+            if g.get("id") == goal_id:
+                current = g.get("status", "proposed")
+                allowed = _VALID_TRANSITIONS.get(current)
+                if allowed is not None and status not in allowed:
+                    return False
+                g["status"] = status
+                g["updated_at"] = time.time()
+                _save_goals(goals)
+                return True
+        return False
 
 
-def _dict_to_goal(data: Dict[str, Any]) -> KnowledgeGoal:
-    phases_raw = data.pop("phases", [])
-    goal = KnowledgeGoal(**{
-        k: v for k, v in data.items()
-        if k in KnowledgeGoal.__dataclass_fields__
-    })
-    goal.phases = phases_raw
-    return goal
+def _dict_to_goal(data: Dict[str, Any]) -> Optional[KnowledgeGoal]:
+    """Convert a dict to KnowledgeGoal, returning None on malformed data."""
+    try:
+        data = dict(data)
+        phases_raw = data.pop("phases", [])
+        goal = KnowledgeGoal(**{
+            k: v for k, v in data.items()
+            if k in KnowledgeGoal.__dataclass_fields__
+        })
+        goal.phases = phases_raw
+        return goal
+    except (TypeError, KeyError):
+        return None
 
 
 # ------------------------------------------------------------

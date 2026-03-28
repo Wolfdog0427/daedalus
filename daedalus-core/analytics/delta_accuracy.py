@@ -26,6 +26,11 @@ def _iter_records() -> List[Dict[str, Any]]:
     return records
 
 
+_RISK_RANK: Dict[str, int] = {
+    "none": 0, "low": 1, "medium": 2, "high": 3, "critical": 4,
+}
+
+
 def compute_delta_accuracy() -> Dict[str, Any]:
     """
     Returns aggregate accuracy metrics for drift/stability/risk deltas.
@@ -59,10 +64,14 @@ def compute_delta_accuracy() -> Dict[str, Any]:
         rb = r.get("risk_before")
         ra = r.get("risk_after")
         if pb is not None and rb is not None and ra is not None:
+            ra_rank = _RISK_RANK.get(ra, 2)
+            rb_rank = _RISK_RANK.get(rb, 2)
             risk_total += 1
-            if pb < 0 and ra <= rb:
+            if pb < 0 and ra_rank <= rb_rank:
                 risk_matches += 1
-            elif pb > 0 and ra >= rb:
+            elif pb > 0 and ra_rank >= rb_rank:
+                risk_matches += 1
+            elif pb == 0 and ra_rank == rb_rank:
                 risk_matches += 1
 
     def _mae(values: List[float]) -> float | None:

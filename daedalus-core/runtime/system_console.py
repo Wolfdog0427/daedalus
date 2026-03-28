@@ -1,7 +1,10 @@
 # runtime/system_console.py
 
 from __future__ import annotations
+import threading
 from typing import Dict, Any
+
+_scheduler_lock = threading.Lock()
 
 # Core subsystems
 from runtime.readiness_score import compute_readiness_score
@@ -50,8 +53,9 @@ def status() -> Dict[str, Any]:
     latest = telemetry_history.latest()
 
     if latest:
-        drift = latest["metrics"]["drift"]
-        stability = latest["metrics"]["stability"]
+        metrics = latest.get("snapshot", latest).get("metrics", {})
+        drift = metrics.get("drift", {"level": "unknown"})
+        stability = metrics.get("stability", {"level": "unknown"})
     else:
         drift = {"level": "unknown"}
         stability = {"level": "unknown"}
@@ -75,8 +79,9 @@ def health() -> Dict[str, Any]:
     latest = telemetry_history.latest()
 
     if latest:
-        drift = latest["metrics"]["drift"]
-        stability = latest["metrics"]["stability"]
+        metrics = latest.get("snapshot", latest).get("metrics", {})
+        drift = metrics.get("drift", {"level": "unknown"})
+        stability = metrics.get("stability", {"level": "unknown"})
     else:
         drift = {"level": "unknown"}
         stability = {"level": "unknown"}
@@ -98,7 +103,11 @@ def run_cycle() -> Dict[str, Any]:
     """
     SHO → Metrics → Readiness → Governor → Tier Behavior → Telemetry → History
     """
+    with _scheduler_lock:
+        return _run_cycle_unlocked()
 
+
+def _run_cycle_unlocked() -> Dict[str, Any]:
     # 1. SHO cycle
     cycle_result = sho_engine.run_cycle()
 
@@ -129,9 +138,13 @@ def run_scheduler() -> Dict[str, Any]:
     """
     Cycle → Maintenance → Proposals → Review → Execution → Snapshots → Diff → Rollback → Restoration → Validation → Integrity Score
     """
+    with _scheduler_lock:
+        return _run_scheduler_unlocked()
 
+
+def _run_scheduler_unlocked() -> Dict[str, Any]:
     # 1. Adaptive cycle
-    snapshot = run_cycle()
+    snapshot = _run_cycle_unlocked()
 
     # 2. Maintenance
     maintenance = maintenance_scheduler.tick()

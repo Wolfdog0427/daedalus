@@ -32,9 +32,9 @@ def pretty_help(topic: str | None = None) -> str:
         "  help                     Show this help message\n"
         "  help <topic>             Show help for a specific command\n"
         "\n"
-        "Goals & Steps:\n"
+        "Goals & Steps (operator task goals):\n"
         "  show plan                Display the current plan\n"
-        "  show goals               Display all goals\n"
+        "  show goals               Display operator task goals\n"
         "  add step <desc>          Add a step to the active goal\n"
         "  complete step <n>        Mark a step as complete\n"
         "  delete step <n>          Delete a step\n"
@@ -51,6 +51,10 @@ def pretty_help(topic: str | None = None) -> str:
         "  watch <path>             Watch a field for changes\n"
         "  unwatch <path>           Remove a watchpoint\n"
         "  show watchpoints         List active watchpoints\n"
+        "\n"
+        "Notifications:\n"
+        "  notifications            Show unread notifications\n"
+        "  show notifications       Show all notifications\n"
         "\n"
         "Debugging:\n"
         "  debug state              Show raw state\n"
@@ -88,7 +92,7 @@ def pretty_debug_steps(state: Dict[str, Any]) -> str:
     if active is None:
         return "⚠ No active goal."
 
-    goal = next((g for g in goals if g["id"] == active), None)
+    goal = next((g for g in goals if g.get("id") == active), None)
     if not goal:
         return f"⚠ Active goal {active} not found."
 

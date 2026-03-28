@@ -15,19 +15,29 @@ Backed by simple JSON logs under data/cockpit/.
 from __future__ import annotations
 
 import json
-import os
 import time
+from pathlib import Path
 from typing import Dict, Any, Optional
 
-COCKPIT_DIR = os.path.join("data", "cockpit")
-os.makedirs(COCKPIT_DIR, exist_ok=True)
+COCKPIT_DIR = Path("data") / "cockpit"
+
+
+def _ensure_dir() -> None:
+    COCKPIT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _write_json(filename: str, payload: Dict[str, Any]) -> str:
-    path = os.path.join(COCKPIT_DIR, filename)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, sort_keys=True)
-    return path
+    _ensure_dir()
+    path = COCKPIT_DIR / filename
+    try:
+        from knowledge._atomic_io import atomic_write_json
+        atomic_write_json(path, payload)
+    except ImportError:
+        path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    return str(path)
 
 
 def capture_pipeline_snapshot(label: str, context: Dict[str, Any]) -> Dict[str, Any]:

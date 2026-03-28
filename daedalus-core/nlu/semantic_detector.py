@@ -38,8 +38,9 @@ class SemanticDetector:
         else:
             # All other verbs use intent clusters
             for family, verbs in INTENT_CLUSTERS.items():
-                if any(t in tokens for t in verbs):
-                    verb_family = family
+                matched = [t for t in tokens if t in verbs]
+                if matched:
+                    verb_family = matched[0]
                     break
 
         # ------------------------------------------------------------

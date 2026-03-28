@@ -9,7 +9,7 @@ before any hostile input reaches the core system.
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from runtime.integrity_validator import integrity_validator
 from runtime.semantic_firewall import SemanticFirewall
@@ -28,14 +28,16 @@ def hem_process_hostile_input(raw: Any) -> Any:
     Raises HostileInputRejected if any check fails.
     """
     integrity_result = integrity_validator.validate()
-    if not integrity_result.get("valid", False):
+    valid = integrity_result.get("valid", False) if isinstance(integrity_result, dict) else bool(integrity_result)
+    if not valid:
         raise HostileInputRejected("integrity_check_failed")
 
     if isinstance(raw, dict) and "intent" in raw:
-        state = raw.get("state", {})
-        firewall_result = SemanticFirewall.firewall(raw, state)
-        if firewall_result.get("blocked"):
-            raise HostileInputRejected("semantic_firewall_blocked")
-        return firewall_result.get("sanitized", raw)
+        state = raw.get("state") or {}
+        try:
+            validated = SemanticFirewall.firewall(raw, state)
+            return validated
+        except ValueError as exc:
+            raise HostileInputRejected(f"semantic_firewall_rejected: {exc}") from exc
 
     return raw

@@ -20,7 +20,7 @@ import os
 import json
 from pprint import pprint
 
-from api.ui_contract import UIContract
+from api.ui_contract import get_contract
 from runtime.logging_manager import tail
 from runtime.notification_center import list_unread
 
@@ -114,51 +114,28 @@ def inject_planned_action():
 # ---------------------------------------------------------
 
 def main():
-    ui = UIContract()
+    from runtime.system_console import health as get_system_health, run_cycle
+    from governance.proposal_engine import approve_proposal
 
     print("\n=== STEP 1: Ensure dummy file exists ===")
     ensure_dummy_file()
     print("Before patch:\n", read_dummy_file())
 
     print("\n=== STEP 2: Run SHO cycle to generate proposal ===")
-    health = ui.get_system_health()
-    patch_history = health["patch_history"]
-
-    result = ui.run_sho_cycle(
-        cycle_id="test-cycle-001",
-        drift=fake_drift(),
-        diagnostics=fake_diagnostics(),
-        stability=fake_stability(),
-        patch_history=patch_history,
-    )
-
+    result = run_cycle()
     pprint(result)
-
-    if result["status"] != "awaiting_approval":
-        print("[ERROR] Expected a Tier 3 proposal to be created.")
-        return
-
-    proposal_id = result["proposal_id"]
 
     print("\n=== STEP 3: Inject planned action into proposal ===")
     injected_id = inject_planned_action()
-    if injected_id != proposal_id:
-        print("[ERROR] Proposal ID mismatch after injection.")
+    if not injected_id:
+        print("[ERROR] No proposal to inject into.")
         return
 
     print("\n=== STEP 4: Approve proposal ===")
-    ui.approve_proposal(proposal_id, reason="Test approval")
+    approve_proposal(injected_id)
 
-    print("\n=== STEP 5: Resume SHO after approval ===")
-    health = ui.get_system_health()
-    patch_history = health["patch_history"]
-
-    resume_result = ui.resume_after_approval(
-        proposal_id=proposal_id,
-        cycle_id="test-cycle-002",
-        patch_history=patch_history,
-    )
-
+    print("\n=== STEP 5: Run another cycle after approval ===")
+    resume_result = run_cycle()
     pprint(resume_result)
 
     print("\n=== STEP 6: Show file after patch ===")
@@ -171,7 +148,7 @@ def main():
     pprint(tail(20))
 
     print("\n=== STEP 9: Final system health ===")
-    pprint(ui.get_system_health())
+    pprint(get_system_health())
 
 
 if __name__ == "__main__":

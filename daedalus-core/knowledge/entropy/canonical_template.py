@@ -16,11 +16,14 @@ This prevents the renewal layer from destroying learned knowledge.
 from __future__ import annotations
 
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from knowledge._atomic_io import atomic_write_json
+
+_template_lock = threading.Lock()
 
 CANONICAL_DIR = Path("data/entropy/canonical")
 TEMPLATE_FILE = CANONICAL_DIR / "template.json"
@@ -133,7 +136,16 @@ def load_template() -> Dict[str, Any]:
         try:
             return json.loads(TEMPLATE_FILE.read_text(encoding="utf-8"))
         except Exception:
-            pass
+            import logging
+            logging.getLogger(__name__).warning(
+                "Canonical template corrupted or unreadable — resetting to defaults. "
+                "Any custom invariants or state registry entries have been lost."
+            )
+            backup = TEMPLATE_FILE.with_suffix(".json.corrupted")
+            try:
+                TEMPLATE_FILE.rename(backup)
+            except OSError:
+                pass
     template = _default_template()
     save_template(template)
     return template
@@ -163,32 +175,57 @@ def is_permanent(path: str) -> bool:
 
 def register_state(path: str, tier: str) -> Dict[str, Any]:
     """Add a new path to the state registry. Returns the updated registry."""
-    template = load_template()
-    template["state_registry"][path] = tier
-    save_template(template)
-    return template["state_registry"]
+    with _template_lock:
+        template = load_template()
+        template["state_registry"][path] = tier
+        save_template(template)
+        return template["state_registry"]
 
 
 def add_invariant(name: str, updated_by: str = "operator") -> None:
     """Canonize a new invariant (requires operator approval upstream)."""
-    template = load_template()
-    if name not in template["invariants"]:
-        template["invariants"].append(name)
-        template["updated_by"] = updated_by
-        save_template(template)
+    with _template_lock:
+        template = load_template()
+        if name not in template["invariants"]:
+            template["invariants"].append(name)
+            template["updated_by"] = updated_by
+            save_template(template)
+
+
+_INVARIANT_MODULE_MAP: Dict[str, str] = {
+    "identity.core": "runtime.identity_coherence",
+    "governance.tier_system": "governance.runtime_binding",
+    "governance.operator_sovereignty": "governance.safety_invariants",
+    "governance.constitutional_guard": "governance.kernel",
+    "posture.modes": "runtime.posture_registry",
+    "defense.circuit_breaker": "governance.kernel",
+    "defense.regression_detector": "knowledge.stability_engine",
+    "defense.coordinator": "knowledge.integration_layer",
+    "telemetry.schema": "runtime.telemetry_cockpit",
+    "knowledge.verification_pipeline": "knowledge.batch_ingestion",
+    "knowledge.trust_scoring": "knowledge.trust_scoring",
+    "knowledge.consistency_checker": "knowledge.consistency_checker",
+}
 
 
 def check_invariants() -> Dict[str, Any]:
-    """Verify that all canonical invariants are present in the system."""
+    """Verify that all canonical invariants are present in the system.
+
+    Uses an explicit mapping from invariant names to their implementing
+    modules, since invariants are cross-cutting concerns that don't
+    necessarily live under a single 'knowledge/' path.
+    """
     template = load_template()
     present = []
     missing = []
     for inv in template["invariants"]:
-        module_name = inv.replace(".", "_")
+        module_path = _INVARIANT_MODULE_MAP.get(inv)
+        if module_path is None:
+            module_path = f"knowledge.{inv.replace('.', '_')}"
         try:
-            __import__(f"knowledge.{module_name}", fromlist=["_"])
+            __import__(module_path, fromlist=["_"])
             present.append(inv)
-        except ImportError:
+        except Exception:
             missing.append(inv)
     return {
         "total": len(template["invariants"]),

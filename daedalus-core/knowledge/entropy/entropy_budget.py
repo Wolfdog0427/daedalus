@@ -90,8 +90,9 @@ def compute_entropy_budget(root: Path = Path("data")) -> Dict[str, Any]:
         if not item.is_file():
             continue
         try:
-            size = item.stat().st_size
-            mtime = item.stat().st_mtime
+            st = item.stat()
+            size = st.st_size
+            mtime = st.st_mtime
         except Exception:
             continue
 

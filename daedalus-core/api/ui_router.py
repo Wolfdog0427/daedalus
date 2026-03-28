@@ -30,6 +30,7 @@ def _wrap(command: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     schema = contract["commands"].get(command)
 
     return {
+        "ok": True,
         "version": contract["version"],
         "command": command,
         "schema": schema,
@@ -116,6 +117,7 @@ def route(request: Dict[str, Any]) -> Dict[str, Any]:
     # ------------------------------------------------------------
 
     return {
+        "ok": False,
         "version": get_contract()["version"],
         "error": f"Unknown command: {command}",
         "supported_commands": list(get_contract()["commands"].keys()),
